@@ -1,0 +1,298 @@
+/* Symbol Selector Styles */
+
+.symbolSelector {
+  position: relative;
+  z-index: 1002;
+  min-width: 200px;
+}
+
+/* Selected Button */
+.selectedButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid #444;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  gap: 12px;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.selectedButton:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #666;
+}
+
+.symbolInfo {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex: 1;
+}
+
+.symbol {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.pair {
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
+}
+
+.priceInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.change {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.change.positive {
+  color: #00d084;
+}
+
+.change.negative {
+  color: #ff4757;
+}
+
+.arrow {
+  transition: transform 0.2s ease;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown */
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  margin-top: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1003;
+  max-height: 320px;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+}
+
+/* Search Box */
+.searchBox {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #444;
+  gap: 8px;
+}
+
+.searchIcon {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: #666;
+}
+
+/* Symbol List */
+.symbolList {
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.symbolItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  gap: 12px;
+  width: 100%;
+}
+
+.symbolItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.symbolItem.selected {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid #ff6b6b;
+}
+
+.itemMain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1;
+}
+
+.itemSymbol {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.itemName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.itemPair {
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
+}
+
+.exchange {
+  font-size: 10px;
+  color: #666;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.itemPrice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.priceValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.changeValue {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.noResults {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  gap: 12px;
+  color: #666;
+  font-size: 14px;
+}
+
+.noResults svg {
+  opacity: 0.5;
+}
+
+/* Light Theme */
+.symbolSelector.light .selectedButton {
+  background: #fff;
+  border-color: #ddd;
+  color: #000;
+}
+
+.symbolSelector.light .selectedButton:hover {
+  background: #f8f9fa;
+  border-color: #ccc;
+}
+
+.symbolSelector.light .dropdown {
+  background: #fff;
+  border-color: #ddd;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.symbolSelector.light .searchBox {
+  border-bottom-color: #ddd;
+}
+
+.symbolSelector.light .searchInput {
+  color: #000;
+}
+
+.symbolSelector.light .searchInput::placeholder {
+  color: #999;
+}
+
+.symbolSelector.light .symbolItem:hover {
+  background: #f8f9fa;
+}
+
+.symbolSelector.light .itemSymbol .itemName,
+.symbolSelector.light .priceValue {
+  color: #000;
+}
+
+.symbolSelector.light .itemPair,
+.symbolSelector.light .pair {
+  color: #666;
+}
+
+.symbolSelector.light .exchange {
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+}
+
+.symbolSelector.light .noResults {
+  color: #999;
+}
+
+/* Scrollbar Styling */
+.symbolList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.symbolList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.symbolList::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 2px;
+}
+
+.symbolList::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

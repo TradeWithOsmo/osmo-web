@@ -1,0 +1,42 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Satoshi', sans-serif;
+  line-height: 1.5;
+  color: #12000A;
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #f9fafb;
+    background: #12000A;
+  }
+}
+
+/* Hide scrollbar globally */
+/* Chrome, Safari, Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Firefox, IE, Edge */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}

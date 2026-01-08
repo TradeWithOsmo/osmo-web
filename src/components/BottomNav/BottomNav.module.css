@@ -1,0 +1,40 @@
+.bottomNav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background-color: #12000A;
+    border-top: 1px solid #3A2530;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+}
+
+.navItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #A77590;
+    font-size: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    flex: 1;
+}
+
+.navItem.active {
+    color: #FFE1F2;
+}
+
+.navItem svg {
+    margin-bottom: 4px;
+    stroke: currentColor;
+}
+
+/* Center Trade Button specific styling if requested, but for now standard items */
+.navItem:nth-child(2) svg {
+    /* Optional: make middle icon distinct if needed */
+}

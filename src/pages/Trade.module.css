@@ -1,0 +1,270 @@
+.pageContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #000;
+    /* Default bg */
+    overflow: hidden;
+}
+
+.mainContent {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    padding-bottom: 0;
+}
+
+/* Desktop Layout Classes */
+
+
+.topSection {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    min-height: 300px;
+    overflow: hidden;
+    position: relative;
+}
+
+.chartContainer {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.orderFormContainer {
+    width: 320px;
+    border-left: 1px solid #3A2530;
+    background-color: #12000A;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    flex-shrink: 0;
+}
+
+/* Mobile Tab Navigation */
+.mobileTabs {
+    display: none;
+}
+
+.mobileMainContainer {
+    display: none;
+}
+
+/* Order Book Container */
+.orderBookContainer {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+    border-left: 1px solid #3A2530;
+    height: 100%;
+    flex-shrink: 0;
+    background-color: #12000A;
+}
+
+.positionsSection {
+    width: 100%;
+    z-index: 10;
+    flex-shrink: 0;
+    position: relative;
+    background-color: #11050D;
+    /* Ensure it sits below chartRow */
+}
+
+/* MOBILE AND TABLET STYLES */
+@media (max-width: 1024px) {
+    .mainContent {
+        flex-direction: column;
+        padding-bottom: 50px;
+        /* Adjusted to reduce gap */
+    }
+
+    /* Hide Desktop-specific layouts */
+    .orderFormContainer {
+        display: none !important;
+    }
+
+    .topSection {
+        display: none !important;
+    }
+
+    .positionsSection {
+        display: none !important;
+    }
+
+    /* Mobile specific structure */
+    .mobileMainContainer {
+        display: flex !important;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    /* Tab Header */
+    .mobileTabs {
+        display: flex;
+        flex-direction: row;
+        height: 48px;
+        background-color: #12000A;
+        border-bottom: 1px solid #3A2530;
+        flex-shrink: 0;
+    }
+
+    .mobileTab {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #A77590;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+    }
+
+    .mobileTab.active {
+        color: #FFE1F2;
+        border-bottom: 2px solid #FFE1F2;
+        background-color: rgba(255, 225, 242, 0.05);
+    }
+
+    /* Content Areas */
+    .mobileContentArea {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    /* Override widths for mobile */
+    /* Override widths for mobile */
+    .chartContainer,
+    .orderBookContainer {
+        width: 100% !important;
+        flex: 1 !important;
+        height: 100% !important;
+        border: none;
+        min-height: 0;
+    }
+
+    /* Side-by-Side OrderForm & OrderBook for Trade Tab */
+    .tradeTabRow {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        flex: 1;
+        min-height: 200px;
+        overflow: hidden;
+        border-bottom: 1px solid #3A2530;
+    }
+
+    .tradeTabRow .orderFormContainer,
+    .tradeTabRow .orderBookContainer {
+        display: flex !important;
+        width: 50% !important;
+        border: none;
+        height: 100% !important;
+        position: relative !important;
+    }
+
+    .tradeTabRow .orderBookContainer {
+        border-right: 1px solid #3A2530;
+    }
+
+    .tradeTabRow .orderFormContainer {
+        border-left: none;
+        background-color: #12000A;
+    }
+
+    /* Positions Adjustment for Mobile */
+    .mobilePositionsContainer {
+        height: auto;
+        border-top: 1px solid #3A2530;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+    }
+}
+
+/* Bottom Navigation Wrapper - Hidden by default (Desktop) */
+.bottomNavWrapper {
+    display: none;
+}
+
+/* Show Bottom Nav on Tablet and Mobile */
+@media (max-width: 1024px) {
+    .bottomNavWrapper {
+        display: block;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+        border-top: 1px solid #3A2530;
+    }
+}
+
+/* Force Chart and OrderBook to strictly fill via Absolute Positioning */
+.chartContainer,
+.orderBookContainer {
+    position: relative !important;
+    overflow: hidden;
+    contain: layout size style;
+}
+
+.chartContainer>div,
+.orderBookContainer>div {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden;
+}
+
+/* Placeholder Container Styles for Markets & Account tabs */
+.placeholderContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 400px;
+    width: 100%;
+    background: linear-gradient(180deg, #12000A 0%, #1A0510 100%);
+}
+
+.placeholderContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px;
+    text-align: center;
+}
+
+.placeholderContent svg {
+    opacity: 0.6;
+}
+
+.placeholderTitle {
+    font-size: 24px;
+    font-weight: 600;
+    color: #FFE1F2;
+    margin: 0;
+}
+
+.placeholderText {
+    font-size: 14px;
+    color: #A77590;
+    margin: 0;
+    max-width: 280px;
+}

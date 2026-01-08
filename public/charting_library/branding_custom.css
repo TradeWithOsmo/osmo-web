@@ -1,0 +1,491 @@
+/* ========================================= */
+/*       Loading Screen Fix                   */
+/* ========================================= */
+
+/* Loading Screen Background */
+.tv-spinner,
+[class*="loading-"],
+[class*="loader-"],
+[class*="spinner-"],
+.chart-loading-screen,
+.loading-screen {
+    background-color: #12000A !important;
+}
+
+/* Loading Spinner Color */
+.tv-spinner__spinner,
+.tv-spinner svg,
+[class*="loader-"] svg,
+[class*="spinner-"] svg,
+[class*="spinner-"] circle,
+.tv-spinner circle,
+.chart-loading-screen svg circle {
+    stroke: #FFE1F2 !important;
+    border-color: #FFE1F2 transparent transparent transparent !important;
+}
+
+/* Hide default blue spinner */
+[class*="css-loader"],
+[class*="cssLoader"] {
+    border-top-color: #FFE1F2 !important;
+    border-right-color: transparent !important;
+    border-bottom-color: transparent !important;
+    border-left-color: transparent !important;
+}
+
+/* ========================================= */
+/*       Aggressive Theme Overrides          */
+/* ========================================= */
+
+/* Force entire document background */
+html,
+body,
+#overlap-manager-root {
+    background-color: transparent !important;
+}
+
+/* 1. Main Containers - Force Theme Color */
+.tv-side-toolbar,
+.drawing-toolbar,
+.chart-controls-bar,
+.layout__area--left,
+.layout__area--top,
+.layout__area--bottom,
+.layout__area--center,
+.chart-container,
+.chart-page,
+[class*="drawingToolbar"],
+[class*="toolbar-"],
+[class*="scrollWrap-"],
+[class*="group-"],
+[class*="drawingTools-"],
+[class*="header-"],
+[class*="headerRow-"],
+[class*="inner-"] [class*="divider"] {
+    background-color: #12000A !important;
+    border-bottom: 1px solid #3A2530 !important;
+}
+
+/* Top Header Bar Specific */
+.layout__area--top {
+    height: 39px !important;
+    min-height: 39px !important;
+    border-bottom: 1px solid #3A2530 !important;
+    box-shadow: inset 0 -1px 0 0 #3A2530 !important;
+    z-index: 100 !important;
+}
+
+[class*="headerRow-"] {
+    height: 60px !important;
+    min-height: 60px !important;
+    border-bottom: 1px solid #3A2530 !important;
+}
+
+.layout__area--top div,
+[class*="headerRow-"] div {
+    background-color: transparent !important;
+    color: #A77590 !important;
+}
+
+.layout__area--top button,
+[class*="headerRow-"] button {
+    background-color: transparent !important;
+    color: #A77590 !important;
+}
+
+
+/* Force NO background or border on hover for top bar buttons */
+.layout__area--top button:hover,
+[class*="headerRow-"] button:hover,
+.layout__area--top [class*="button-"]:hover,
+[class*="headerRow-"] [class*="button-"]:hover,
+.layout__area--top button:hover *,
+[class*="headerRow-"] button:hover *,
+.layout__area--top button:hover::before,
+[class*="headerRow-"] button:hover::before,
+.layout__area--top button:hover::after,
+[class*="headerRow-"] button:hover::after {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: #FFE1F2 !important;
+    fill: #FFE1F2 !important;
+}
+
+/* 2. Transparent Inner Layers (Nuclear Fix) */
+.tv-side-toolbar div,
+.drawing-toolbar div,
+[class*="drawingToolbar"] div {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+/* 3. Restore Borders for key dividers */
+.chart-page .layout__area--left,
+.drawing-toolbar {
+    border-right: 1px solid #563748 !important;
+}
+
+.chart-page .layout__area--bottom,
+.bottom-widget-bar,
+[class*="bottomWidget"] {
+    border-top: 1px solid #563748 !important;
+}
+
+/* 4. Bottom Toolbar & Date Ranges */
+.date-range-wrapper,
+[class*="dateRange"] {
+    background-color: #19010E !important;
+}
+
+/* Bottom Toolbar - Force transparency on ALL nested divs */
+.layout__area--bottom div,
+.chart-controls-bar div,
+[class*="bottomWidget"] div,
+[class*="dateRange"] div {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+/* 5. Interactive Elements (Buttons) - General */
+.button,
+div[class*="button"],
+button,
+[class*="toggleButton-"],
+[class*="menu-"] {
+    background-color: transparent !important;
+    color: #A77590 !important;
+}
+
+/* Hover/Active States */
+.button.active,
+.button:hover,
+div[class*="button"].active,
+div[class*="button"]:hover,
+button:hover,
+button.active,
+[class*="toggleButton-"]:hover {
+    background-color: #563748 !important;
+    color: #FFE1F2 !important;
+    border-radius: 4px;
+}
+
+/* 6. Icons - SAFER SMART RECOLORING */
+/* Base Colors */
+.tv-side-toolbar,
+.drawing-toolbar,
+.layout__area--bottom,
+.tv-dialog,
+.popup-menu,
+.pane-legend {
+    color: #A77590 !important;
+}
+
+/* Active/Hover Colors */
+.tv-side-toolbar .active,
+.tv-side-toolbar :hover,
+.drawing-toolbar .active,
+.drawing-toolbar :hover,
+.button:hover,
+.button.active,
+.pane-legend :hover {
+    color: #FFE1F2 !important;
+}
+
+/* SVG Base Rule: Default to current color fill */
+svg {
+    fill: currentColor !important;
+}
+
+/* Handle Stroke-based Icons (Eye, Gear, etc) on any level */
+/* We force the stroke color but DO NOT reset width/style */
+svg[stroke],
+svg path[stroke],
+svg circle[stroke],
+svg rect[stroke],
+svg polyline[stroke] {
+    stroke: currentColor !important;
+}
+
+/* Explicitly Preserve 'none' fillings to prevent solid blobs */
+svg[fill="none"],
+svg path[fill="none"],
+svg circle[fill="none"],
+svg rect[fill="none"] {
+    fill: none !important;
+}
+
+/* Explicitly Preserve 'none' strokes */
+svg[stroke="none"],
+svg path[stroke="none"] {
+    stroke: none !important;
+}
+
+
+/* 7. Context Menu (Right Click) */
+.tv-dialog,
+.popup-menu,
+.context-menu-wrapper,
+[class*="menuWrap-"],
+[class*="popup-"],
+[class*="menuBox-"] {
+    background-color: #19010E !important;
+    border: 1px solid #563748 !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Scoped Menu Items (Avoid Legend) */
+.context-menu-wrapper [class*="item-"],
+.context-menu-wrapper [class*="row-"],
+.popup-menu [class*="item-"],
+.popup-menu [class*="row-"],
+[class*="menuBox-"] [class*="item-"] {
+    background-color: #19010E !important;
+    color: #FFE1F2 !important;
+}
+
+.context-menu-wrapper [class*="item-"]:hover,
+.context-menu-wrapper [class*="row-"]:hover,
+.popup-menu [class*="item-"]:hover,
+[class*="menuBox-"] [class*="item-"]:hover,
+[class*="item-"].isActive {
+    background-color: #563748 !important;
+}
+
+/* 8. Chart Legend Fix (Transparent Container, Solid Buttons) */
+.pane-legend,
+.legend-source,
+[class*="paneLegend-"],
+[class*="legend-"],
+[class*="titlesWrapper-"],
+[class*="valuesWrapper-"],
+[class*="series-"] {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+[class*="paneLegend-"] span,
+[class*="legend-"] span,
+[class*="series-"] span {
+    color: inherit !important;
+    background-color: transparent !important;
+}
+
+/* FIX: Restore fill for Legend Buttons (Eye, Gear, X) */
+/* These need a solid background to cover grid lines and look clickable */
+[class*="paneLegend-"] button,
+[class*="paneLegend-"] div[class*="button-"],
+[class*="legend-"] button,
+[class*="legend-"] div[class*="button-"] {
+    background-color: #19010E !important;
+    border-radius: 4px;
+    margin-left: 2px;
+    opacity: 1 !important;
+}
+
+/* Hover State for Legend Buttons */
+[class*="paneLegend-"] button:hover,
+[class*="paneLegend-"] div[class*="button-"]:hover,
+[class*="legend-"] button:hover,
+[class*="legend-"] div[class*="button-"]:hover {
+    background-color: #563748 !important;
+    color: #FFE1F2 !important;
+}
+
+/* 9. Branding Logo */
+.tv-logo,
+.tv-control-logo,
+[class*="tv-chart-brand"],
+a[href*="tradingview.com"] {
+    display: flex !important;
+    background-color: #240114 !important;
+    border: 1px solid #563748 !important;
+    border-radius: 20px !important;
+    padding: 2px 8px !important;
+    box-shadow: none !important;
+}
+
+/* 10. Hide Fillers */
+/* 10. Hide Fillers */
+[class*="scrollShadow-"] {
+    background-color: transparent !important;
+    display: none !important;
+}
+
+/* Spacer to push Settings/Camera to the right */
+[class*="fill-"],
+[class*="filler-"] {
+    background-color: transparent !important;
+    display: block !important;
+    flex-grow: 1 !important;
+    width: auto !important;
+    min-width: 20px !important;
+}
+
+/* 11. NUCLEAR FIX for Bottom Status Buttons (%, log, auto) */
+.layout__area--bottom button,
+.layout__area--bottom button *,
+.layout__area--bottom button::before,
+.layout__area--bottom button::after,
+[class*="statuses-"] button,
+[class*="statuses-"] button *,
+[class*="statuses-"] button::before,
+[class*="statuses-"] button::after,
+button[class*="btn-"],
+button[class*="btn-"] *,
+button[class*="btn-"]::before,
+button[class*="btn-"]::after {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* Hover States - Only the button itself gets the purple background */
+.layout__area--bottom button:hover,
+[class*="statuses-"] button:hover,
+[class*="statuses-"] button.active,
+button[class*="btn-"]:hover {
+    background-color: #563748 !important;
+    color: #FFE1F2 !important;
+    border-radius: 4px !important;
+}
+
+/* Ensure pseudo-elements and children don't create the double effect */
+.layout__area--bottom button:hover *,
+.layout__area--bottom button:hover::before,
+.layout__area--bottom button:hover::after,
+[class*="statuses-"] button:hover *,
+[class*="statuses-"] button:hover::before,
+[class*="statuses-"] button:hover::after {
+    background-color: transparent !important;
+}
+
+/* 12. Floating Toolbar Fix */
+.tv-floating-toolbar,
+[class*="floatingToolbar-"],
+[class*="widget-"],
+[class*="floating-"] {
+    background-color: #19010E !important;
+    border-color: #563748 !important;
+}
+
+.tv-floating-toolbar__drag,
+[class*="dragHandler-"],
+[class*="handler-"] {
+    background-color: #240114 !important;
+    border-right: 1px solid #563748 !important;
+}
+
+.tv-floating-toolbar__widget,
+[class*="widget-"] {
+    border-color: #563748 !important;
+}
+
+/* 13. SIDEBAR DIVIDERS FIX */
+.tv-side-toolbar .separator-3cgsM4cO,
+.drawing-toolbar .separator-3cgsM4cO,
+[class*="separator-"],
+.tv-side-toolbar hr,
+.drawing-toolbar hr {
+    background-color: #563748 !important;
+    border-color: #563748 !important;
+    border-top: 1px solid #563748 !important;
+    color: #563748 !important;
+    opacity: 1 !important;
+    height: 1px !important;
+    min-height: 1px !important;
+}
+
+/* 14. GENERAL DIALOGS (Indicators, Settings, etc.) */
+.tv-dialog,
+div[class*="dialog-"],
+div[class*="dialogWrapper-"],
+div[class*="popup-"] {
+    background-color: #19010E !important;
+    border: 1px solid #563748 !important;
+    color: #FFE1F2 !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+div[class*="title-"],
+.tv-dialog__title {
+    color: #FFE1F2 !important;
+    background-color: transparent !important;
+}
+
+input[class*="input-"],
+input[class*="search-"] {
+    background-color: #0d0007 !important;
+    border: 1px solid #563748 !important;
+    color: #FFE1F2 !important;
+}
+
+input[class*="input-"]:focus,
+input[class*="search-"]:focus {
+    border-color: #FFE1F2 !important;
+    background-color: #1a010f !important;
+}
+
+div[class*="dialog-"] div[class*="item-"],
+div[class*="dialog-"] div[class*="row-"],
+div[class*="dialog-"] div[class*="cell-"] {
+    background-color: transparent !important;
+    color: #FFE1F2 !important;
+    border-color: #563748 !important;
+}
+
+div[class*="dialog-"] div[class*="item-"]:hover,
+div[class*="dialog-"] div[class*="row-"]:hover,
+div[class*="dialog-"] div[class*="cell-"]:hover,
+div[class*="dialog-"] div[class*="item-"].active,
+div[class*="dialog-"] div[class*="row-"].active {
+    background-color: #563748 !important;
+    color: #FFE1F2 !important;
+}
+
+div[class*="close-"] svg,
+button[class*="close-"] svg {
+    fill: #A77590 !important;
+}
+
+div[class*="close-"]:hover svg,
+button[class*="close-"]:hover svg {
+    fill: #FFE1F2 !important;
+}
+
+div[class*="tab-"].active,
+div[class*="tab-"][class*="active"] {
+    color: #FFE1F2 !important;
+    border-bottom: 2px solid #563748 !important;
+}
+
+div[class*="sidebar-"] {
+    border-right: 1px solid #563748 !important;
+}
+
+/* 15. Hide Save Button, Dropdown, Manage Layouts & Indicator Templates */
+[data-name="save-load-chart"],
+[class*="save-load-"],
+button[id="header-toolbar-save-load"],
+[class*="save-button"],
+#header-toolbar-save-load,
+.save-load-buttons,
+[title="Manage layouts"],
+[class*="manage-layouts"],
+[data-name="manage-layouts"],
+[aria-label="Manage layouts"],
+.layout-toggle,
+[class*="layout-toggle"],
+[class*="layoutButton-"],
+[data-name="study-templates"],
+[data-name="templates"],
+#header-toolbar-study-templates,
+[class*="studyTemplates"],
+[title="Indicator Templates"],
+[class*="templates-"],
+#study-templates {
+    display: none !important;
+}
