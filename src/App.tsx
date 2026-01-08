@@ -17,11 +17,12 @@ function App() {
   const navItems = [
     { label: 'Trade', href: '/trade', isActive: currentRoute === '/trade' || currentRoute === '/autos' },
 
+    { label: 'Strategies', href: '/strategies', isActive: currentRoute === '/strategies' },
     { label: 'Portfolio', href: '/portfolio', isActive: currentRoute.startsWith('/portfolio') },
 
     // { label: 'Points', href: '/points', isActive: currentRoute === '/points' },
 
-    // { label: 'Leaderboard', href: '/leaderboard', isActive: currentRoute === '/leaderboard' },
+    { label: 'Leaderboard', href: '/leaderboard', isActive: currentRoute === '/leaderboard' },
   ];
 
   const handleNavClick = (href: string) => {
