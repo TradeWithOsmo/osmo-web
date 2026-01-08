@@ -1,0 +1,815 @@
+.container {
+    background-color: #12000A;
+    border-left: 1px solid #3A2530;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    color: #FFE1F2;
+    overflow: hidden;
+    /* Prevent body scroll, use scrollContent instead */
+}
+
+/* New Scrollable Area */
+.scrollContent {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 150px;
+    /* Spacer for dropdowns */
+    -ms-overflow-style: none;
+    /* Hide scrollbar for cleaner look */
+    scrollbar-width: none;
+}
+
+.scrollContent::-webkit-scrollbar {
+    display: none;
+}
+
+/* 1. Account Header */
+/* Sticky Container for Header + Stats + Tabs */
+.stickyHeaderContainer {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #12000A;
+}
+
+/* 1. Account Header */
+.header {
+    padding: 10px 13px;
+    border-bottom: 1px solid #3A2530;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* Sticky moved to container */
+}
+
+.headerTitle {
+    font-size: 14px;
+    font-weight: 500;
+    color: #FFE1F2;
+}
+
+.manageFundsBtn {
+    background-color: #3A2530;
+    /* Dark purple/brown bg */
+    border: 1px solid #3A2530;
+    border-radius: 14px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.manageFundsBtn:hover {
+    border-color: #5D5FEF;
+    color: #FFE1F2;
+}
+
+/* 2. Stats Grid */
+.statsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid #3A2530;
+}
+
+.statBox {
+    padding: 12px 16px;
+    border-bottom: 1px solid #3A2530;
+    /* For top row */
+    border-right: 1px solid #3A2530;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.statBox:nth-child(2n) {
+    border-right: none;
+}
+
+.statBox:nth-last-child(-n+2) {
+    border-bottom: none;
+}
+
+.statLabel {
+    font-size: 12px;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.statValue {
+    font-size: 15px;
+    color: #FFE1F2;
+    font-weight: 500;
+}
+
+.ringGreen {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #00E396;
+}
+
+.bars {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 10px;
+}
+
+.bar {
+    width: 3px;
+    background-color: #3A2530;
+    border-radius: 1px;
+}
+
+.bar.active {
+    background-color: #00E396;
+}
+
+/* 3. Main Tabs (Limit, Market, Stop Limit) */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #3A2530;
+}
+
+.tab {
+    flex: 1;
+    padding: 14px 0;
+    text-align: center;
+    font-size: 14px;
+    color: #A77590;
+    cursor: pointer;
+    position: relative;
+    background: none;
+    border: none;
+}
+
+.tab:hover {
+    color: #FFE1F2;
+}
+
+.tab.active {
+    color: #FFE1F2;
+    background-color: #240114;
+    /* Slight highlight */
+}
+
+/* 4. Buy/Sell Toggle */
+.buySellContainer {
+    padding: 0;
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #3A2530;
+}
+
+.tradeBtn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 0;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    background: transparent;
+    color: #6a6d78;
+    /* Inactive text color, similar to screenshot grey */
+}
+
+.tradeBtn.buy.active {
+    background-color: rgba(0, 227, 150, 0.15);
+    /* Dark Green Tint */
+    border-bottom-color: #00E396;
+    color: #00E396;
+}
+
+.tradeBtn.sell.active {
+    background-color: rgba(255, 69, 96, 0.15);
+    /* Dark Red Tint */
+    border-bottom-color: #FF4560;
+    color: #FF4560;
+}
+
+.tradeBtn.inactive {
+    background-color: transparent;
+    color: #868993;
+}
+
+.tradeBtn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 5. Inputs Area */
+.formArea {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.inputWrapper {
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.inputLabelRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #A77590;
+}
+
+.inputRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.inputMain {
+    background: transparent;
+    border: none;
+    color: #FFE1F2;
+    font-size: 16px;
+    outline: none;
+    width: 100%;
+}
+
+/* Helper Pills (Fill, Mid, etc) */
+.pillsRow {
+    display: flex;
+    gap: 6px;
+    margin-top: -8px;
+    /* Pull closer to input above if needed, or just gap */
+    padding: 0 16px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+}
+
+.pill {
+    background-color: #3A2530;
+    border: 1px solid #3A2530;
+    color: #A77590;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.pill:hover {
+    border-color: #A77590;
+    color: #FFE1F2;
+}
+
+/* Dual Inputs */
+.dualInputRow {
+    display: flex;
+    gap: 12px;
+}
+
+.badges {
+    background-color: #3A2530;
+    border: 1px solid #3A2530;
+    color: #A77590;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+/* Advanced Accordion */
+.advancedToggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #FFE1F2;
+    cursor: pointer;
+    padding: 0 16px;
+    margin-top: 8px;
+}
+
+/* Add Trigger / Clear */
+.triggerRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 16px;
+    margin-top: 24px;
+}
+
+.roundBtn {
+    border: 1px solid #3A2530;
+    background-color: #12000A;
+    color: #FFE1F2;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.clearBtn {
+    border: 1px solid #3A2530;
+    background-color: #12000A;
+    color: #FF4560;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Summary */
+/* Summary & Footer Redesign */
+.summaryContainer {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.summaryControlsRow {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+}
+
+.textBtnRed {
+    background: none;
+    border: 1px solid rgba(255, 69, 96, 0.3);
+    color: #FF4560;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 12px;
+    border-radius: 14px;
+    transition: all 0.2s;
+}
+
+.textBtnRed:hover {
+    background-color: rgba(255, 69, 96, 0.1);
+    border-color: #FF4560;
+}
+
+.vDivider {
+    width: 1px;
+    height: 16px;
+    background-color: #3A2530;
+}
+
+.receiptToggleBtn {
+    background: none;
+    border: 1px solid #3A2530;
+    color: #A77590;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 14px;
+    transition: all 0.2s;
+}
+
+.receiptToggleBtn:hover,
+.receiptToggleBtn.active {
+    border-color: #A77590;
+    color: #FFE1F2;
+    background-color: rgba(58, 37, 48, 0.5);
+}
+
+.receiptDetails {
+    /* No bg, just border for clean look */
+    background-color: transparent;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.summaryRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    /* Aligns items to top if multi-line, but mainly ensures separation */
+    gap: 12px;
+}
+
+.summaryLabelDotted {
+    font-size: 13px;
+    color: #A77590;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.summaryValue {
+    font-size: 13px;
+    color: #FFE1F2;
+    font-weight: 500;
+    text-align: right;
+}
+
+.mainActionBtn {
+    width: 100%;
+    padding: 16px;
+    background-color: transparent;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    color: #868993;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: not-allowed;
+    transition: all 0.2s;
+}
+
+.mainActionBtn:hover {
+    border-color: #50535E;
+}
+
+/* Leverage Slider Section */
+.leverageContainer {
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.leverageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #A77590;
+}
+
+.leverageValue {
+    color: #FFE1F2;
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.badgeNone {
+    background-color: #3A2530;
+    border: 1px solid #3A2530;
+    color: #A77590;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.leverageControls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.leverageInput {
+    background-color: #3A2530;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    color: #FFE1F2;
+    width: 50px;
+    padding: 4px 6px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.sliderTrack {
+    flex: 1;
+    height: 6px;
+    background-color: #3A2530;
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.sliderFill {
+    position: absolute;
+    height: 100%;
+    background-color: #00E396;
+    border-radius: 3px;
+    top: 0;
+    left: 0;
+}
+
+.sliderThumb {
+    width: 6px;
+    height: 6px;
+    background-color: #12000A;
+    border: 2px solid #00E396;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+}
+
+/* Dots on slider */
+.sliderDots {
+    position: absolute;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+    pointer-events: none;
+}
+
+.dot {
+    width: 2px;
+    height: 2px;
+    background-color: #3A2530;
+    border-radius: 50%;
+}
+
+.toggleSwitch {
+    display: flex;
+    align-items: center;
+    background-color: #3A2530;
+    border-radius: 12px;
+    padding: 2px;
+    cursor: pointer;
+    width: 36px;
+    height: 20px;
+    position: relative;
+}
+
+.toggleSwitch.active {
+    background-color: #A77590;
+}
+
+.toggleKnob {
+    width: 16px;
+    height: 16px;
+    background-color: #FFE1F2;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+/* Dropdown Menu */
+.dropdownMenu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background-color: #3A2530;
+    border: 1px solid #3A2530;
+    border-radius: 6px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    min-width: 100px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dropdownItem {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #A77590;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.dropdownItem:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+/* Market Order Input Styles */
+.marketInputContainer {
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.marketInputColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.swapButton {
+    min-width: 40px;
+    height: 40px;
+    background-color: #3A2530;
+    /* Darker tone */
+    border: 1px solid #3A2530;
+    /* Subtle border */
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #FFE1F2;
+    transition: all 0.2s;
+    margin-left: 12px;
+}
+
+/* Advanced Section Content */
+.advancedContent {
+    background-color: #12000A;
+    /* Or transparent if preferred */
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.advancedGrid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    /* TIF takes slightly more space */
+    gap: 12px;
+}
+
+.advancedInputBox {
+    background-color: #3A2530;
+    border: 1px solid #3A2530;
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    position: relative;
+    min-height: 52px;
+    justify-content: center;
+}
+
+.advancedLabel {
+    font-size: 11px;
+    color: #A77590;
+    margin-bottom: 2px;
+}
+
+.advancedValue {
+    font-size: 14px;
+    color: #FFE1F2;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.daysSelector {
+    background-color: #3A2530;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: #FFE1F2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.checkboxRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkbox {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    background-color: #12000A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.checkbox.checked {
+    background-color: #3A2530;
+    border-color: #A77590;
+}
+
+.checkMark {
+    width: 10px;
+    height: 10px;
+    background-color: #A77590;
+    border-radius: 2px;
+}
+
+.checkboxLabel {
+    font-size: 14px;
+    color: #A77590;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+}
+
+.advancedToggleHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    margin-top: 8px;
+    cursor: pointer;
+    color: #A77590;
+    font-size: 13px;
+    width: 100%;
+}
+
+/* TP/SL Section */
+.tpslContainer {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tpslGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.tpslInput {
+    background-color: #3A2530;
+    border: 1px solid #3A2530;
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 52px;
+    cursor: pointer;
+}
+
+.tpslLabel {
+    font-size: 11px;
+    color: #FFE1F2;
+    margin-bottom: 2px;
+}
+
+.tpslField {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #FFE1F2;
+    /* Placeholder/Value color */
+    font-size: 14px;
+    width: 100%;
+    font-weight: 500;
+}
+
+.tpslField::placeholder {
+    color: #A77590;
+    /* Muted placeholder */
+}
+
+.percentBadge {
+    background-color: #3A2530;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #FFE1F2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: 1px solid #50535E;
+}
+
+.percentBadge:hover {
+    border-color: #A77590;
+    background-color: #3A2530;
+}

@@ -1,0 +1,1893 @@
+.chatInterfaceContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    /* Ensure internal scrolling works */
+    min-height: 0;
+    /* Fix for flex child scrolling */
+    position: relative;
+    background-color: #12000A;
+    /* App background */
+    color: #FFE1F2;
+
+    padding: 0;
+}
+
+.chatHeader {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+    z-index: 10;
+}
+
+.titleWrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #FFE1F2;
+    /* Or slight off-white like #E0E0E0 */
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.titleWrapper:hover {
+    background-color: #12000A;
+}
+
+.titleArrow {
+    color: #A77590;
+    font-size: 16px;
+    margin-top: -4px;
+}
+
+.contextMenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 8px;
+    min-width: 180px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.menuItem {
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #FFE1F2;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.menuItem:hover {
+    background-color: #3A2530;
+}
+
+.menuItem.delete {
+    color: #FF5D5D;
+}
+
+.menuItem.delete:hover {
+    background-color: rgba(255, 93, 93, 0.1);
+}
+
+.submenu {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    margin-left: 8px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 8px;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 21;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.renameInput {
+    background: #12000A;
+    border: 1px solid #5D5FEF;
+    border-radius: 6px;
+    color: #FFE1F2;
+    padding: 4px 8px;
+    font-size: 14px;
+    outline: none;
+    width: 200px;
+}
+
+.topRightControls {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.incognitoBadge {
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.incognitoBadge:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+.incognitoIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #3A2530;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #A77590;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.incognitoIcon:hover {
+    border-color: #5D5FEF;
+    color: #FFE1F2;
+}
+
+.centerContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 24px 24px 24px;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+    min-height: 0;
+    /* Fix for flex child scrolling */
+}
+
+.planBadge {
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 16px;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: #A77590;
+    margin-bottom: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.planBadge:hover {
+    border-color: #5D5FEF;
+    color: #FFE1F2;
+}
+
+.planBadge strong {
+    color: #FFE1F2;
+    font-weight: 600;
+}
+
+.greetingContainer {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.logoIcon {
+    width: 64px;
+    /* Increased to 64px as "agak kurang besar" likely implies significant increase */
+    height: 64px;
+    object-fit: contain;
+}
+
+.greetingText {
+    font-family: 'Satoshi', sans-serif;
+    font-size: 42px;
+    font-weight: 400;
+    color: #FFE1F2;
+    letter-spacing: -0.02em;
+}
+
+/* Input Wrapper */
+.inputWrapper {
+    width: 100%;
+    background-color: #19020E;
+    /* Updated dark background */
+    border: 1px solid #220E18;
+    border-radius: 24px;
+    padding: 0;
+    /* Removed padding from parent */
+    display: flex;
+    flex-direction: column;
+    /* No gap needed, separation handled by padding/margin */
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    position: relative;
+    /* Allow popups to extend outside */
+    z-index: 50;
+    /* Ensure on top of messages */
+}
+
+.inputWrapper:focus-within {
+    /* Background kept consistent */
+    border-color: #3A2530;
+    z-index: 1000;
+    /* Bring forward when interacting to cover messages */
+}
+
+.inputWrapper.toolsOpen {
+    border-top-left-radius: 0 !important;
+}
+
+.inputWrapper.modelOpen {
+    border-top-right-radius: 0 !important;
+}
+
+.textWrapper {
+    padding: 15px 15px 15px 15px;
+    width: 100%;
+}
+
+.inputField {
+    background: transparent;
+    border: none;
+    resize: none;
+    color: #FFE1F2;
+    font-size: 16px;
+    line-height: 1.5;
+    /* Ensure clear line height */
+    font-family: 'Satoshi', sans-serif;
+    outline: none;
+    min-height: 72px;
+    /* Height for ~3 lines */
+    max-height: 120px;
+    width: 100%;
+    padding: 0;
+    display: block;
+    overflow-y: auto;
+    /* Enable scrollbar when max-height is reached */
+}
+
+.inputField::placeholder {
+    color: #805B6F;
+}
+
+/* Integrated Action Bar Styles */
+.actionBar {
+    display: flex;
+    align-items: stretch;
+    border-top: 1px solid #3A2530;
+    height: 48px;
+    /* Fixed height for the bar */
+    width: 100%;
+    margin-top: 0;
+    /* Reset margin */
+}
+
+@media (max-width: 800px) {
+    .actionBar {
+        height: 40px;
+        /* Slightly taller for touch */
+        flex-wrap: nowrap;
+        /* Force single row */
+        gap: 0;
+        position: relative;
+    }
+
+    /* Fixed width for icon actions */
+    .toolSection,
+    .iconSection,
+    .sendSection {
+        flex: 0 0 60px;
+        /* Fixed square size matching height */
+        width: 60px;
+        height: 100%;
+        border-right: 1px solid #3A2530;
+        border-bottom: none;
+    }
+
+    .voiceLanguageIndicator {
+        display: none;
+    }
+
+    .iconSection {
+        display: none !important;
+    }
+
+    .modelSelectorTrigger {
+        font-size: 13px !important;
+    }
+
+    .modelMenuItemMain {
+        font-size: 13px !important;
+    }
+
+    .sendSection {
+        border-right: none;
+    }
+
+    /* Model Selector takes remaining space */
+    .modelSection {
+        flex: 1;
+        width: auto;
+        height: 100%;
+        order: 0;
+        /* meaningful order */
+        border-right: 1px solid #3A2530;
+        border-bottom: none;
+    }
+
+    .inputWrapper {
+        border-radius: 16px;
+    }
+
+    .toolButton span {
+        display: none;
+    }
+
+    .toolButton {
+        justify-content: center;
+        width: 100%;
+        padding: 0;
+    }
+
+    .modelSelectorTrigger span {
+        max-width: 100%;
+    }
+
+    /* Fix menu overlap on stacked mobile layout */
+    .modelSection {
+        position: relative;
+    }
+
+    /* Force Model Menu to be wider and positioned better */
+    .modelMenu {
+        position: absolute;
+        bottom: 100% !important;
+        /* Force upwards */
+        left: -60px !important;
+        width: calc(100% + 120px) !important;
+        min-width: 0 !important;
+        z-index: 2000;
+        border-radius: 16px 16px 0 0 !important;
+        z-index: 2000;
+        /* High z-index */
+    }
+
+    .modelMenu.menuTop {
+        border-radius: 12px 12px 0 0;
+        margin-bottom: -1px;
+    }
+
+    .greetingText {
+        font-size: 24px;
+        line-height: 1.2;
+    }
+
+    /* Fix Corner Radii for Mobile (16px container) */
+    .sendAction {
+        border-bottom-right-radius: 15px;
+    }
+
+    .toolButton {
+        border-radius: 0;
+        border-bottom-left-radius: 15px;
+    }
+
+    .toolSection {
+        position: static !important;
+    }
+
+    .toolsMenu {
+        position: absolute;
+        bottom: 100% !important;
+        left: 0 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        border-radius: 16px 16px 0 0 !important;
+        z-index: 2000;
+        margin-bottom: -1px;
+    }
+
+    .modelMetaRow {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .modelMetaItem,
+    .modelMetaItem span,
+    .modelMetaItem svg {
+        flex-wrap: wrap !important;
+        font-size: 13px !important;
+    }
+
+    .modelDescription {
+        font-size: 13px !important;
+    }
+
+    .effortDropdown {
+        position: relative !important;
+        left: auto !important;
+        top: auto !important;
+        margin-left: 0 !important;
+        margin-top: 8px !important;
+        width: 100% !important;
+    }
+}
+
+/* Common Cell Styles */
+.toolSection,
+.modelSection,
+.actionSection,
+.iconSection,
+.sendSection {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #3A2530;
+    position: relative;
+}
+
+.sendSection {
+    border-right: none;
+    /* Last item has no border */
+}
+
+/* Specific Widths/Flex */
+.toolSection {
+    padding: 0;
+}
+
+.modelSection {
+    flex: 1;
+    /* Grow to fill space */
+    position: relative;
+    /* For dropdown anchor */
+}
+
+.actionSection {
+    padding: 0;
+}
+
+.iconSection,
+.sendSection {
+    width: 40px;
+    /* Square-ish click areas */
+}
+
+/* Interactables */
+.toolButton {
+    display: flex;
+    align-items: center;
+    gap: 0px;
+    background: transparent;
+    border: none;
+    color: #FFE1F2;
+    cursor: pointer;
+    font-size: 1px;
+    font-weight: 500;
+    height: 100%;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.toolButton:hover {
+    opacity: 1;
+}
+
+.toolButton {
+    padding: 0 0px;
+}
+
+.modelSelectorTrigger {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    height: 100%;
+    padding: 0 10px 0 16px;
+    cursor: pointer;
+    color: #E07A5F;
+    /* Orange color for model name */
+    font-size: 14px;
+    transition: background 0.2s;
+    border-radius: 8px;
+    /* Maintain click radius usually */
+}
+
+.modelSelectorTrigger:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.modelSelectorTrigger.active {
+    background-color: #220E18;
+    /* Matched to focused input */
+    border: 1px solid #3A2530;
+    border-top: none;
+    /* Blend with top menu */
+    border-bottom: none;
+
+    border-radius: 0;
+
+    position: absolute;
+    top: -1px;
+    /* Extend up */
+    left: -1px;
+    right: -1px;
+    height: calc(100% + 1px);
+    width: calc(100% + 2px);
+    z-index: 1001;
+
+    display: flex;
+}
+
+
+
+
+.chatToggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Center content */
+    gap: 8px;
+    cursor: pointer;
+    color: #FFE1F2;
+    font-size: 14px;
+    height: 100%;
+    /* Fill container */
+    width: 100%;
+    /* Fill container */
+    padding: 0 12px;
+    /* Touch target */
+    border-radius: 0;
+    /* Or match section radius? */
+    transition: background-color 0.2s;
+}
+
+.chatToggle:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    /* Background change */
+}
+
+.chatToggle.active {
+    background-color: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+.iconAction,
+.sendAction {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.iconAction.listening {
+    background-color: rgba(224, 122, 95, 0.1);
+}
+
+/* Active states moved to bottom of file */
+
+.recordingIndicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 100%;
+    width: 100%;
+}
+
+.waveBar {
+    width: 3px;
+    height: 8px;
+    background-color: #E07A5F;
+    border-radius: 2px;
+    animation: wave 1s ease-in-out infinite;
+}
+
+.waveBar:nth-child(1) {
+    animation-delay: 0.0s;
+}
+
+.waveBar:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.waveBar:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.waveBar:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+@keyframes wave {
+
+    0%,
+    100% {
+        height: 6px;
+        opacity: 0.6;
+    }
+
+    50% {
+        height: 14px;
+        opacity: 1;
+    }
+}
+
+.voiceLanguageMenu {
+    position: absolute;
+    bottom: 110%;
+    /* Pop up above the button */
+    right: -10px;
+    background-color: #19020E;
+    border: 1px solid #3A2530;
+    border-radius: 12px;
+    padding: 6px;
+    width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+    z-index: 1010;
+}
+
+.voiceLanguageItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #A77590;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.voiceLanguageItem:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+.voiceLanguageItem.activeLang {
+    background-color: #3A2530;
+    color: #E07A5F;
+    font-weight: 500;
+}
+
+.sendAction {
+    border-bottom-right-radius: 23px;
+}
+
+.iconAction:hover,
+.sendAction:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.sendAction.active {
+    background-color: #5D5FEF;
+}
+
+.sendAction.active:hover {
+    background-color: #6D6FF0;
+}
+
+/* Adjust Model Menu to match new parent */
+.modelMenu {
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    background-color: #220E18;
+    border: 1px solid #3A2530;
+    padding: 0 0 8px 0;
+    z-index: 1000;
+    max-height: 170px;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+
+    /* Upward Styling forced */
+    bottom: 100%;
+    top: auto;
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    margin-bottom: -1px;
+    margin-top: 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Legacy class overrides if still applied */
+.menuTop {
+    bottom: 100%;
+    top: auto;
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    margin-bottom: -1px;
+    margin-top: 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.menuBottom {
+    top: 100%;
+    bottom: auto;
+    border-top: none;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-top: 0;
+}
+
+.modelMenuItemWrapper {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid rgba(58, 37, 48, 0.5);
+}
+
+.modelMenuItemWrapper:last-child {
+    border-bottom: none;
+}
+
+.modelMenuItem {
+    display: flex;
+    align-items: stretch;
+    cursor: default;
+    padding: 0;
+    border: none;
+}
+
+.modelMenuItemMain {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #A77590;
+    transition: all 0.2s;
+}
+
+.modelMenuItemMain:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+.modelMenuItemMain img {
+    opacity: 0.8;
+}
+
+.modelMenuItemMain:hover img {
+    opacity: 1;
+}
+
+.modelMenuItemChevron {
+    width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #A77590;
+    transition: all 0.2s;
+    border-left: 1px solid transparent;
+}
+
+.modelMenuItemChevron:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+    border-left-color: rgba(58, 37, 48, 0.5);
+}
+
+.modelSubmenu {
+    background-color: #15060A;
+    padding: 12px 12px 12px 15px;
+    /* Indented content */
+    cursor: default;
+}
+
+.modelInfoContent {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.modelDescription {
+    font-size: 13px;
+    color: #FFE1F2;
+    margin: 0;
+    line-height: 1.4;
+    opacity: 0.9;
+}
+
+.modelMetaRow {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin-top: 4px;
+}
+
+.modelMetaItem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #A77590;
+}
+
+.effortDropdown {
+    position: absolute;
+    left: 100%;
+    top: -2px;
+    margin-left: 8px;
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    z-index: 10;
+}
+
+.effortItem {
+    padding: 2px 8px;
+    font-size: 11px;
+    color: #A77590;
+    background-color: #3A2530;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.effortItem:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+    border-color: #805B6F;
+}
+
+.modelMenuItem:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+.modelMenuItem img {
+    opacity: 0.8;
+}
+
+.modelMenuItem:hover img {
+    opacity: 1;
+}
+
+.modelMenuItem span {
+    white-space: nowrap;
+}
+
+/* Optional: Smooth scrollbar for webkit */
+.modelMenu::-webkit-scrollbar {
+    width: 4px;
+}
+
+.modelMenu::-webkit-scrollbar-thumb {
+    background: #3A2530;
+    border-radius: 2px;
+}
+
+.arrowIcon {
+    transform: rotate(-90deg);
+    transition: transform 0.2s;
+}
+
+.sendButton.active:hover .arrowIcon {
+    transform: rotate(-90deg) scale(1.1);
+}
+
+
+
+
+/* Chat Message Styles */
+.messageList {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    /* Auto instead of scroll to avoid forced gutter */
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 20px 0;
+    margin-bottom: 20px;
+    /* Hide Scrollbar */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.messageList::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    /* Ensure no width is reserved */
+    background: transparent;
+}
+
+.messageItem {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.messageItem.user {
+    align-items: flex-end;
+}
+
+.messageItem.assistant {
+    align-items: flex-start;
+}
+
+.bubble {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 16px;
+    line-height: 1.5;
+    max-width: 90%;
+    word-wrap: break-word;
+}
+
+.userBubble {
+    background-color: #3A2530;
+    /* Theme dark purple */
+    color: #FFE1F2;
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-size: 15px;
+    max-width: fit-content;
+    margin-left: auto;
+}
+
+.assistantBubble {
+    background: transparent;
+    color: #FFE1F2;
+    padding: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Claude-like Styling */
+.thinkingBlock {
+    border: 1px solid #3A2530;
+    background-color: transparent;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    color: #A77590;
+    display: flex;
+    justify-content: flex-start;
+    gap: 12px;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 0;
+    transition: all 0.2s;
+    position: relative;
+    /* Ensure overlapping works if needed */
+    z-index: 1;
+}
+
+.thinkingBlock:hover {
+    background-color: #12000A;
+}
+
+.thinkingContent {
+    border: 1px solid #3A2530;
+    border-top: none;
+    background-color: transparent;
+    /* Match transparent block or use standard bg */
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    z-index: 0;
+}
+
+.stepDetail {
+    padding: 8px 16px 16px 16px;
+    font-size: 13px;
+    color: #A77590;
+    line-height: 1.5;
+    background-color: transparent;
+}
+
+.thinkingStep {
+    font-size: 14px;
+    color: #FFE1F2;
+    padding: 12px 16px;
+    border-bottom: 1px solid #3A2530;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    line-height: 1.4;
+    transition: background 0.2s;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+}
+
+.thinkingStep:last-child {
+    border-bottom: none;
+}
+
+/* Tree Connector Line Container */
+.stepTreeContainer {
+    position: relative;
+    padding-left: 8px;
+    /* Space for the line */
+}
+
+.stepTreeLine {
+    position: absolute;
+    left: 23px;
+    /* Adjust based on icon center */
+    top: 20px;
+    bottom: 0;
+    width: 2px;
+    background-color: #3A2530;
+    z-index: 0;
+}
+
+/* Browsing specific items */
+.browsingStep {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.browsingHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.browsingLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stepIcon {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #A77590;
+    z-index: 2;
+    /* On top of line */
+    background-color: #12000A;
+    /* Hide line behind icon */
+}
+
+/* Results */
+.resultList {
+    margin-left: 28px;
+    /* Indent under title */
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.resultItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    background-color: #12000A;
+    transition: background 0.2s;
+    text-decoration: none;
+}
+
+.resultItem:hover {
+    background-color: #A77590;
+    color: #12000A;
+}
+
+.resultItem img {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.resultText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+    overflow: hidden;
+}
+
+.resultTitle {
+    color: #FFE1F2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+.resultDomain {
+    color: #A77590;
+    font-size: 11px;
+}
+
+.resultItem:hover .resultTitle,
+.resultItem:hover .resultDomain {
+    color: #12000A;
+}
+
+.stepResultCount {
+    font-size: 12px;
+    color: #808080;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.thinkingStep:hover {
+    background-color: #12000A;
+}
+
+.loadingSpinner {
+    animation: spin 1s linear infinite;
+    color: #5D5FEF;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.responseContent {
+    font-family: 'Satoshi', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.6;
+    color: #FFE1F2;
+    margin-bottom: 4px;
+    margin-top: 4px;
+}
+
+.actionRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #808080;
+}
+
+.actionBtn {
+    cursor: pointer;
+    transition: color 0.2s;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #808080;
+}
+
+.actionBtn:hover {
+    color: #FFE1F2;
+}
+
+.assistantLogo {
+    margin-top: 12px;
+    color: #E07A5F;
+    /* Orange-ish color from screenshot */
+}
+
+/* Hide Greeting when chat is active (handled in React logic, but here for transition if needed) */
+
+/* Artifact Card */
+.artifactCard {
+    margin-top: 12px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.artifactCard:hover {
+    background-color: #3A2530;
+    border-color: #5D5FEF;
+}
+
+.artifactInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.artifactTitle {
+    color: #FFE1F2;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.artifactType {
+    color: #A77590;
+    font-size: 12px;
+}
+
+.artifactIcon {
+    width: 40px;
+    height: 40px;
+    background-color: #3A2530;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFE1F2;
+}
+
+/* Tools Menu Styling */
+.toolsMenu {
+    position: absolute;
+    bottom: 100%;
+    /* Drop UP */
+    top: auto;
+    left: -1px;
+    min-width: 240px;
+    background-color: #220E18;
+    border: 1px solid #3A2530;
+    border-radius: 12px 12px 0 0;
+    /* Top rounded */
+    padding: 0;
+    z-index: 1000;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+    /* Shadow Up */
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: 300px;
+    margin-bottom: -1px;
+    /* Overlap */
+    margin-top: 0;
+}
+
+.toolsMenu::-webkit-scrollbar {
+    width: 4px;
+}
+
+.toolsMenu::-webkit-scrollbar-thumb {
+    background: #3A2530;
+    border-radius: 2px;
+}
+
+/* Base style for the tool button */
+.toolButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #FFE1F2;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    height: 100%;
+    opacity: 0.8;
+    transition: background-color 0.2s, opacity 0.2s, color 0.2s;
+    padding: 0 12px;
+    border-radius: 8px;
+}
+
+.toolButton:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* "Unified" Active Button State - Dropping DOWN */
+.toolButton.active {
+    opacity: 1;
+    background-color: #220E18;
+    border: 1px solid #3A2530;
+    border-top: none;
+    /* Look like it stays attached to bar */
+    border-bottom: none;
+    /* Mask bottom border to blend */
+    position: relative;
+    z-index: 1001;
+    height: calc(100% + 1px);
+    /* Extend DOWN to cover menu border */
+    top: 0;
+    bottom: -1px;
+    border-radius: 0;
+
+    /* Cover parent left border */
+    left: -1px;
+    width: calc(100% + 1px);
+
+    padding: 0 12px;
+}
+
+/* Re-thinking Active State for Downward Menu: */
+/* The Bar is at the top (relative to menu). Menu is below. */
+/* The Button is stuck in the bar. */
+/* We want the Button to flow into the Menu. */
+/* So the Button's BOTTOM border must be transparent/covered. */
+/* The Menu's TOP border must be covered by the button. */
+/* So Button should extend downwards. */
+
+.toolButton.active {
+    opacity: 1;
+    background-color: #220E18;
+    border: 1px solid #3A2530;
+    border-top: none;
+    /* Inherit bar? No, bar has border-top. Button usually just sits there. */
+    /* Let's say we want to hide the button's bottom border. */
+    border-bottom: none;
+    position: relative;
+    z-index: 1001;
+    height: calc(100% + 1px);
+    top: 0;
+    /* Align top */
+    /* To cover the menu border below, we need to push it down? */
+    /* No, just extend height? */
+    border-radius: 0;
+    padding: 0 12px;
+    box-shadow: 0 4px 0 #220E18;
+    /* Mask seam BELOW button? Yes, to cover menu's top border. */
+}
+
+.toolItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    /* Larger padding like model menu */
+    border-bottom: 1px solid rgba(86, 55, 72, 0.5);
+    /* Separator */
+    cursor: pointer;
+    color: #A77590;
+    font-size: 14px;
+    transition: all 0.2s;
+    user-select: none;
+    position: relative;
+    background: transparent;
+}
+
+.toolItem>span:nth-of-type(1) {
+    flex: 1;
+}
+
+.toolItem:last-child {
+    border-bottom: none;
+}
+
+.toolItem:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+.toolIconWrapper {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+}
+
+.toolItem:hover .toolIconWrapper {
+    opacity: 1;
+}
+
+.toolToggle {
+    margin-left: auto;
+    width: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toolValue {
+    margin-left: auto;
+    font-size: 12px;
+    color: #5D5FEF;
+    background: rgba(93, 95, 239, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.toolValue:empty {
+    display: none;
+}
+
+.toolArrow {
+    margin-left: 8px;
+    color: #3A2530;
+    font-size: 16px;
+}
+
+.toolItem:hover .toolArrow {
+    color: #A77590;
+}
+
+/* Custom Toggle Switch for Write */
+.toggleSwitch {
+    width: 32px;
+    height: 18px;
+    background-color: #3A2530;
+    border-radius: 10px;
+    position: relative;
+    transition: background-color 0.2s;
+    margin-left: auto;
+}
+
+.toggleSwitch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background-color: #A77590;
+    border-radius: 50%;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+.toggleSwitch.checked {
+    background-color: rgba(93, 95, 239, 0.2);
+}
+
+.toggleSwitch.checked::after {
+    transform: translateX(14px);
+    background-color: #5D5FEF;
+}
+
+/* Indicators & Timeframe Sub-Page */
+.toolSubPage {
+    width: 100%;
+    height: 100%;
+    /* Fill menu height */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Prevent container scroll, delegate to list */
+}
+
+.toolPageHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #3A2530;
+    color: #FFE1F2;
+    font-weight: 500;
+    font-size: 14px;
+    background-color: #12000A;
+}
+
+.backButton {
+    background: none;
+    border: none;
+    color: #A77590;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    margin-left: -6px;
+}
+
+.backButton:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+.toolSearch {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(86, 55, 72, 0.5);
+}
+
+.toolSearch input {
+    width: 100%;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #FFE1F2;
+    font-size: 13px;
+    outline: none;
+}
+
+.toolSearch input:focus {
+    border-color: #5D5FEF;
+}
+
+.toolList {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    /* Fill remaining space */
+    overflow-y: auto;
+    /* Scroll ONLY the list */
+    min-height: 0;
+    /* Flexbox scroll fix */
+}
+
+.toolList::-webkit-scrollbar {
+    width: 4px;
+}
+
+.toolList::-webkit-scrollbar-thumb {
+    background-color: #3A2530;
+    border-radius: 4px;
+}
+
+/* Image Overlay */
+.imageOverlayBackdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.imageOverlayContent {
+    position: relative;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.fullImage {
+    max-width: 90vw;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.overlayInfo {
+    margin-top: 16px;
+    color: #FFE1F2;
+    font-size: 14px;
+    font-family: 'Satoshi', sans-serif;
+    background: rgba(30, 11, 21, 0.8);
+    padding: 8px 16px;
+    border-radius: 20px;
+}
+
+.overlayClose {
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    color: #A77590;
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.overlayClose:hover {
+    color: #FFE1F2;
+}
+
+/* Global Active States (Ensure overrides hover) */
+.iconAction:active,
+.sendAction:active,
+.toolButton:active,
+.chatToggle:active,
+.modelSelectorTrigger:active {
+    background-color: #3A2530;
+    transform: translateY(1px);
+}
+
+.voiceLanguageIndicator {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    font-size: 8px;
+    color: #805B6F;
+    font-weight: bold;
+}
+
+/* User Message Action Bar */
+.userMessageGroup {
+    position: relative;
+    padding-bottom: 15px;
+    max-width: 80%;
+    margin-left: auto;
+    /* Align to right for user */
+}
+
+.userBubbleWrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    /* Align to right for user */
+    width: 100%;
+}
+
+.userActionBar {
+    display: none;
+    /* Hidden by default */
+    align-items: center;
+    gap: 5px;
+    padding: 45px 0px 10px 0px;
+    /* Increased padding */
+    animation: fadeIn 0.15s ease-out;
+    position: absolute;
+    right: 0;
+    z-index: 10;
+}
+
+/* Invisible bridge to maintain hover when moving from bubble to action bar */
+.userActionBar::before {
+    content: '';
+    position: absolute;
+    top: -16px;
+    /* Extend upwards to meet the bubble */
+    left: 0;
+    width: 100%;
+    height: 16px;
+    background: transparent;
+}
+
+.userMessageGroup:hover .userActionBar,
+.userActionBar.visible {
+    display: flex;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.messageTime {
+    font-size: 11px;
+    color: #805B6F;
+    font-weight: 500;
+}
+
+.userActionBtn {
+    background: transparent;
+    border: none;
+    padding: 4px;
+    color: #805B6F;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.userActionBtn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #FFE1F2;
+}
+
+/* Edit Mode */
+.editMessageContainer {
+    width: 100%;
+    background-color: #12000A;
+    border: 1px solid #5D5FEF;
+    /* Active border color from image */
+    border-radius: 12px;
+    padding: 0;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.editInput {
+    width: 100%;
+    background-color: transparent;
+    border: none;
+    padding: 12px;
+    color: #FFE1F2;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 16px;
+    resize: none;
+    outline: none;
+    min-height: 48px;
+}
+
+.editInput:focus {
+    color: #FFE1F2;
+    /* Ensure color stays consistent on focus */
+}
+
+.editFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: #19020E;
+    /* Darker footer */
+    border-top: 1px solid #3A2530;
+    gap: 20px;
+    /* Add gap between info and buttons */
+}
+
+.editInfo {
+    font-size: 12px;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.editButtons {
+    display: flex;
+    gap: 8px;
+}
+
+.editCancelBtn {
+    padding: 6px 16px;
+    font-size: 13px;
+    color: #FFE1F2;
+    background-color: transparent;
+    border: 1px solid #3A2530;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.editCancelBtn:hover {
+    background-color: #3A2530;
+}
+
+.editSaveBtn {
+    padding: 6px 16px;
+    font-size: 13px;
+    color: #12000A;
+    background-color: #A0A0A0;
+    /* Greyish save button from image */
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.editSaveBtn:hover {
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .editFooter {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .editInfo {
+        max-width: 100%;
+        line-height: 1.4;
+    }
+
+    .editButtons {
+        width: 100%;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .editCancelBtn,
+    .editSaveBtn {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+    }
+}
+
+/* Fix Mobile Action Bar Borders (Ensuring Override) */
+@media (max-width: 800px) {
+    .toolButton {
+        border-radius: 0;
+        border-bottom-left-radius: 15px;
+    }
+
+    .sendAction {
+        border-radius: 0;
+        border-bottom-right-radius: 15px;
+    }
+
+    .iconAction,
+    .modelSelectorTrigger {
+        border-radius: 0;
+    }
+
+    /* Ensure height allows filling */
+    .toolButton,
+    .sendAction,
+    .iconAction {
+        height: 100%;
+        width: 100%;
+    }
+}
