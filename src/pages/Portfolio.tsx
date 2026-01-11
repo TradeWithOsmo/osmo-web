@@ -40,7 +40,7 @@ const Portfolio: React.FC = () => {
             />
 
             {/* Main Content Area */}
-            <div className={`${styles.contentArea} ${isMinimized ? styles.contentCentered : ''}`}>
+            <div className={`${styles.contentArea} ${styles.contentCentered}`}>
                 {activeTab === 'Overview' && <Overview />}
                 {activeTab === 'Positions' && <PortfolioPositions />}
                 {activeTab === 'Orders' && <PortfolioOrders />}

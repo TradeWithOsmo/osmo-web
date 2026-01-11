@@ -4,11 +4,12 @@ import type { TradeHistoryData } from './TradeHistoryRow';
 
 interface TradeHistoryTableProps {
     trades: TradeHistoryData[];
+    footerContent?: React.ReactNode;
 }
 
-const TradeHistoryTable: React.FC<TradeHistoryTableProps> = ({ trades }) => {
+const TradeHistoryTable: React.FC<TradeHistoryTableProps> = ({ trades, footerContent }) => {
     return (
-        <div className={styles.tableContainer}>
+        <div className={styles.tableWrapper}>
             <table className={styles.table}>
                 <thead>
                     <tr>
@@ -28,9 +29,7 @@ const TradeHistoryTable: React.FC<TradeHistoryTableProps> = ({ trades }) => {
                     ))}
                 </tbody>
             </table>
-            <div style={{ padding: '8px 16px', borderTop: '1px solid #3A2530' }}>
-                <span style={{ color: '#00E396', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>View All</span>
-            </div>
+            {footerContent}
         </div>
     );
 };

@@ -7,74 +7,46 @@ import type { TradeHistoryData } from '../Positions/TradeHistoryRow';
 import type { OrderHistoryData } from '../Positions/OrderHistoryRow';
 
 // Mock Data for Trade History
-const MOCK_TRADE_HISTORY: TradeHistoryData[] = [
-    {
-        id: '1',
-        time: '30/12/2025 - 16.04.04',
-        symbol: 'SOL',
-        direction: 'Open Long',
-        price: 124.60,
-        size: 5.19,
-        sizeAsset: 'SOL',
-        tradeValue: 646.66,
+// Helper to generate mock data
+const generateMockTrades = (count: number): TradeHistoryData[] => {
+    return Array.from({ length: count }, (_, i) => ({
+        id: `${i + 1}`,
+        time: `30/12/2025 - 16.04.${(i % 60).toString().padStart(2, '0')}`,
+        symbol: i % 2 === 0 ? 'SOL' : 'ETH',
+        direction: i % 3 === 0 ? 'Open Long' : (i % 3 === 1 ? 'Close Short' : 'Open Short'),
+        price: 100 + Math.random() * 2000,
+        size: 1 + Math.random() * 10,
+        sizeAsset: i % 2 === 0 ? 'SOL' : 'ETH',
+        tradeValue: 1000 + Math.random() * 5000,
         tradeValueAsset: 'USDC',
-        fee: 0.29,
+        fee: 0.1 + Math.random() * 2,
         feeAsset: 'USDC',
-        closedPnl: -0.29,
+        closedPnl: (Math.random() - 0.5) * 200,
         closedPnlAsset: 'USDC'
-    },
-    {
-        id: '2',
-        time: '28/12/2025 - 09.30.00',
-        symbol: 'ETH',
-        direction: 'Close Short',
-        price: 2450.00,
-        size: 1.0,
-        sizeAsset: 'ETH',
-        tradeValue: 2450.00,
-        tradeValueAsset: 'USDC',
-        fee: 1.20,
-        feeAsset: 'USDC',
-        closedPnl: 150.00,
-        closedPnlAsset: 'USDC'
-    }
-];
+    }));
+};
 
-// Mock Data for Order History
-const MOCK_ORDER_HISTORY: OrderHistoryData[] = [
-    {
-        id: '1',
-        time: '29/12/2025 - 14.20.10',
-        type: 'Market',
-        symbol: 'ETH',
-        direction: 'Short',
-        size: 2.5,
-        originalSize: 2.5,
-        orderValue: 6200.50,
-        price: 2480.20,
-        reduceOnly: true,
+const generateMockOrders = (count: number): OrderHistoryData[] => {
+    return Array.from({ length: count }, (_, i) => ({
+        id: `${i + 1}`,
+        time: `29/12/2025 - 14.20.${(i % 60).toString().padStart(2, '0')}`,
+        type: i % 2 === 0 ? 'Market' : 'Limit',
+        symbol: i % 2 === 0 ? 'BTC' : 'ETH',
+        direction: i % 2 === 0 ? 'Short' : 'Long',
+        size: 0.1 + Math.random(),
+        originalSize: 0.1 + Math.random(),
+        orderValue: 2000 + Math.random() * 5000,
+        price: 2000 + Math.random() * 40000,
+        reduceOnly: Math.random() > 0.5,
         triggerConditions: 'N/A',
         tp: '--',
         sl: '--',
-        status: 'Filled'
-    },
-    {
-        id: '2',
-        time: '29/12/2025 - 10.15.00',
-        type: 'Limit',
-        symbol: 'BTC',
-        direction: 'Long',
-        size: 0.1,
-        originalSize: 0.1,
-        orderValue: 4500.00,
-        price: 45000.00,
-        reduceOnly: false,
-        triggerConditions: 'N/A',
-        tp: '--',
-        sl: '--',
-        status: 'Cancelled'
-    }
-];
+        status: i % 3 === 0 ? 'Filled' : (i % 3 === 1 ? 'Cancelled' : 'Partially Filled')
+    }));
+};
+
+const MOCK_TRADE_HISTORY = generateMockTrades(50);
+const MOCK_ORDER_HISTORY = generateMockOrders(50);
 
 const PortfolioHistory: React.FC = () => {
     const [subTab, setSubTab] = useState<'Trades' | 'Orders'>('Trades');
@@ -85,14 +57,32 @@ const PortfolioHistory: React.FC = () => {
     const [isSortOpen, setIsSortOpen] = useState(false);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-    // Reset filters when tab changes
+    // Pagination / View Mode State
+    const [viewMode, setViewMode] = useState<'preview' | 'full'>('preview');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10); // Standard for full view
+    const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
+
+    const toggleRowsDropdown = () => setIsRowsDropdownOpen(!isRowsDropdownOpen);
+
+    // Reset filters and view mode when tab changes
     React.useEffect(() => {
         setSortBy('time');
         setFilterBy('all');
         setIsSortOpen(false);
         setIsFilterOpen(false);
+        setViewMode('preview'); // Reset to preview on tab switch
+        setCurrentPage(1);
     }, [subTab]);
 
+    const handleViewAll = () => {
+        setViewMode('full');
+    };
+
+    const toggleSort = () => { setIsSortOpen(!isSortOpen); setIsFilterOpen(false); };
+    const toggleFilter = () => { setIsFilterOpen(!isFilterOpen); setIsSortOpen(false); };
+
+    // --- MOVE filteredData HERE ---
     const filteredData = React.useMemo(() => {
         if (subTab === 'Trades') {
             let result = [...MOCK_TRADE_HISTORY];
@@ -104,14 +94,7 @@ const PortfolioHistory: React.FC = () => {
 
             // Sort
             result.sort((a, b) => {
-                if (sortBy === 'time') {
-                    // Parse date string dd/mm/yyyy - hh.mm.ss
-                    // Since standard sort might struggle with this format, let's just do generic string compare for mock data
-                    // or proper parsing if strict. Mock data format "30/12/2025 - 16.04.04" is sortable descending string-wise if yyyy is first, but it's not.
-                    // For mock purposes, we'll keep it simple or flip based on ID if strict date parsing is too much.
-                    // Actually, string compare works "okay-ish" for same year/month, but let's just use string compare Descending for now.
-                    return b.time.localeCompare(a.time);
-                }
+                if (sortBy === 'time') return b.time.localeCompare(a.time);
                 if (sortBy === 'pnl') return b.closedPnl - a.closedPnl;
                 if (sortBy === 'size') return b.size - a.size;
                 return 0;
@@ -124,46 +107,155 @@ const PortfolioHistory: React.FC = () => {
             if (filterBy === 'cancelled') result = result.filter(o => o.status === 'Cancelled');
 
             // Sort
-            // Orders mainly sort by time in this mock
             result.sort((a, b) => b.time.localeCompare(a.time));
 
             return result;
         }
     }, [subTab, filterBy, sortBy]);
 
-    const toggleSort = () => { setIsSortOpen(!isSortOpen); setIsFilterOpen(false); };
-    const toggleFilter = () => { setIsFilterOpen(!isFilterOpen); setIsSortOpen(false); };
+    // Pagination Logic (Now filteredData is defined)
+    const totalItems = filteredData.length;
+    const itemsToShow = viewMode === 'preview' ? 5 : rowsPerPage;
+    const totalPages = viewMode === 'preview' ? 1 : Math.ceil(totalItems / rowsPerPage);
+
+    // In preview mode, show first 5. In full mode, show paginated slice.
+    const startIndex = viewMode === 'preview' ? 0 : (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + itemsToShow;
+    const paginatedData = filteredData.slice(startIndex, endIndex);
+
+    const goToPage = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    // Footer Content Renderer
+    const renderFooter = () => {
+        if (viewMode === 'preview') {
+            return (
+                <div style={{ padding: '8px 16px', borderTop: '1px solid #3A2530' }}>
+                    <span
+                        style={{ color: '#00E396', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}
+                        onClick={handleViewAll}
+                    >
+                        View All
+                    </span>
+                </div>
+            );
+        }
+
+        // Full Pagination Controls (Reused Logic)
+        return (
+            <div className={panelStyles.tableFooter}>
+                <div className={panelStyles.footerGrid}>
+                    {/* Left: Showing Text */}
+                    <div className={panelStyles.footerMessage}>
+                        Showing {startIndex + 1} - {Math.min(endIndex, totalItems)} out of {totalItems}
+                    </div>
+
+                    {/* Center: Pagination Buttons */}
+                    <div className={panelStyles.footerControls}>
+                        <button
+                            className={panelStyles.paginationButton}
+                            onClick={() => goToPage(currentPage - 1)}
+                            disabled={currentPage === 1}
+                        >
+                            &lt;
+                        </button>
+
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let startPage = Math.max(1, currentPage - 2);
+                            if (startPage + 4 > totalPages) {
+                                startPage = Math.max(1, totalPages - 4);
+                            }
+                            const p = startPage + i;
+                            if (p > totalPages) return null; // Safety
+
+                            return (
+                                <button
+                                    key={p}
+                                    className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
+                                    onClick={() => goToPage(p)}
+                                >
+                                    {p}
+                                </button>
+                            );
+                        })}
+
+                        <button
+                            className={panelStyles.paginationButton}
+                            onClick={() => goToPage(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                        >
+                            &gt;
+                        </button>
+                    </div>
+
+                    {/* Right: Rows per page */}
+                    <div className={panelStyles.footerActions}>
+                        <span>Show</span>
+                        <div className={panelStyles.dropdownContainer}>
+                            <button
+                                className={`${panelStyles.dropdownButton} ${isRowsDropdownOpen ? panelStyles.active : ''}`}
+                                onClick={toggleRowsDropdown}
+                                style={{ border: '1px solid #3A2530', padding: '4px 8px', borderRadius: '6px', height: '32px' }}
+                            >
+                                {rowsPerPage}
+                                <svg
+                                    width="10"
+                                    height="6"
+                                    viewBox="0 0 10 6"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{
+                                        transition: 'transform 0.2s',
+                                        marginLeft: '6px',
+                                        transform: isRowsDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                                    }}
+                                >
+                                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                            {isRowsDropdownOpen && (
+                                <div className={panelStyles.dropdownMenu} style={{ minWidth: '60px', bottom: '100%', top: 'auto', marginBottom: '4px' }}>
+                                    {[10, 20, 50, 100].map((rows) => (
+                                        <button
+                                            key={rows}
+                                            className={`${panelStyles.dropdownItem} ${rowsPerPage === rows ? panelStyles.selected : ''}`}
+                                            onClick={() => { setRowsPerPage(rows); setCurrentPage(1); setIsRowsDropdownOpen(false); }}
+                                        >
+                                            {rows}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div style={{ paddingBottom: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '16px' }}>
-                <div
-                    className={styles.sectionTitle}
-                    style={{
-                        marginBottom: 0,
-                        color: subTab === 'Trades' ? '#FFE1F2' : '#A77590',
-                        cursor: 'pointer',
-                        fontWeight: subTab === 'Trades' ? 500 : 400
-                    }}
-                    onClick={() => setSubTab('Trades')}
-                >
-                    Trade History
-                </div>
-                <div
-                    className={styles.sectionTitle}
-                    style={{
-                        marginBottom: 0,
-                        color: subTab === 'Orders' ? '#FFE1F2' : '#A77590',
-                        cursor: 'pointer',
-                        fontWeight: subTab === 'Orders' ? 500 : 400
-                    }}
-                    onClick={() => setSubTab('Orders')}
-                >
-                    Order History
-                </div>
-            </div>
+            <div className={styles.sectionTitle}>History</div>
 
-            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden' }}>
+            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: 'calc(100vh - 220px)', minHeight: 0 }}>
+                {/* Navbar Style Tabs */}
+                <div className={styles.tabsContainer}>
+                    <button
+                        className={`${styles.tabButton} ${subTab === 'Trades' ? styles.activeTab : ''}`}
+                        onClick={() => setSubTab('Trades')}
+                    >
+                        Trades
+                    </button>
+                    <button
+                        className={`${styles.tabButton} ${subTab === 'Orders' ? styles.activeTab : ''}`}
+                        onClick={() => setSubTab('Orders')}
+                    >
+                        Orders
+                    </button>
+                </div>
                 <div className={panelStyles.controlsContainer} style={{ padding: '16px', borderBottom: '1px solid #3A2530', marginBottom: 0 }}>
                     <div className={panelStyles.controlsLeft}>
                         {/* Sort Dropdown - Only relevant for Trades mainly, Orders usually just Time */}
@@ -228,13 +320,14 @@ const PortfolioHistory: React.FC = () => {
                 </div>
 
                 {subTab === 'Trades' ? (
-                    <TradeHistoryTable trades={filteredData as TradeHistoryData[]} />
+                    <TradeHistoryTable trades={paginatedData as TradeHistoryData[]} footerContent={renderFooter()} />
                 ) : (
-                    <OrderHistoryTable orders={filteredData as OrderHistoryData[]} />
+                    <OrderHistoryTable orders={paginatedData as OrderHistoryData[]} footerContent={renderFooter()} />
                 )}
             </div>
         </div>
     );
 };
+
 
 export default PortfolioHistory;

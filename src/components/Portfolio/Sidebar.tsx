@@ -39,12 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isMinimized, 
                         >
                             <span>Positions</span>
                         </div>
-                        <div
-                            className={`${styles.menuItem} ${activeTab === 'Orders' ? styles.active : ''}`}
-                            onClick={() => onTabChange('Orders')}
-                        >
-                            <span>Orders</span>
-                        </div>
+
                         <div
                             className={`${styles.menuItem} ${activeTab === 'History' ? styles.active : ''}`}
                             onClick={() => onTabChange('History')}

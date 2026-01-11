@@ -17,6 +17,16 @@ const FEE_TIERS = [
     { tier: 5, volume: '≥ $50M', cond: '—', maker: '0.000%', taker: '0.030%' },
     { tier: 6, volume: '≥ $100M', cond: '—', maker: '-0.007%', taker: '0.025%' },
     { tier: 7, volume: '≥ $200M', cond: '—', maker: '-0.011%', taker: '0.025%' },
+    { tier: 8, volume: '≥ $500M', cond: '—', maker: '-0.015%', taker: '0.022%' },
+    { tier: 9, volume: '≥ $1B', cond: '—', maker: '-0.018%', taker: '0.020%' },
+    { tier: 10, volume: '≥ $2B', cond: '—', maker: '-0.020%', taker: '0.018%' },
+    { tier: 11, volume: '≥ $5B', cond: '—', maker: '-0.022%', taker: '0.016%' },
+    { tier: 12, volume: '≥ $10B', cond: '—', maker: '-0.025%', taker: '0.015%' },
+    { tier: 13, volume: '≥ $20B', cond: '—', maker: '-0.027%', taker: '0.014%' },
+    { tier: 14, volume: '≥ $50B', cond: '—', maker: '-0.030%', taker: '0.013%' },
+    { tier: 15, volume: '≥ $100B', cond: '—', maker: '-0.032%', taker: '0.012%' },
+    { tier: 16, volume: '≥ $200B', cond: '—', maker: '-0.035%', taker: '0.011%' },
+    { tier: 17, volume: '≥ $500B', cond: '—', maker: '-0.038%', taker: '0.010%' },
 ];
 
 const MODEL_FEES = [
@@ -25,6 +35,16 @@ const MODEL_FEES = [
     { logo: anthropicLogo, name: 'Claude 3.5 Sonnet', input: '$3.00', output: '$15.00' },
     { logo: deepseekLogo, name: 'DeepSeek V3', input: '$0.14', output: '$0.28' },
     { logo: qwenLogo, name: 'Qwen 2.5', input: '$0.10', output: '$0.20' }, // Estimated pricing
+    { logo: googleLogo, name: 'Gemini 1.0 Pro', input: '$1.50', output: '$4.50' },
+    { logo: openaiLogo, name: 'GPT-3.5 Turbo', input: '$0.50', output: '$1.50' },
+    { logo: anthropicLogo, name: 'Claude 3 Haiku', input: '$0.25', output: '$1.25' },
+    { logo: deepseekLogo, name: 'DeepSeek Coder', input: '$0.10', output: '$0.20' },
+    { logo: qwenLogo, name: 'Qwen 1.5', input: '$0.05', output: '$0.10' },
+    { logo: googleLogo, name: 'Gemini Ultra', input: '$10.00', output: '$30.00' },
+    { logo: openaiLogo, name: 'GPT-4 Turbo', input: '$10.00', output: '$30.00' },
+    { logo: anthropicLogo, name: 'Claude 3 Opus', input: '$15.00', output: '$75.00' },
+    { logo: deepseekLogo, name: 'DeepSeek Lite', input: '$0.05', output: '$0.10' },
+    { logo: qwenLogo, name: 'Qwen Large', input: '$0.50', output: '$1.00' },
 ];
 
 const FeeTierRow: React.FC<{ tier: any }> = ({ tier }) => {
@@ -183,13 +203,33 @@ const PortfolioFees: React.FC = () => {
     const [isSortOpen, setIsSortOpen] = useState(false);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+    // Pagination / View Mode State (Specific to ModelAI Fee)
+    const [viewMode, setViewMode] = useState<'preview' | 'full'>('preview');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
+
+    const toggleRowsDropdown = () => setIsRowsDropdownOpen(!isRowsDropdownOpen);
+
     // Reset on tab change
     React.useEffect(() => {
         setSortBy('default');
         setFilterBy('all');
         setIsSortOpen(false);
         setIsFilterOpen(false);
+        // Reset View Mode when switching tabs
+        if (activeTab === 'ModelAIFee') {
+            setViewMode('preview');
+            setCurrentPage(1);
+        }
     }, [activeTab]);
+
+    const handleViewAll = () => {
+        setViewMode('full');
+    };
+
+    const toggleSort = () => { setIsSortOpen(!isSortOpen); setIsFilterOpen(false); };
+    const toggleFilter = () => { setIsFilterOpen(!isFilterOpen); setIsSortOpen(false); };
 
     const filteredData = React.useMemo(() => {
         if (activeTab === 'FeeTiers') {
@@ -200,7 +240,6 @@ const PortfolioFees: React.FC = () => {
             } else if (sortBy === 'taker') {
                 result.sort((a, b) => parseFloat(a.taker) - parseFloat(b.taker));
             }
-            // Filter - Tiers usually don't need significant filtering
             return result;
         } else {
             let result = [...MODEL_FEES];
@@ -226,41 +265,164 @@ const PortfolioFees: React.FC = () => {
         }
     }, [activeTab, sortBy, filterBy]);
 
-    const toggleSort = () => { setIsSortOpen(!isSortOpen); setIsFilterOpen(false); };
-    const toggleFilter = () => { setIsFilterOpen(!isFilterOpen); setIsSortOpen(false); };
+    // Pagination Logic
+    const totalItems = filteredData.length;
+    // For Fee Tiers: Show ALL. For ModelAI: depends on viewMode.
+    const isPaginationActive = activeTab === 'ModelAIFee';
+
+    let displayedData = filteredData;
+    let totalPages = 1;
+    let startIndex = 0;
+    let endIndex = totalItems;
+
+    if (isPaginationActive) {
+        if (viewMode === 'preview') {
+            displayedData = filteredData.slice(0, 5);
+        } else {
+            startIndex = (currentPage - 1) * rowsPerPage;
+            endIndex = startIndex + rowsPerPage;
+            displayedData = filteredData.slice(startIndex, endIndex);
+            totalPages = Math.ceil(totalItems / rowsPerPage);
+        }
+    }
+
+    const goToPage = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    // Footer Render
+    const renderFooter = () => {
+        // No footer for Fee Tiers
+        if (activeTab === 'FeeTiers') return null;
+
+        // Preview Mode for ModelAI
+        if (viewMode === 'preview') {
+            return (
+                <div style={{ padding: '8px 16px', borderTop: '1px solid #3A2530' }}>
+                    <span
+                        style={{ color: '#00E396', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}
+                        onClick={handleViewAll}
+                    >
+                        View All
+                    </span>
+                </div>
+            );
+        }
+
+        // Full Pagination for ModelAI
+        return (
+            <div className={panelStyles.tableFooter}>
+                <div className={panelStyles.footerGrid}>
+                    <div className={panelStyles.footerMessage}>
+                        Showing {startIndex + 1} - {Math.min(endIndex, totalItems)} out of {totalItems}
+                    </div>
+
+                    <div className={panelStyles.footerControls}>
+                        <button
+                            className={panelStyles.paginationButton}
+                            onClick={() => goToPage(currentPage - 1)}
+                            disabled={currentPage === 1}
+                        >
+                            &lt;
+                        </button>
+
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let startPage = Math.max(1, currentPage - 2);
+                            if (startPage + 4 > totalPages) {
+                                startPage = Math.max(1, totalPages - 4);
+                            }
+                            const p = startPage + i;
+                            if (p > totalPages) return null;
+
+                            return (
+                                <button
+                                    key={p}
+                                    className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
+                                    onClick={() => goToPage(p)}
+                                >
+                                    {p}
+                                </button>
+                            );
+                        })}
+
+                        <button
+                            className={panelStyles.paginationButton}
+                            onClick={() => goToPage(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                        >
+                            &gt;
+                        </button>
+                    </div>
+
+                    <div className={panelStyles.footerActions}>
+                        <span>Show</span>
+                        <div className={panelStyles.dropdownContainer}>
+                            <button
+                                className={`${panelStyles.dropdownButton} ${isRowsDropdownOpen ? panelStyles.active : ''}`}
+                                onClick={toggleRowsDropdown}
+                                style={{ border: '1px solid #3A2530', padding: '4px 8px', borderRadius: '6px', height: '32px' }}
+                            >
+                                {rowsPerPage}
+                                <svg
+                                    width="10"
+                                    height="6"
+                                    viewBox="0 0 10 6"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{
+                                        transition: 'transform 0.2s',
+                                        marginLeft: '6px',
+                                        transform: isRowsDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                                    }}
+                                >
+                                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                            {isRowsDropdownOpen && (
+                                <div className={panelStyles.dropdownMenu} style={{ minWidth: '60px', bottom: '100%', top: 'auto', marginBottom: '4px' }}>
+                                    {[10, 20, 50, 100].map((rows) => (
+                                        <button
+                                            key={rows}
+                                            className={`${panelStyles.dropdownItem} ${rowsPerPage === rows ? panelStyles.selected : ''}`}
+                                            onClick={() => { setRowsPerPage(rows); setCurrentPage(1); setIsRowsDropdownOpen(false); }}
+                                        >
+                                            {rows}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div style={{ paddingBottom: '32px' }}>
-            {/* Tabs Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '16px' }}>
-                <div
-                    className={styles.sectionTitle}
-                    style={{
-                        marginBottom: 0,
-                        color: activeTab === 'FeeTiers' ? '#FFE1F2' : '#A77590',
-                        cursor: 'pointer',
-                        fontWeight: activeTab === 'FeeTiers' ? 500 : 400
-                    }}
-                    onClick={() => setActiveTab('FeeTiers')}
-                >
-                    Fee Tiers
-                </div>
-                <div
-                    className={styles.sectionTitle}
-                    style={{
-                        marginBottom: 0,
-                        color: activeTab === 'ModelAIFee' ? '#FFE1F2' : '#A77590',
-                        cursor: 'pointer',
-                        fontWeight: activeTab === 'ModelAIFee' ? 500 : 400
-                    }}
-                    onClick={() => setActiveTab('ModelAIFee')}
-                >
-                    ModelAI Fee
-                </div>
-            </div>
+            {/* Title */}
+            <div className={styles.sectionTitle}>Fees</div>
 
-            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden' }}>
-                {/* Controls */}
+            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: 'calc(100vh - 220px)', minHeight: 0 }}>
+                {/* Navbar Style Tabs Inside Container */}
+                <div className={styles.tabsContainer}>
+                    <button
+                        className={`${styles.tabButton} ${activeTab === 'FeeTiers' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('FeeTiers')}
+                    >
+                        Fee Tiers
+                    </button>
+                    <button
+                        className={`${styles.tabButton} ${activeTab === 'ModelAIFee' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('ModelAIFee')}
+                    >
+                        ModelAI Fee
+                    </button>
+                </div>
+
+                {/* Controls - Same style as History/Leaderboard */}
                 <div className={panelStyles.controlsContainer} style={{ padding: '16px', borderBottom: '1px solid #3A2530', marginBottom: 0 }}>
                     <div className={panelStyles.controlsLeft}>
                         {/* Sort Dropdown */}
@@ -332,38 +494,43 @@ const PortfolioFees: React.FC = () => {
 
                 </div>
 
-                {activeTab === 'FeeTiers' ? (
-                    <table className={panelStyles.table}>
-                        <thead className={panelStyles.th}>
-                            <tr>
-                                <th className={panelStyles.th} style={{ textAlign: 'left' }}>Tier</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'right' }}>Volume (30d)</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'right' }}>Maker</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'right' }}>Taker</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredData.map((item: any) => (
-                                item.tier ? <FeeTierRow key={item.tier} tier={item} /> : <ModelFeeRow key={item.name} model={item} />
-                            ))}
-                        </tbody>
-                    </table>
-                ) : (
-                    <table className={panelStyles.table}>
-                        <thead className={panelStyles.th}>
-                            <tr>
-                                <th className={panelStyles.th} style={{ textAlign: 'left' }}>Model Name</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'left' }}>Input ($/1M tokens)</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'left' }}>Output ($/1M tokens)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredData.map((item: any) => (
-                                item.tier ? <FeeTierRow key={item.tier} tier={item} /> : <ModelFeeRow key={item.name} model={item} />
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+                <div className={panelStyles.tableWrapper}>
+                    {activeTab === 'FeeTiers' ? (
+                        <table className={panelStyles.table}>
+                            <thead className={panelStyles.th}>
+                                <tr>
+                                    <th className={panelStyles.th} style={{ textAlign: 'left' }}>Tier</th>
+                                    <th className={panelStyles.th} style={{ textAlign: 'right' }}>Volume (30d)</th>
+                                    <th className={panelStyles.th} style={{ textAlign: 'right' }}>Maker</th>
+                                    <th className={panelStyles.th} style={{ textAlign: 'right' }}>Taker</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {displayedData.map((item: any) => (
+                                    <FeeTierRow key={item.tier} tier={item} />
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <table className={panelStyles.table}>
+                            <thead className={panelStyles.th}>
+                                <tr>
+                                    <th className={panelStyles.th} style={{ textAlign: 'left' }}>Model Name</th>
+                                    <th className={panelStyles.th} style={{ textAlign: 'left' }}>Input ($/1M tokens)</th>
+                                    <th className={panelStyles.th} style={{ textAlign: 'left' }}>Output ($/1M tokens)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {displayedData.map((item: any) => (
+                                    <ModelFeeRow key={item.name} model={item} />
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {/* Render Footer (Pagination or View All) */}
+                    {renderFooter()}
+                </div>
             </div>
         </div>
     );

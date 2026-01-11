@@ -24,22 +24,30 @@ const Trade: React.FC = () => {
 
                 {/* --- DESKTOP LAYOUT --- */}
                 {/* Controlled by CSS media queries */}
-                <div className={styles.topSection}>
-                    <div className={styles.chartContainer}>
-                        <TradingChart height="100%" />
+                {/* --- DESKTOP LAYOUT --- */}
+                {/* Controlled by CSS media queries */}
+                <div className={styles.contentWrapper}>
+                    {/* Left Column: Top Row (Chart + Book) and Bottom Row (Positions) */}
+                    <div className={styles.leftColumn}>
+                        <div className={styles.topRow}>
+                            <div className={styles.chartContainer}>
+                                <TradingChart height="100%" />
+                            </div>
+
+                            <div className={styles.orderBookContainer}>
+                                <OrderBookPanel />
+                            </div>
+                        </div>
+
+                        <div className={styles.positionsSection}>
+                            <PositionsPanel />
+                        </div>
                     </div>
 
-                    <div className={styles.orderBookContainer}>
-                        <OrderBookPanel />
-                    </div>
-
+                    {/* Right Column: Order Form (Full Height) */}
                     <div className={styles.orderFormContainer}>
                         <OrderForm />
                     </div>
-                </div>
-
-                <div className={styles.positionsSection}>
-                    <PositionsPanel />
                 </div>
 
                 {/* --- MOBILE LAYOUT --- */}
