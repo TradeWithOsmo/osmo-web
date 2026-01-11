@@ -6,30 +6,7 @@ import type { PositionData } from '../Positions/PositionRow';
 import OrdersTable from '../Positions/OrdersTable';
 import type { OrderData } from '../Positions/OrderRow';
 
-// Sort Icon Component (same as Leaderboard)
-const SortIcon = ({ active, direction }: { active: boolean; direction: 'asc' | 'desc' }) => {
-    const activeColor = '#FFE1F2';
-    const inactiveColor = '#5D4050';
 
-    return (
-        <svg width="8" height="11" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-                d="M5 0L9 4H1L5 0Z"
-                fill={active && direction === 'asc' ? activeColor : inactiveColor}
-                stroke={active && direction === 'asc' ? activeColor : inactiveColor}
-                strokeWidth="1.2"
-                strokeLinejoin="round"
-            />
-            <path
-                d="M5 14L1 10H9L5 14Z"
-                fill={active && direction === 'desc' ? activeColor : inactiveColor}
-                stroke={active && direction === 'desc' ? activeColor : inactiveColor}
-                strokeWidth="1.2"
-                strokeLinejoin="round"
-            />
-        </svg>
-    );
-};
 
 // Mock Data
 const MOCK_POSITIONS: PositionData[] = [
@@ -70,6 +47,7 @@ const PortfolioPositions: React.FC = () => {
 
     // Sort/Filter
     const [sortBy, setSortBy] = React.useState<string>('default');
+    const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('desc');
     const [filterBy, setFilterBy] = React.useState<string>('all');
     const [isSortOpen, setIsSortOpen] = React.useState(false);
     const [isFilterOpen, setIsFilterOpen] = React.useState(false);
@@ -99,22 +77,37 @@ const PortfolioPositions: React.FC = () => {
     const toggleSort = () => { setIsSortOpen(!isSortOpen); setIsFilterOpen(false); };
     const toggleFilter = () => { setIsFilterOpen(!isFilterOpen); setIsSortOpen(false); };
 
+    const handleSort = (key: string) => {
+        if (sortBy === key) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(key);
+            setSortDirection('desc');
+        }
+    };
+
     const filteredData = React.useMemo(() => {
         if (activeTab === 'Positions') {
             let result = [...MOCK_POSITIONS];
             // Sort
-            if (sortBy === 'value') result.sort((a, b) => b.sizeUsd - a.sizeUsd);
-            if (sortBy === 'coin') result.sort((a, b) => a.symbol.localeCompare(b.symbol));
+            if (sortBy === 'value') {
+                result.sort((a, b) => sortDirection === 'asc' ? a.sizeUsd - b.sizeUsd : b.sizeUsd - a.sizeUsd);
+            } else if (sortBy === 'coin') {
+                result.sort((a, b) => sortDirection === 'asc' ? a.symbol.localeCompare(b.symbol) : b.symbol.localeCompare(a.symbol));
+            }
             // Filter
             if (filterBy === 'long') result = result.filter(p => p.side === 'Long');
             if (filterBy === 'short') result = result.filter(p => p.side === 'Short');
             return result;
         } else {
             let result = [...MOCK_ORDERS];
-            // Sort/Filter for orders if needed (kept simple for now)
+            // Sort for orders by orderValue
+            if (sortBy === 'orderValue') {
+                result.sort((a, b) => sortDirection === 'asc' ? a.orderValue - b.orderValue : b.orderValue - a.orderValue);
+            }
             return result;
         }
-    }, [activeTab, sortBy, filterBy]);
+    }, [activeTab, sortBy, sortDirection, filterBy]);
 
 
     // Logic: If items <= 10, just show them. If > 10, show preview loop unless viewMode is 'full'.
@@ -347,10 +340,22 @@ const PortfolioPositions: React.FC = () => {
                                 <tr>
                                     <th className={panelStyles.th}>Coin</th>
                                     <th className={panelStyles.th}>Size</th>
-                                    <th className={panelStyles.th} style={{ cursor: 'pointer' }}>
+                                    <th className={panelStyles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('value')}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             Position Value
-                                            <SortIcon active={true} direction={'desc'} />
+                                            <svg
+                                                width="10"
+                                                height="6"
+                                                viewBox="0 0 10 6"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                style={{
+                                                    transition: 'transform 0.2s',
+                                                    transform: sortBy === 'value' && sortDirection === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)'
+                                                }}
+                                            >
+                                                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
                                         </div>
                                     </th>
                                     <th className={panelStyles.th}>Entry Price</th>
