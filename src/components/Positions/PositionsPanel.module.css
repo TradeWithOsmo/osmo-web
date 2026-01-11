@@ -113,7 +113,6 @@
     background-color: #12000A;
     border: none;
     border-radius: 0;
-    overflow: hidden;
     min-height: 0;
     /* Important for flex scrolling */
 }

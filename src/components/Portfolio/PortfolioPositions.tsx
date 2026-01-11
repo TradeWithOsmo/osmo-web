@@ -110,15 +110,9 @@ const PortfolioPositions: React.FC = () => {
     }, [activeTab, sortBy, sortDirection, filterBy]);
 
 
-    // Logic: If items <= 10, just show them. If > 10, show preview loop unless viewMode is 'full'.
+    // Logic: If items <= 5, just show them. If > 5, show preview with View All button
     const totalItems = filteredData.length;
-    const isPaginationNeeded = totalItems > 10;
-
-    // itemsToShow:
-    // If not needed (<10), show all.
-    // If needed and preview: show 5 (or 10? user said "10 view all"). Let's slice 0-10 or 0-5. User said "bila 10 table lebih akan ada view all", implying preview is probably the first 10? Or maybe a smaller preview? Let's use 10 as the threshold and preview size.
-    // Actually, "bila cuman 10 bakal tabel biasa" -> if <=10, normal.
-    // "bila 10 table lebih" -> if >10...
+    const isPaginationNeeded = totalItems > 5;
 
     let displayedData = filteredData;
     let startIndex = 0;
@@ -127,7 +121,7 @@ const PortfolioPositions: React.FC = () => {
 
     if (isPaginationNeeded) {
         if (viewMode === 'preview') {
-            displayedData = filteredData.slice(0, 10); // Show 10 in preview
+            displayedData = filteredData.slice(0, 5); // Show 5 in preview
         } else {
             // Full Pagination
             totalPages = Math.ceil(totalItems / rowsPerPage);
@@ -252,7 +246,17 @@ const PortfolioPositions: React.FC = () => {
         <div style={{ paddingBottom: '32px' }}>
             <div className={styles.sectionTitle}>Position</div>
 
-            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: 'calc(100vh - 220px)', minHeight: 0 }}>
+            <div className={panelStyles.tableContainer} style={{
+                background: '#12000A',
+                border: '1px solid #3A2530',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                height: 'auto',
+                maxHeight: 'calc(100vh - 220px)',
+                minHeight: 0
+            }}>
                 {/* Navbar Style Tabs */}
                 <div className={styles.tabsContainer}>
                     <button
