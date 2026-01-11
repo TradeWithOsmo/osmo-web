@@ -2,6 +2,7 @@ import React from 'react';
 import {
     Trade,
     Autos,
+    Market,
 
     Portfolio,
 
@@ -20,6 +21,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({ route }) => {
 
     if (currentPath === '/trade' || currentPath === '/') return <Trade />;
     if (currentPath === '/autos') return <Autos />;
+    if (currentPath === '/market') return <Market />;
 
     if (currentPath === '/portfolio') return <Portfolio />;
 
