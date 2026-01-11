@@ -66,29 +66,7 @@ const MOCK_AGENTS: LeaderboardData[] = [
     { rank: 15, trader: 'Qwen_Large_Fund', agentName: 'Qwen Large', agentLogo: QwenLogo, provider: 'Alibaba Cloud', accountValue: 80000.00, pnl: 8000.00, roi: 10.0, volume: 1000000 },
 ];
 
-const SortIcon = ({ active, direction }: { active: boolean; direction: 'asc' | 'desc' }) => {
-    const activeColor = '#FFE1F2';
-    const inactiveColor = '#5D4050';
 
-    return (
-        <svg width="8" height="11" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-                d="M5 0L9 4H1L5 0Z"
-                fill={active && direction === 'asc' ? activeColor : inactiveColor}
-                stroke={active && direction === 'asc' ? activeColor : inactiveColor}
-                strokeWidth="1.2"
-                strokeLinejoin="round"
-            />
-            <path
-                d="M5 14L1 10H9L5 14Z"
-                fill={active && direction === 'desc' ? activeColor : inactiveColor}
-                stroke={active && direction === 'desc' ? activeColor : inactiveColor}
-                strokeWidth="1.2"
-                strokeLinejoin="round"
-            />
-        </svg>
-    );
-};
 
 
 interface LeaderboardRowProps {
@@ -507,25 +485,73 @@ const PortfolioLeaderboard: React.FC = () => {
                                 <th className={panelStyles.th} style={{ cursor: 'pointer', textAlign: 'right' }} onClick={() => handleSort('accountValue')}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                                         Account Value
-                                        <SortIcon active={sortBy === 'accountValue'} direction={sortDirection} />
+                                        <svg
+                                            width="10"
+                                            height="6"
+                                            viewBox="0 0 10 6"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            style={{
+                                                transition: 'transform 0.2s',
+                                                transform: sortBy === 'accountValue' && sortDirection === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)'
+                                            }}
+                                        >
+                                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
                                     </div>
                                 </th>
                                 <th className={panelStyles.th} style={{ cursor: 'pointer', textAlign: 'right' }} onClick={() => handleSort('pnl')}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                                         PNL ({timeFilter})
-                                        <SortIcon active={sortBy === 'pnl'} direction={sortDirection} />
+                                        <svg
+                                            width="10"
+                                            height="6"
+                                            viewBox="0 0 10 6"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            style={{
+                                                transition: 'transform 0.2s',
+                                                transform: sortBy === 'pnl' && sortDirection === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)'
+                                            }}
+                                        >
+                                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
                                     </div>
                                 </th>
                                 <th className={panelStyles.th} style={{ cursor: 'pointer', textAlign: 'right' }} onClick={() => handleSort('roi')}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                                         ROI ({timeFilter})
-                                        <SortIcon active={sortBy === 'roi'} direction={sortDirection} />
+                                        <svg
+                                            width="10"
+                                            height="6"
+                                            viewBox="0 0 10 6"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            style={{
+                                                transition: 'transform 0.2s',
+                                                transform: sortBy === 'roi' && sortDirection === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)'
+                                            }}
+                                        >
+                                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
                                     </div>
                                 </th>
                                 <th className={panelStyles.th} style={{ cursor: 'pointer', textAlign: 'right' }} onClick={() => handleSort('volume')}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                                         Volume ({timeFilter})
-                                        <SortIcon active={sortBy === 'volume'} direction={sortDirection} />
+                                        <svg
+                                            width="10"
+                                            height="6"
+                                            viewBox="0 0 10 6"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            style={{
+                                                transition: 'transform 0.2s',
+                                                transform: sortBy === 'volume' && sortDirection === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)'
+                                            }}
+                                        >
+                                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
                                     </div>
                                 </th>
                             </tr>
