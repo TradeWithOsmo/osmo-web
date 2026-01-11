@@ -3,21 +3,23 @@
     flex-direction: column;
     width: 100%;
     /* height controlled by state classes */
-    background-color: #11050D;
+    background-color: #12000A;
     border-top: 1px solid #3A2530;
     color: #FFE1F2;
     font-family: 'Satoshi', sans-serif;
     transition: height 0.2s ease-in-out;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* Base Heights (Desktop) */
 .collapsed {
-    height: 40px;
+    height: 50px;
 }
 
 .expanded {
-    height: 175px;
+    height: 210px;
+    max-height: 50vh;
+    /* Limit to prevent taking too much screen space */
 }
 
 /* Tablet */
@@ -103,8 +105,44 @@
 
 /* Table */
 .tableContainer {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    /* height: 100%; - Removed to allow auto-shrink */
+    /* min-height: 500px; - Removed to allow auto-shrink */
+    background-color: #12000A;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+    min-height: 0;
+    /* Important for flex scrolling */
+}
+
+.tableWrapper {
     flex: 1;
     overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+    /* Ensure scrollbar works */
+}
+
+/* Custom Scrollbar for the table wrapper */
+.tableWrapper::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.tableWrapper::-webkit-scrollbar-track {
+    background: #11050D;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb {
+    background: #3A2530;
+    border-radius: 3px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+    background: #5D4050;
 }
 
 .table {
@@ -120,9 +158,13 @@
     font-weight: 400;
     border-bottom: 1px solid #3A2530;
     background-color: #12000A;
+    /* Critical for sticky */
     position: sticky;
     top: 0;
     z-index: 10;
+    white-space: nowrap;
+    box-shadow: 0 1px 0 #3A2530;
+    /* Optional: adds a bottom border illusion if normal border moves */
 }
 
 .row {
@@ -130,14 +172,16 @@
 }
 
 .row:hover {
-    background-color: #12000A;
+    background-color: rgba(255, 225, 242, 0.05);
+    cursor: pointer;
 }
 
 .td {
-    padding: 10px 16px;
+    padding: 16px 16px;
     font-size: 13px;
-    vertical-align: top;
+    vertical-align: middle;
     color: #FFE1F2;
+    white-space: nowrap;
 }
 
 /* Specific Cell Styling */
@@ -452,6 +496,16 @@
     color: #A77590;
     font-size: 12px;
     gap: 16px;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background-color: #12000A;
+    /* Critical for sticky to hide content behind */
+    width: 100%;
+    box-sizing: border-box;
+    /* Ensure padding doesn't affect width */
+    box-shadow: 0 -1px 0 #3A2530;
+    /* Top border illusion */
 }
 
 .footerText {
@@ -483,8 +537,103 @@
 
     .pagination {
         width: 100%;
-        justify-content: space-between;
+        justify-content: center;
         order: 1;
-        /* Pagination on top for easy access? Or Keep text top? */
+        flex-wrap: wrap;
+    }
+}
+
+/* Pagination specific styles */
+.paginationButton {
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #3A2530;
+    background: transparent;
+    color: #A77590;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    transition: all 0.2s;
+    padding: 0 6px;
+}
+
+.paginationButton:hover {
+    border-color: #FFE1F2;
+    color: #FFE1F2;
+}
+
+.paginationButton.active,
+.paginationButton:global(.active) {
+    /* Ensure compatibility */
+    background-color: #3A2530;
+    color: #FFE1F2;
+    border-color: #3A2530;
+    font-weight: 600;
+}
+
+.paginationButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #3A2530;
+    color: #5D4050;
+}
+
+.footerGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    width: 100%;
+}
+
+.footerMessage {
+    justify-self: start;
+    color: #A77590;
+    font-size: 13px;
+}
+
+.footerControls {
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.footerActions {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #A77590;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .footerGrid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 8px 0;
+    }
+
+    .footerMessage {
+        order: 2;
+        text-align: center;
+        justify-self: center;
+    }
+
+    .footerControls {
+        order: 1;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .footerActions {
+        order: 3;
+        justify-content: center;
+        width: 100%;
     }
 }

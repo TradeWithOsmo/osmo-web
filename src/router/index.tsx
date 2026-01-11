@@ -7,8 +7,7 @@ import {
 
 
     Points,
-    Leaderboard,
-    Strategies
+    Leaderboard
 } from '../pages';
 
 interface AppRouterProps {
@@ -27,7 +26,5 @@ export const AppRouter: React.FC<AppRouterProps> = ({ route }) => {
 
     if (currentPath === '/points') return <Points />;
     if (currentPath === '/leaderboard') return <Leaderboard />;
-    if (currentPath === '/strategies') return <Strategies />;
-
     return <Trade />; // Default to Trade
 };

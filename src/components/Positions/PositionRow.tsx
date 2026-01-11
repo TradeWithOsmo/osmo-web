@@ -70,12 +70,12 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
 
                 {/* Size */}
                 <td className={styles.td}>
-                    <span style={{ color: '#00E396' }}>{formatCrypto(position.size)} {position.symbol}</span>
+                    <span style={{ color: '#FFFFFF' }}>{formatCrypto(position.size)} <span style={{ color: '#A77590', fontSize: '11px' }}>{position.symbol}</span></span>
                 </td>
 
                 {/* Position Value */}
                 <td className={styles.td}>
-                    <span style={{ fontWeight: 500 }}>{formatUsd(position.sizeUsd)} USDC</span>
+                    <span style={{ color: '#FFFFFF' }}>{formatUsd(position.sizeUsd)} <span style={{ color: '#A77590', fontSize: '11px' }}>USDC</span></span>
                 </td>
 
                 {/* Entry Price */}
@@ -109,12 +109,12 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
 
                 {/* Margin */}
                 <td className={styles.td}>
-                    <span>${formatUsd(position.margin)} (Cross)</span>
+                    <span>${formatUsd(position.margin)} <span style={{ color: '#A77590', fontSize: '11px' }}>(Cross)</span></span>
                 </td>
 
                 {/* Funding */}
                 <td className={styles.td}>
-                    <span className={styles.positive}>${formatUsd(position.funding)}</span>
+                    <span style={{ color: position.funding >= 0 ? '#00E396' : '#FF4560' }}>${formatUsd(Math.abs(position.funding))}</span>
                 </td>
 
                 {/* Close All */}

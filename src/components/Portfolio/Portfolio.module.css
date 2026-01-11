@@ -8,6 +8,8 @@
     color: #FFE1F2;
     font-family: 'Satoshi', sans-serif;
     overflow: hidden;
+    height: 100%;
+    /* Fix: Explicit height for flex scrolling */
 }
 
 /* Sidebar */
@@ -25,6 +27,8 @@
     position: relative;
     transition: width 0.3s ease;
     overflow-y: auto;
+    flex-shrink: 0;
+    /* consistent with Autos */
 }
 
 .sidebarMinimized {
@@ -78,6 +82,12 @@
     background-color: #12000A;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    white-space: nowrap;
+    /* consistent with Autos */
+    overflow: hidden;
+    /* consistent with Autos */
+    text-overflow: ellipsis;
+    /* consistent with Autos */
 }
 
 .menuItem {
@@ -98,10 +108,15 @@
     text-decoration: none;
     border-radius: 0;
     /* Rectangular items */
+    white-space: nowrap;
+    /* consistent with Autos */
+    overflow: hidden;
+    /* consistent with Autos */
 }
 
 .menuItem:hover {
-    background-color: #12000A;
+    background-color: rgba(255, 225, 242, 0.05);
+    /* Fix: Visible hover color */
     color: #FFFFFF;
 }
 
@@ -133,11 +148,17 @@
     overflow-y: auto;
     padding: 32px 48px;
     transition: all 0.3s ease;
+    min-height: 0;
+    /* Fix: Allow flex nested scrolling */
+    display: flex;
+    /* from Autos */
+    flex-direction: column;
+    /* from Autos */
 }
 
 .contentCentered {
-    display: flex;
-    justify-content: center;
+    align-items: center;
+    /* from Autos */
 }
 
 .contentCentered>* {
@@ -466,4 +487,50 @@
     .sortDropdownWrapper {
         display: block;
     }
+}
+
+/* Tabs Styled as Navbar */
+.tabsContainer {
+    display: flex;
+    width: 100%;
+    border-bottom: 1px solid #3A2530;
+    background-color: #12000A;
+}
+
+.tabButton {
+    padding: 16px 24px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    /* Keep layout consistent if needed, or remove. Let's keep transparent border to avoid layout shift if we ever add it back, or just remove if strictly "no active". */
+    color: #A77590;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    margin-bottom: -1px;
+    position: relative;
+}
+
+/* Vertical Divider */
+.tabButton:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background-color: #3A2530;
+}
+
+.tabButton:hover {
+    color: #FFE1F2;
+    background-color: rgba(255, 225, 242, 0.05);
+}
+
+.activeTab {
+    color: #FFE1F2;
+    border-bottom-color: transparent;
+    /* Remove active border */
 }

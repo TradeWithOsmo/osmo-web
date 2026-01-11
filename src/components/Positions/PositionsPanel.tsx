@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './PositionsPanel.module.css';
+import portfolioStyles from '../Portfolio/Portfolio.module.css'; // Import Navbar styles
 import PositionRow from './PositionRow';
 import type { PositionData } from './PositionRow';
 import type { OrderData } from './OrderRow';
@@ -9,6 +10,31 @@ import type { TradeHistoryData } from './TradeHistoryRow';
 import OrderHistoryTable from './OrderHistoryTable';
 import type { OrderHistoryData } from './OrderHistoryRow';
 import arrowDownIcon from '../../assets/Icons/Arrow/Arrow-down-Bullet.png';
+
+// Sort Icon Component (same as Leaderboard)
+const SortIcon = ({ active, direction }: { active: boolean; direction: 'asc' | 'desc' }) => {
+    const activeColor = '#FFE1F2';
+    const inactiveColor = '#5D4050';
+
+    return (
+        <svg width="8" height="11" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+                d="M5 0L9 4H1L5 0Z"
+                fill={active && direction === 'asc' ? activeColor : inactiveColor}
+                stroke={active && direction === 'asc' ? activeColor : inactiveColor}
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+            />
+            <path
+                d="M5 14L1 10H9L5 14Z"
+                fill={active && direction === 'desc' ? activeColor : inactiveColor}
+                stroke={active && direction === 'desc' ? activeColor : inactiveColor}
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+};
 
 // Mock Data
 const MOCK_POSITIONS: PositionData[] = [
@@ -133,38 +159,39 @@ const PositionsPanel: React.FC = () => {
 
     return (
         <div className={`${styles.panelContainer} ${isExpanded ? styles.expanded : styles.collapsed}`}>
-            {/* Tabs Header */}
-            <div className={styles.tabsHeader}>
+            {/* Tabs Header - Navbar Style from Portfolio */}
+            <div className={portfolioStyles.tabsContainer}>
                 <button
-                    className={`${styles.tab} ${activeTab === 'Positions' ? styles.active : ''}`}
+                    className={`${portfolioStyles.tabButton} ${activeTab === 'Positions' ? portfolioStyles.activeTab : ''}`}
                     onClick={() => setActiveTab('Positions')}
                 >
                     Positions <span className={styles.countBadge}>{positionsCount}</span>
                 </button>
                 <button
-                    className={`${styles.tab} ${activeTab === 'Orders' ? styles.active : ''}`}
+                    className={`${portfolioStyles.tabButton} ${activeTab === 'Orders' ? portfolioStyles.activeTab : ''}`}
                     onClick={() => setActiveTab('Orders')}
                 >
                     Orders <span className={styles.countBadge} style={{ backgroundColor: activeTab === 'Orders' ? '#3A2530' : '#3A2530', color: activeTab === 'Orders' ? '#FFE1F2' : '#A77590' }}>{ordersCount}</span>
                 </button>
                 <button
-                    className={`${styles.tab} ${activeTab === 'Trade History' ? styles.active : ''}`}
+                    className={`${portfolioStyles.tabButton} ${activeTab === 'Trade History' ? portfolioStyles.activeTab : ''}`}
                     onClick={() => setActiveTab('Trade History')}
                 >
                     Trade History
                 </button>
                 <button
-                    className={`${styles.tab} ${activeTab === 'Order History' ? styles.active : ''}`}
+                    className={`${portfolioStyles.tabButton} ${activeTab === 'Order History' ? portfolioStyles.activeTab : ''}`}
                     onClick={() => setActiveTab('Order History')}
                 >
                     Order History
                 </button>
 
-                <div className={styles.filler} />
+                <div className={styles.filler} style={{ flex: 1, borderBottom: '1px solid #3A2530' }} />
 
                 <div
                     className={styles.arrowToggle}
                     onClick={() => setIsExpanded(!isExpanded)}
+                    style={{ borderBottom: '1px solid #3A2530', height: 'auto', display: 'flex', alignItems: 'center' }}
                 >
                     <img
                         src={arrowDownIcon}
@@ -183,28 +210,35 @@ const PositionsPanel: React.FC = () => {
             {isExpanded && (
                 <div className={styles.tableContainer}>
                     {activeTab === 'Positions' && (
-                        <table className={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th className={styles.th}>Coin</th>
-                                    <th className={styles.th}>Size</th>
-                                    <th className={styles.th}>Position Value <span style={{ fontSize: '8px' }}>▼</span></th>
-                                    <th className={styles.th}>Entry Price</th>
-                                    <th className={styles.th}>Mark Price</th>
-                                    <th className={styles.th}>PNL (ROE %)</th>
-                                    <th className={styles.th}>Liq. Price</th>
-                                    <th className={styles.th}>Margin</th>
-                                    <th className={styles.th}>Funding</th>
-                                    <th className={styles.th}>Close All</th>
-                                    <th className={styles.th} style={{ textAlign: 'right' }}>TP/SL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {MOCK_POSITIONS.map(pos => (
-                                    <PositionRow key={pos.id} position={pos} />
-                                ))}
-                            </tbody>
-                        </table>
+                        <div className={styles.tableWrapper}>
+                            <table className={styles.table}>
+                                <thead>
+                                    <tr>
+                                        <th className={styles.th}>Coin</th>
+                                        <th className={styles.th}>Size</th>
+                                        <th className={styles.th} style={{ cursor: 'pointer' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                Position Value
+                                                <SortIcon active={true} direction={'desc'} />
+                                            </div>
+                                        </th>
+                                        <th className={styles.th}>Entry Price</th>
+                                        <th className={styles.th}>Mark Price</th>
+                                        <th className={styles.th}>PNL (ROE %)</th>
+                                        <th className={styles.th}>Liq. Price</th>
+                                        <th className={styles.th}>Margin</th>
+                                        <th className={styles.th}>Funding</th>
+                                        <th className={styles.th}>Close All</th>
+                                        <th className={styles.th} style={{ textAlign: 'right' }}>TP/SL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {MOCK_POSITIONS.map(pos => (
+                                        <PositionRow key={pos.id} position={pos} />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
 
                     {activeTab === 'Orders' && (

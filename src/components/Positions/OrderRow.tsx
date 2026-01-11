@@ -57,17 +57,17 @@ const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
 
                 {/* Size */}
                 <td className={styles.td}>
-                    <span>{formatCrypto(order.size)}</span>
+                    <span style={{ color: '#FFFFFF' }}>{formatCrypto(order.size)} <span style={{ color: '#A77590', fontSize: '11px' }}>{order.symbol}</span></span>
                 </td>
 
                 {/* Original Size */}
                 <td className={styles.td}>
-                    <span>{formatCrypto(order.originalSize)}</span>
+                    <span style={{ color: '#FFFFFF' }}>{formatCrypto(order.originalSize)} <span style={{ color: '#A77590', fontSize: '11px' }}>{order.symbol}</span></span>
                 </td>
 
                 {/* Order Value */}
                 <td className={styles.td}>
-                    <span style={{ fontWeight: 500 }}>{formatUsd(order.orderValue)} USDC</span>
+                    <span style={{ color: '#FFFFFF' }}>{formatUsd(order.orderValue)} <span style={{ color: '#A77590', fontSize: '11px' }}>USDC</span></span>
                 </td>
 
                 {/* Price */}

@@ -16,16 +16,32 @@
     padding-bottom: 0;
 }
 
+.mobileMainContainer {
+    display: none;
+}
+
 /* Desktop Layout Classes */
 
-
-.topSection {
+.contentWrapper {
     display: flex;
-    flex-direction: row;
     flex: 1;
-    min-height: 300px;
     overflow: hidden;
-    position: relative;
+    height: 100%;
+}
+
+.leftColumn {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.topRow {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
 }
 
 .chartContainer {
@@ -37,26 +53,6 @@
     height: 100%;
 }
 
-.orderFormContainer {
-    width: 320px;
-    border-left: 1px solid #3A2530;
-    background-color: #12000A;
-    display: flex;
-    flex-direction: column;
-    z-index: 20;
-    flex-shrink: 0;
-}
-
-/* Mobile Tab Navigation */
-.mobileTabs {
-    display: none;
-}
-
-.mobileMainContainer {
-    display: none;
-}
-
-/* Order Book Container */
 .orderBookContainer {
     display: flex;
     flex-direction: column;
@@ -67,13 +63,26 @@
     background-color: #12000A;
 }
 
+.orderFormContainer {
+    width: 320px;
+    border-left: 1px solid #3A2530;
+    background-color: #12000A;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    flex-shrink: 0;
+    height: 100%;
+}
+
 .positionsSection {
     width: 100%;
     z-index: 10;
     flex-shrink: 0;
     position: relative;
     background-color: #11050D;
-    /* Ensure it sits below chartRow */
+    height: auto;
+    /* Allow it to take necessary height */
+    /* Removed min-height, let component dictate or use specific height in PositionsPanel */
 }
 
 /* MOBILE AND TABLET STYLES */
@@ -85,15 +94,7 @@
     }
 
     /* Hide Desktop-specific layouts */
-    .orderFormContainer {
-        display: none !important;
-    }
-
-    .topSection {
-        display: none !important;
-    }
-
-    .positionsSection {
+    .contentWrapper {
         display: none !important;
     }
 
