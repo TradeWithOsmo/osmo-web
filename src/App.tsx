@@ -16,7 +16,7 @@ function App() {
 
   const navItems = [
     { label: 'Trade', href: '/trade', isActive: currentRoute === '/trade' || currentRoute === '/autos' },
-    { label: 'Market', href: '/market', isActive: currentRoute === '/market' },
+
     { label: 'Portfolio', href: '/portfolio', isActive: currentRoute.startsWith('/portfolio') },
 
     // { label: 'Points', href: '/points', isActive: currentRoute === '/points' },

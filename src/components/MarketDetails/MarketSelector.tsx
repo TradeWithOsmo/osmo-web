@@ -45,110 +45,273 @@ export interface MarketSelectorProps {
     isOpen: boolean;
     onClose: () => void;
     onSelect: (market: MarketItem) => void;
+    isEmbedded?: boolean;
 }
 
-const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSelect }) => {
+const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSelect, isEmbedded = false }) => {
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
-    const [showLaunchable, setShowLaunchable] = useState(false);
+
+
+    // Sorting State
+    const [sortConfig, setSortConfig] = useState<{ key: keyof MarketItem, direction: 'asc' | 'desc' } | null>(null);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(50);
+    const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
+
+    // Drag to scroll for filters
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        if (scrollContainerRef.current) {
+            setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+            setScrollLeft(scrollContainerRef.current.scrollLeft);
+        }
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !scrollContainerRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - scrollContainerRef.current.offsetLeft;
+        const walk = (x - startX) * 2; // Scroll-fast
+        scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+    };
 
     useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
+        if (!isEmbedded) {
+            if (isOpen) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = 'unset';
+            }
+            return () => {
+                document.body.style.overflow = 'unset';
+            };
         }
+    }, [isOpen, isEmbedded]);
 
-        return () => {
-            document.body.style.overflow = 'unset';
-        };
-    }, [isOpen]);
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter, search]);
 
-    if (!isOpen) return null;
+    // Helper to parse numeric strings (e.g. $127M -> 127000000, 2.16% -> 2.16)
+    const parseNumber = (str: string) => {
+        const clean = str.replace(/[$,%]/g, '').trim();
+        const upper = clean.toUpperCase();
+        const multiplier = upper.endsWith('T') ? 1e12 :
+            upper.endsWith('B') ? 1e9 :
+                upper.endsWith('M') ? 1e6 :
+                    upper.endsWith('K') ? 1e3 : 1;
+        return parseFloat(clean) * multiplier;
+    };
 
-    const filteredData = MOCK_DATA.filter(item =>
+    const handleSort = (key: keyof MarketItem) => {
+        let direction: 'asc' | 'desc' = 'desc'; // Default to descending
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
+            direction = 'asc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const filteredDataAll = MOCK_DATA.filter(item =>
         item.symbol.toLowerCase().includes(search.toLowerCase()) &&
         (filter === 'All' || filter === 'Favorites' ? (filter === 'Favorites' ? item.isFavorite : true) : true)
-        // Logic for other filters like 'Meme', 'DeFi' would normally check item tags/categories
     );
 
-    return (
-        <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.container} onClick={e => e.stopPropagation()}>
-                {/* 1. Search Section */}
-                <div className={styles.searchSection}>
-                    <div className={styles.searchBar}>
-                        <SearchSVG />
-                        <input
-                            type="text"
-                            className={styles.searchInput}
-                            placeholder="e.g. &quot;ETH&quot; or &quot;Ethereum&quot;"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            autoFocus
-                        />
-                    </div>
-                </div>
+    // Sorting Logic - Rebuilt one by one
+    const sortedData = React.useMemo(() => {
+        let sortableItems = [...filteredDataAll];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const { key, direction } = sortConfig;
 
-                {/* 2. Filters */}
-                <div className={styles.filters}>
-                    <div
-                        className={styles.filterToggle}
-                        onClick={() => setShowLaunchable(!showLaunchable)}
-                        style={{ cursor: 'pointer' }}
+                // Helper for direction multiplier
+                const dir = direction === 'asc' ? 1 : -1;
+
+                switch (key) {
+                    case 'symbol':
+                        return dir * a.symbol.localeCompare(b.symbol);
+
+                    case 'price':
+                        // Parse price: Remove '$' and ',' then float
+                        const priceA = parseFloat(a.price.replace(/[$,]/g, ''));
+                        const priceB = parseFloat(b.price.replace(/[$,]/g, ''));
+                        return dir * (priceA - priceB);
+
+                    case 'change':
+                        // Parse percentage: Remove '%' then float
+                        const changeA = parseFloat(a.change.replace('%', ''));
+                        const changeB = parseFloat(b.change.replace('%', ''));
+                        return dir * (changeA - changeB);
+
+                    case 'volume':
+                        // Parse Volume (e.g. $127M, $513K)
+                        const volA = parseNumber(a.volume);
+                        const volB = parseNumber(b.volume);
+                        return dir * (volA - volB);
+
+                    case 'spotVol':
+                        // Parse Spot Volume same as Volume
+                        const spotVolA = parseNumber(a.spotVol);
+                        const spotVolB = parseNumber(b.spotVol);
+                        return dir * (spotVolA - spotVolB);
+
+                    case 'mktCap':
+                        // Parse Market Cap same as Volume
+                        const mktCapA = parseNumber(a.mktCap);
+                        const mktCapB = parseNumber(b.mktCap);
+                        return dir * (mktCapA - mktCapB);
+
+                    default:
+                        return 0;
+                }
+            });
+        }
+        return sortableItems;
+    }, [filteredDataAll, sortConfig]);
+
+    // Pagination Logic
+    const totalItems = sortedData.length;
+    const totalPages = Math.ceil(totalItems / rowsPerPage);
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const paginatedData = sortedData.slice(startIndex, startIndex + rowsPerPage);
+
+    if (!isEmbedded && !isOpen) return null;
+
+    const toggleRowsDropdown = () => setIsRowsDropdownOpen(!isRowsDropdownOpen);
+
+    const goToPage = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    const SortIcon = ({ columnKey }: { columnKey: keyof MarketItem }) => (
+        <svg
+            width="10"
+            height="6"
+            viewBox="0 0 10 6"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{
+                // marginLeft: '6px', // Removed because we use gap now
+                transform: sortConfig?.key === columnKey && sortConfig.direction === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s',
+                opacity: sortConfig?.key === columnKey ? 1 : 0.5
+            }}
+        >
+            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+
+    const content = (
+        <div className={`${styles.container} ${isEmbedded ? styles.embedded : ''}`} onClick={e => !isEmbedded && e.stopPropagation()}>
+            {/* 1. Filters (Tabs) */}
+            <div
+                className={styles.filters}
+                ref={scrollContainerRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
+                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+            >
+                {['All', 'Recently Listed', 'Launchable', 'Meme', 'AI & Big Data', 'DeFi', 'DePIN', 'Layer 1', 'Layer 2'].map(f => (
+                    <button
+                        key={f}
+                        className={`${styles.filterChip} ${filter === f ? styles.active : ''}`}
+                        onClick={() => setFilter(f)}
                     >
-                        <span>Show launchable markets</span>
-                        {/* Toggle Switch */}
-                        <div style={{
-                            width: 32,
-                            height: 18,
-                            background: showLaunchable ? '#E5488D' : '#3A2530',
-                            borderRadius: 9,
-                            position: 'relative',
-                            transition: 'background 0.2s'
-                        }}>
-                            <div style={{
-                                width: 14,
-                                height: 14,
-                                background: '#FFE1F2',
-                                borderRadius: '50%',
-                                position: 'absolute',
-                                top: 2,
-                                left: showLaunchable ? 16 : 2,
-                                transition: 'left 0.2s'
-                            }}></div>
-                        </div>
-                    </div>
-                    <div className={styles.filterDivider}></div>
-                    {['All', 'Recently Listed', 'Launchable', 'Meme', 'AI & Big Data', 'DeFi', 'DePIN', 'Layer 1', 'Layer 2'].map(f => (
-                        <button
-                            key={f}
-                            className={`${styles.filterChip} ${filter === f ? styles.active : ''}`}
-                            onClick={() => setFilter(f)}
-                        >
-                            {f} {f === 'Launchable' && <span className={styles.newBadge}>NEW</span>}
-                        </button>
-                    ))}
+                        {f} {f === 'Launchable' && <span className={styles.newBadge}>NEW</span>}
+                    </button>
+                ))}
+            </div>
+
+            {/* 2. Search Section */}
+            <div className={styles.searchSection}>
+                <div className={styles.searchBar}>
+                    <SearchSVG />
+                    <input
+                        type="text"
+                        className={styles.searchInput}
+                        placeholder="e.g. &quot;ETH&quot; or &quot;Ethereum&quot;"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        autoFocus={!isEmbedded}
+                    />
                 </div>
+            </div>
 
-                {/* 3. Divider */}
-                <div className={styles.divider}></div>
 
-                {/* Table */}
-                <div className={styles.tableContainer}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>Market</th>
-                                <th>Price</th>
-                                <th>24h</th>
-                                <th>Volume <span style={{ fontSize: 10 }}>↑↓</span></th>
-                                <th>24h Spot Volume</th>
-                                <th>Market Cap</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredData.map(item => (
+
+            {/* Table */}
+            <div className={styles.tableContainer}>
+                <table className={styles.table}>
+                    <thead>
+                        <tr>
+                            <th onClick={() => handleSort('symbol')} style={{ cursor: 'pointer' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    Market
+                                    <SortIcon columnKey="symbol" />
+                                </div>
+                            </th>
+                            <th onClick={() => handleSort('price')} style={{ cursor: 'pointer' }} className={styles.hideOnSmallMobile}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                    Price
+                                    <SortIcon columnKey="price" />
+                                </div>
+                            </th>
+                            <th onClick={() => handleSort('change')} style={{ cursor: 'pointer' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                    24h
+                                    <SortIcon columnKey="change" />
+                                </div>
+                            </th>
+                            <th
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => handleSort('volume')}
+                                className={styles.hideOnMobile}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                    Volume
+                                    <SortIcon columnKey="volume" />
+                                </div>
+                            </th>
+                            <th onClick={() => handleSort('spotVol')} style={{ cursor: 'pointer' }} className={styles.hideOnMobile}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                    24h Spot Volume
+                                    <SortIcon columnKey="spotVol" />
+                                </div>
+                            </th>
+                            <th onClick={() => handleSort('mktCap')} style={{ cursor: 'pointer' }} className={styles.hideOnMobile}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                    Market Cap
+                                    <SortIcon columnKey="mktCap" />
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {paginatedData.map(item => {
+                            const isNegative = item.change.startsWith('-');
+                            const changeText = isNegative ? item.change : `+${item.change.replace('+', '')}`;
+
+                            return (
                                 <tr key={item.id} onClick={() => onSelect(item)}>
                                     <td className={styles.marketCell}>
                                         <button className={styles.starBtn}>
@@ -166,33 +329,113 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                             <span key={t} className={styles.feeBadge}>{t}</span>
                                         ))}
                                     </td>
-                                    <td>{item.price}</td>
-                                    <td className={item.change.startsWith('-') ? styles.negative : styles.positive}>{item.change}</td>
-                                    <td>{item.volume}</td>
-                                    <td>{item.spotVol}</td>
-                                    <td>{item.mktCap}</td>
+                                    <td className={styles.hideOnSmallMobile}>{item.price}</td>
+                                    <td className={isNegative ? styles.negative : styles.positive}>
+                                        {changeText}
+                                    </td>
+                                    <td className={styles.hideOnMobile}>{item.volume}</td>
+                                    <td className={styles.hideOnMobile}>{item.spotVol}</td>
+                                    <td className={styles.hideOnMobile}>{item.mktCap}</td>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
 
-                {/* Footer */}
-                <div className={styles.footer}>
-                    <span>Showing 1 - {filteredData.length} out of {MOCK_DATA.length}</span>
-                    <div className={styles.pagination}>
-                        <button className={styles.pageBtn} disabled>&lt;</button>
-                        <button className={`${styles.pageBtn} ${styles.active}`}>1</button>
-                        <button className={styles.pageBtn}>2</button>
-                        <button className={styles.pageBtn}>3</button>
-                        <button className={styles.pageBtn}>4</button>
-                        <button className={styles.pageBtn}>&gt;</button>
-                        <div style={{ marginLeft: 10 }}>
-                            Show <span style={{ color: '#FFE1F2' }}>50 ⌄</span>
+            {/* Footer */}
+            <div className={styles.tableFooter}>
+                <div className={styles.footerGrid}>
+                    <div className={styles.footerMessage}>
+                        Showing {totalItems === 0 ? 0 : startIndex + 1} - {Math.min(startIndex + rowsPerPage, totalItems)} out of {totalItems}
+                    </div>
+
+                    <div className={styles.footerControls}>
+                        <button
+                            className={styles.paginationButton}
+                            onClick={() => goToPage(currentPage - 1)}
+                            disabled={currentPage === 1}
+                        >
+                            &lt;
+                        </button>
+
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let startPage = Math.max(1, currentPage - 2);
+                            if (startPage + 4 > totalPages) {
+                                startPage = Math.max(1, totalPages - 4);
+                            }
+                            const p = startPage + i;
+                            if (p > totalPages || p < 1) return null;
+
+                            return (
+                                <button
+                                    key={p}
+                                    className={`${styles.paginationButton} ${currentPage === p ? styles.active : ''}`}
+                                    onClick={() => goToPage(p)}
+                                >
+                                    {p}
+                                </button>
+                            );
+                        })}
+
+                        <button
+                            className={styles.paginationButton}
+                            onClick={() => goToPage(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                        >
+                            &gt;
+                        </button>
+                    </div>
+
+                    <div className={styles.footerActions}>
+                        <span>Show</span>
+                        <div className={styles.dropdownContainer}>
+                            <button
+                                className={`${styles.dropdownButton} ${isRowsDropdownOpen ? styles.active : ''}`}
+                                onClick={toggleRowsDropdown}
+                                style={{ border: '1px solid #3A2530', padding: '4px 8px', borderRadius: '6px', height: '32px' }}
+                            >
+                                {rowsPerPage}
+                                <svg
+                                    width="10"
+                                    height="6"
+                                    viewBox="0 0 10 6"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{
+                                        transition: 'transform 0.2s',
+                                        marginLeft: '6px',
+                                        transform: isRowsDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                                    }}
+                                >
+                                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                            {isRowsDropdownOpen && (
+                                <div className={styles.dropdownMenu} style={{ minWidth: '60px', bottom: '100%', top: 'auto', marginBottom: '4px' }}>
+                                    {[10, 20, 50, 100].map((rows) => (
+                                        <button
+                                            key={rows}
+                                            className={`${styles.dropdownItem} ${rowsPerPage === rows ? styles.selected : ''}`}
+                                            onClick={() => { setRowsPerPage(rows); setCurrentPage(1); setIsRowsDropdownOpen(false); }}
+                                        >
+                                            {rows}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    );
+
+    if (isEmbedded) return content;
+
+    return (
+        <div className={styles.overlay} onClick={onClose}>
+            {content}
         </div>
     );
 };

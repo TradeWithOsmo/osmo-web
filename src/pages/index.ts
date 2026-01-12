@@ -1,6 +1,6 @@
 export { default as Trade } from './Trade';
 export { default as Autos } from './Autos';
-export { default as Market } from './Market';
+
 
 export { default as Portfolio } from './Portfolio';
 
