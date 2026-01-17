@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./TradingChart.css";
+import { useTradingViewConnector } from "../../hooks/useTradingViewConnector";
 
 interface TVChartContainerProps {
   symbol?: string;
@@ -30,6 +31,9 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
   const widgetRef = useRef<any>(null);
   const [isChartReady, setIsChartReady] = useState(false);
   const hasInitialized = useRef(false);
+
+  // Sync data to backend when chart is ready (Hook v3.1)
+  useTradingViewConnector(widgetRef.current, isChartReady);
 
   // Wait for container to have proper dimensions before initializing
   useEffect(() => {
