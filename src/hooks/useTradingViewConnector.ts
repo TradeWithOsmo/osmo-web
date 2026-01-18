@@ -10,6 +10,19 @@ import { useEffect, useRef } from 'react';
 export const useTradingViewConnector = (widget: any, enabled: boolean = true) => {
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Map common Agent/User friendly names to TradingView internal study names
+    const STUDY_MAP: Record<string, string> = {
+        "RSI": "Relative Strength Index",
+        "MACD": "MACD",
+        "SMA": "Moving Average",
+        "EMA": "Moving Average Exponential",
+        "BB": "Bollinger Bands",
+        "Bollinger Bands": "Bollinger Bands",
+        "Stochastic": "Stochastic",
+        "ATR": "Average True Range",
+        "VWAP": "VWAP"
+    };
+
     useEffect(() => {
         if (!widget || !enabled) {
             if (intervalRef.current) {
@@ -103,13 +116,43 @@ export const useTradingViewConnector = (widget: any, enabled: boolean = true) =>
 
                 console.log('[TradingViewConnector] Synced indicators:', Object.keys(indicators));
 
+                // --- NEW: Poll for Commands from Agent ---
+                const cmdResponse = await fetch(`http://localhost:8000/api/connectors/tradingview/commands/${symbol}`);
+                if (cmdResponse.ok) {
+                    const commands = await cmdResponse.json();
+                    if (Array.isArray(commands) && commands.length > 0) {
+                        console.log('[TradingViewConnector] Received commands:', commands);
+
+                        for (const cmd of commands) {
+                            try {
+                                if (cmd.action === 'set_timeframe') {
+                                    const tf = cmd.params.timeframe;
+                                    console.log(`[TradingViewConnector] Executing: Set Timeframe to ${tf}`);
+                                    chart.setResolution(tf, () => console.log('Timeframe changed'));
+                                }
+                                else if (cmd.action === 'add_indicator') {
+                                    const { name, inputs, forceOverlay } = cmd.params;
+                                    console.log(`[TradingViewConnector] Executing: Add Indicator ${name}`);
+
+                                    // createStudy(name, forceOverlay, lock, inputs, callback, overrideId)
+                                    // Note: inputs needs to be array of values usually, but depending on TV version.
+                                    // If inputs is dict, we might need to map it. For now assuming simple usage.
+                                    chart.createStudy(name, forceOverlay, false, inputs);
+                                }
+                            } catch (e) {
+                                console.error(`[TradingViewConnector] Date Command Failed:`, e);
+                            }
+                        }
+                    }
+                }
+
             } catch (error) {
                 console.error('[TradingViewConnector] Sync failed:', error);
             }
         };
 
-        // Sync every 10 seconds
-        intervalRef.current = setInterval(syncIndicators, 10000);
+        // Sync every 3 seconds (Faster for commands)
+        intervalRef.current = setInterval(syncIndicators, 3000);
 
         // Initial sync
         setTimeout(syncIndicators, 2000);
