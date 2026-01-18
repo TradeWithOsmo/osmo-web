@@ -1,5 +1,6 @@
 
 import { useEffect, useRef } from 'react';
+import { commandRegistry } from '../charting/commands/registry';
 
 /**
  * Hook to extract data from TradingView widget and send to Backend.
@@ -24,6 +25,8 @@ export const useTradingViewConnector = (widget: any, enabled: boolean = true) =>
     };
 
     useEffect(() => {
+        console.log("[TradingViewConnector] Hook Mounted - Registry Check:", commandRegistry);
+        // Force Reload Trigger
         if (!widget || !enabled) {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
@@ -33,7 +36,7 @@ export const useTradingViewConnector = (widget: any, enabled: boolean = true) =>
         }
 
         const syncIndicators = async () => {
-            console.log("TradingView Connector Hook v3.0 - Naming Logic Updated");
+            // console.log("TradingView Connector Hook v3.0 - Naming Logic Updated");
             try {
                 const chart = widget.chart();
                 if (!chart) return;
@@ -114,7 +117,7 @@ export const useTradingViewConnector = (widget: any, enabled: boolean = true) =>
                     body: JSON.stringify(payload),
                 });
 
-                console.log('[TradingViewConnector] Synced indicators:', Object.keys(indicators));
+                // console.log('[TradingViewConnector] Synced indicators:', Object.keys(indicators));
 
                 // --- NEW: Poll for Commands from Agent ---
                 const cmdResponse = await fetch(`http://localhost:8000/api/connectors/tradingview/commands/${symbol}`);
@@ -125,29 +128,36 @@ export const useTradingViewConnector = (widget: any, enabled: boolean = true) =>
 
                         for (const cmd of commands) {
                             try {
-                                if (cmd.action === 'set_timeframe') {
-                                    const tf = cmd.params.timeframe;
-                                    console.log(`[TradingViewConnector] Executing: Set Timeframe to ${tf}`);
-                                    chart.setResolution(tf, () => console.log('Timeframe changed'));
-                                }
-                                else if (cmd.action === 'add_indicator') {
-                                    const { name, inputs, forceOverlay } = cmd.params;
-                                    console.log(`[TradingViewConnector] Executing: Add Indicator ${name}`);
-
-                                    // createStudy(name, forceOverlay, lock, inputs, callback, overrideId)
-                                    // Note: inputs needs to be array of values usually, but depending on TV version.
-                                    // If inputs is dict, we might need to map it. For now assuming simple usage.
-                                    chart.createStudy(name, forceOverlay, false, inputs);
+                                const handler = commandRegistry.get(cmd.action);
+                                if (handler) {
+                                    console.log(`[TradingViewConnector] Dispatching ${cmd.action} to handler`);
+                                    // Force HMR Refresh Check
+                                    handler.execute(widget.activeChart(), cmd.params || {});
+                                } else {
+                                    // Fallback for legacy commands (add_indicator, set_timeframe) if not yet in registry
+                                    if (cmd.action === 'set_timeframe') {
+                                        const tf = cmd.params.timeframe;
+                                        console.log(`[TradingViewConnector] Executing Legacy: Set Timeframe to ${tf}`);
+                                        chart.setResolution(tf, () => console.log('Timeframe changed'));
+                                    }
+                                    else if (cmd.action === 'add_indicator') {
+                                        const { name, inputs, forceOverlay } = cmd.params;
+                                        console.log(`[TradingViewConnector] Executing Legacy: Add Indicator ${name}`);
+                                        chart.createStudy(name, forceOverlay, false, inputs);
+                                    } else {
+                                        console.warn(`[TradingViewConnector] Unknown Action: ${cmd.action}`);
+                                    }
                                 }
                             } catch (e) {
-                                console.error(`[TradingViewConnector] Date Command Failed:`, e);
+                                console.error(`[TradingViewConnector] Command Failed:`, e);
                             }
                         }
                     }
                 }
 
             } catch (error) {
-                console.error('[TradingViewConnector] Sync failed:', error);
+                // Squelch sync errors to avoid console spam if backend is down temporarily
+                // console.error('[TradingViewConnector] Sync failed:', error);
             }
         };
 

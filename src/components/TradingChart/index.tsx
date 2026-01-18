@@ -222,6 +222,7 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
         }}
       >
         <div
+          id="tv_chart_container"
           ref={chartContainerRef}
           style={{
             width: '100%',
