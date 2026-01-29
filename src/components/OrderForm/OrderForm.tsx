@@ -1,10 +1,23 @@
 import React, { useState } from 'react';
 import styles from './OrderForm.module.css';
+import { orderService } from '../../api/orderService';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useMarketStore } from '../../store/useMarketStore';
+import { useWallet } from '../../hooks';
+import toast from 'react-hot-toast';
 
 
 const OrderForm: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'Limit' | 'Market' | 'Stop Limit'>('Limit');
     const [side, setSide] = useState<'buy' | 'sell'>('buy');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Get current market and stores
+    const selectedMarket = useMarketStore((state) => state.selectedMarket);
+    const refreshAll = usePortfolioStore((state) => state.refreshAll);
+
+    // Get wallet from Privy
+    const { authenticated, walletAddress } = useWallet();
 
     // Inputs
     const [price, setPrice] = useState('');
@@ -41,6 +54,56 @@ const OrderForm: React.FC = () => {
     const [slPrice, setSlPrice] = useState('');
 
     const [receiptOpen, setReceiptOpen] = useState(false);
+
+    // Handle order submission
+    const handleSubmit = async () => {
+        // Guard: Check wallet connection
+        if (!authenticated || !walletAddress) {
+            toast.error('Please connect your wallet first');
+            return;
+        }
+
+        if (!selectedMarket || !amount || parseFloat(amount) <= 0) {
+            toast.error('Please enter a valid amount');
+            return;
+        }
+
+        // Determine order type
+        let orderType: 'market' | 'limit' | 'stop_limit' = 'market';
+        if (activeTab === 'Limit') orderType = 'limit';
+        else if (activeTab === 'Stop Limit') orderType = 'stop_limit';
+
+        setIsSubmitting(true);
+
+        try {
+            const result = await orderService.placeOrder({
+                user_address: walletAddress, // Real wallet address from Privy!
+                symbol: selectedMarket.symbol,
+                side,
+                order_type: orderType,
+                amount_usd: parseFloat(amount),
+                leverage,
+                price: price ? parseFloat(price) : undefined,
+                stop_price: stopPrice ? parseFloat(stopPrice) : undefined
+            });
+
+            if (result.success) {
+                toast.success(`Order placed successfully! ID: ${result.order_id}`);
+
+                // Clear form
+                setAmount('');
+                setPrice('');
+                setStopPrice('');
+
+                // Refresh portfolio data with real wallet address
+                await refreshAll(walletAddress);
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to place order');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className={styles.container}>
@@ -661,13 +724,40 @@ const OrderForm: React.FC = () => {
                     </div>
                 )}
 
-                <button className={styles.mainActionBtn}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    Enter amount
+                <button
+                    className={styles.mainActionBtn}
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !amount || parseFloat(amount) <= 0}
+                    style={{
+                        opacity: (isSubmitting || !amount || parseFloat(amount) <= 0) ? 0.5 : 1,
+                        cursor: (isSubmitting || !amount || parseFloat(amount) <= 0) ? 'not-allowed' : 'pointer'
+                    }}
+                >
+                    {isSubmitting ? (
+                        <>
+                            <svg className={styles.spinner} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px', animation: 'spin 1s linear infinite' }}>
+                                <circle cx="12" cy="12" r="10"></circle>
+                            </svg>
+                            Placing Order...
+                        </>
+                    ) : !amount || parseFloat(amount) <= 0 ? (
+                        <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            Enter amount
+                        </>
+                    ) : (
+                        <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            {side === 'buy' ? 'Buy Long' : 'Sell Short'}
+                        </>
+                    )}
                 </button>
             </div>
 

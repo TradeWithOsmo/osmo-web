@@ -29,6 +29,12 @@ body {
   }
 }
 
+/* Stable Numeric Widths */
+* {
+  font-variant-numeric: tabular-nums;
+}
+
+
 /* Hide scrollbar globally */
 /* Chrome, Safari, Opera */
 ::-webkit-scrollbar {

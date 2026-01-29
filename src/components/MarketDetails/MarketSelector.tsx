@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styles from './MarketSelector.module.css';
-import activeStar from '../../assets/Icons/start/active.png';
 import inactiveStar from '../../assets/Icons/start/inactive.png';
+import activeStar from '../../assets/Icons/start/active.png';
+import { useMarketStore } from '../../store/useMarketStore';
+import { useWatchlistStore } from '../../store/useWatchlistStore';
+import { type MarketData } from '../../api/marketService';
+import TokenIcon from './TokenIcon';
+import OstiumIcon from './OstiumIcon';
 
 // Fallback search icon if file doesn't exist (SVG)
 const SearchSVG = () => (
@@ -11,50 +16,22 @@ const SearchSVG = () => (
     </svg>
 );
 
-export interface MarketItem {
-    id: string;
-    symbol: string;
-    base: string;
-    quote: string;
-    leverage: string;
-    tags: string[];
-    price: string;
-    change: string;
-    volume: string;
-    spotVol: string;
-    mktCap: string;
-    isFavorite: boolean;
-}
-
-const MOCK_DATA: MarketItem[] = [
-    { id: '1', symbol: 'BTC-USD', base: 'BTC', quote: 'USD', leverage: '50x', tags: ['No Fees'], price: '$89,543', change: '2.16%', volume: '$127M', spotVol: '$29.3B', mktCap: '$1.79T', isFavorite: false },
-    { id: '2', symbol: 'SOL-USD', base: 'SOL', quote: 'USD', leverage: '20x', tags: ['No Fees'], price: '$127.68', change: '3.01%', volume: '$36.7M', spotVol: '$3.72B', mktCap: '$71.8B', isFavorite: false },
-    { id: '3', symbol: 'ETH-USD', base: 'ETH', quote: 'USD', leverage: '50x', tags: [], price: '$3,015.8', change: '2.75%', volume: '$26.6M', spotVol: '$17.7B', mktCap: '$364B', isFavorite: true },
-    { id: '4', symbol: 'HYPE-USD', base: 'HYPE', quote: 'USD', leverage: '5x', tags: [], price: '$26.11', change: '1.45%', volume: '$513K', spotVol: '$168M', mktCap: '$8.84B', isFavorite: false },
-    { id: '5', symbol: 'DOGE-USD', base: 'DOGE', quote: 'USD', leverage: '10x', tags: [], price: '$0.12692', change: '2.26%', volume: '$508K', spotVol: '$759M', mktCap: '$21.3B', isFavorite: false },
-    { id: '6', symbol: 'ZEC-USD', base: 'ZEC', quote: 'USD', leverage: '5x', tags: [], price: '$528.72', change: '2.21%', volume: '$389K', spotVol: '$698M', mktCap: '$8.75B', isFavorite: false },
-    { id: '7', symbol: 'LINK-USD', base: 'LINK', quote: 'USD', leverage: '10x', tags: [], price: '$12.790', change: '3.01%', volume: '$304K', spotVol: '$359M', mktCap: '$9.04B', isFavorite: false },
-    { id: '8', symbol: 'LTC-USD', base: 'LTC', quote: 'USD', leverage: '10x', tags: [], price: '$79.04', change: '-0.93%', volume: '$287K', spotVol: '$313M', mktCap: '$6.05B', isFavorite: false },
-    { id: '9', symbol: 'ADA-USD', base: 'ADA', quote: 'USD', leverage: '10x', tags: [], price: '$0.3756', change: '0.51%', volume: '$236K', spotVol: '$615M', mktCap: '$13.5B', isFavorite: false },
-    { id: '10', symbol: 'SHIB-USD', base: 'SHIB', quote: 'USD', leverage: '10x', tags: [], price: '$0.007460', change: '1.28%', volume: '$210K', spotVol: '$79.9M', mktCap: '$4.39B', isFavorite: false },
-    { id: '11', symbol: 'AVAX-USD', base: 'AVAX', quote: 'USD', leverage: '10x', tags: [], price: '$12.99', change: '1.77%', volume: '$175K', spotVol: '$267M', mktCap: '$5.56B', isFavorite: false },
-    { id: '12', symbol: 'SUI-USD', base: 'SUI', quote: 'USD', leverage: '10x', tags: [], price: '$1.4877', change: '7.07%', volume: '$141K', spotVol: '$499M', mktCap: '$5.50B', isFavorite: false },
-];
-
 export interface MarketSelectorProps {
     isOpen: boolean;
     onClose: () => void;
-    onSelect: (market: MarketItem) => void;
+    onSelect?: (market: MarketData) => void;
     isEmbedded?: boolean;
 }
 
 const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSelect, isEmbedded = false }) => {
+    const { markets, fetchMarkets, setMarket } = useMarketStore();
+    const { favorites, toggleFavorite, fetchWatchlist } = useWatchlistStore();
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
-
+    const [expandedGroup, setExpandedGroup] = useState<'hyperliquid' | 'ostium' | null>(null);
 
     // Sorting State
-    const [sortConfig, setSortConfig] = useState<{ key: keyof MarketItem, direction: 'asc' | 'desc' } | null>(null);
+    const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' } | null>(null);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -92,6 +69,14 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
     };
 
     useEffect(() => {
+        // Fetch markets if empty
+        if (markets.length === 0) {
+            fetchMarkets();
+        }
+        fetchWatchlist();
+    }, [markets.length, fetchMarkets, fetchWatchlist]);
+
+    useEffect(() => {
         if (!isEmbedded) {
             if (isOpen) {
                 document.body.style.overflow = 'hidden';
@@ -109,18 +94,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         setCurrentPage(1);
     }, [filter, search]);
 
-    // Helper to parse numeric strings (e.g. $127M -> 127000000, 2.16% -> 2.16)
-    const parseNumber = (str: string) => {
-        const clean = str.replace(/[$,%]/g, '').trim();
-        const upper = clean.toUpperCase();
-        const multiplier = upper.endsWith('T') ? 1e12 :
-            upper.endsWith('B') ? 1e9 :
-                upper.endsWith('M') ? 1e6 :
-                    upper.endsWith('K') ? 1e3 : 1;
-        return parseFloat(clean) * multiplier;
-    };
-
-    const handleSort = (key: keyof MarketItem) => {
+    const handleSort = (key: keyof MarketData) => {
         let direction: 'asc' | 'desc' = 'desc'; // Default to descending
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
             direction = 'asc';
@@ -128,58 +102,38 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         setSortConfig({ key, direction });
     };
 
-    const filteredDataAll = MOCK_DATA.filter(item =>
-        item.symbol.toLowerCase().includes(search.toLowerCase()) &&
-        (filter === 'All' || filter === 'Favorites' ? (filter === 'Favorites' ? item.isFavorite : true) : true)
-    );
+    const filteredDataAll = markets.filter(item => {
+        const matchesSearch = item.symbol.toLowerCase().includes(search.toLowerCase());
+        if (!matchesSearch) return false;
 
-    // Sorting Logic - Rebuilt one by one
-    const sortedData = React.useMemo(() => {
+        if (filter === 'All') return true;
+        if (filter === 'Watchlist') {
+            return favorites.has(item.symbol);
+        }
+        if (filter === 'Crypto') {
+            return item.source === 'hyperliquid' || item.category === 'Crypto';
+        }
+        return item.category === filter;
+    });
+
+    // Sorting Logic
+    const sortedData = useMemo(() => {
         let sortableItems = [...filteredDataAll];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
                 const { key, direction } = sortConfig;
-
-                // Helper for direction multiplier
                 const dir = direction === 'asc' ? 1 : -1;
 
-                switch (key) {
-                    case 'symbol':
-                        return dir * a.symbol.localeCompare(b.symbol);
+                const valA = a[key];
+                const valB = b[key];
 
-                    case 'price':
-                        // Parse price: Remove '$' and ',' then float
-                        const priceA = parseFloat(a.price.replace(/[$,]/g, ''));
-                        const priceB = parseFloat(b.price.replace(/[$,]/g, ''));
-                        return dir * (priceA - priceB);
-
-                    case 'change':
-                        // Parse percentage: Remove '%' then float
-                        const changeA = parseFloat(a.change.replace('%', ''));
-                        const changeB = parseFloat(b.change.replace('%', ''));
-                        return dir * (changeA - changeB);
-
-                    case 'volume':
-                        // Parse Volume (e.g. $127M, $513K)
-                        const volA = parseNumber(a.volume);
-                        const volB = parseNumber(b.volume);
-                        return dir * (volA - volB);
-
-                    case 'spotVol':
-                        // Parse Spot Volume same as Volume
-                        const spotVolA = parseNumber(a.spotVol);
-                        const spotVolB = parseNumber(b.spotVol);
-                        return dir * (spotVolA - spotVolB);
-
-                    case 'mktCap':
-                        // Parse Market Cap same as Volume
-                        const mktCapA = parseNumber(a.mktCap);
-                        const mktCapB = parseNumber(b.mktCap);
-                        return dir * (mktCapA - mktCapB);
-
-                    default:
-                        return 0;
+                if (typeof valA === 'string' && typeof valB === 'string') {
+                    return dir * valA.localeCompare(valB);
                 }
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return dir * (valA - valB);
+                }
+                return 0;
             });
         }
         return sortableItems;
@@ -201,23 +155,72 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         }
     };
 
-    const SortIcon = ({ columnKey }: { columnKey: keyof MarketItem }) => (
+    const handleItemClick = (item: MarketData) => {
+        setMarket(item.symbol);
+        if (onSelect) onSelect(item);
+        if (!isEmbedded) onClose();
+    }
+
+    // Categories Groups
+    const HL_CATEGORIES = ['Crypto', 'Meme', 'Layer 1', 'Layer 2', 'DeFi', 'AI & Big Data', 'Infrastructure', 'DePIN', 'Gaming', 'RWA'];
+    const OST_CATEGORIES = ['Forex', 'Stocks', 'Commodities', 'index'];
+
+    const getGroupCount = (group: 'hyperliquid' | 'ostium') => {
+        if (group === 'hyperliquid') {
+            return markets.filter(m => m.source === 'hyperliquid' || m.category === 'Crypto').length;
+        }
+        return markets.filter(m => m.source === 'ostium').length;
+    };
+
+    const SortIcon = ({ columnKey }: { columnKey: keyof MarketData }) => (
         <svg
-            width="10"
-            height="6"
-            viewBox="0 0 10 6"
+            width="8"
+            height="5"
+            viewBox="0 0 8 5"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             style={{
-                // marginLeft: '6px', // Removed because we use gap now
                 transform: sortConfig?.key === columnKey && sortConfig.direction === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: 'transform 0.2s',
-                opacity: sortConfig?.key === columnKey ? 1 : 0.5
+                opacity: sortConfig?.key === columnKey ? 1 : 0.3
             }}
         >
-            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4 5L0 0L8 0L4 5Z" fill="currentColor" />
         </svg>
     );
+
+    // Helper for formatting
+    const formatPrice = (val: number) => {
+        if (!val && val !== 0) return '-';
+        if (val === 0) return '0.0000';
+
+        const locale = 'en-US';
+
+        if (val >= 100) {
+            return `${val.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        return `${val.toLocaleString(locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
+    }
+    const formatVol = (val: number) => {
+        if (!val && val !== 0) return '-';
+        if (val === 0) return '0.00';
+
+        if (val >= 1000000000) return `${(val / 1000000000).toFixed(2)}B`;
+        if (val >= 1000000) return `${(val / 1000000).toFixed(2)}M`;
+        if (val >= 1000) return `${(val / 1000).toFixed(2)}K`;
+        return `${val.toFixed(2)}`;
+    }
+
+    const formatPercent = (val: number) => {
+        if (!val && val !== 0) return '0.00%';
+        const absVal = Math.abs(val);
+        if (absVal === 0) return '0.00%';
+
+        if (absVal < 0.1) {
+            return `${val.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}%`;
+        }
+        return `${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+    }
 
     const content = (
         <div className={`${styles.container} ${isEmbedded ? styles.embedded : ''}`} onClick={e => !isEmbedded && e.stopPropagation()}>
@@ -231,15 +234,94 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                 onMouseMove={handleMouseMove}
                 style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
             >
-                {['All', 'Recently Listed', 'Launchable', 'Meme', 'AI & Big Data', 'DeFi', 'DePIN', 'Layer 1', 'Layer 2'].map(f => (
+                {/* 1. All */}
+                <button
+                    className={`${styles.filterChip} ${filter === 'All' ? styles.active : ''}`}
+                    onClick={() => {
+                        setFilter('All');
+                        setExpandedGroup(null);
+                    }}
+                >
+                    All
+                    <span className={styles.countBadge}>{markets.length}</span>
+                </button>
+
+                {/* Watchlist */}
+                <button
+                    className={`${styles.filterChip} ${filter === 'Watchlist' ? styles.active : ''}`}
+                    onClick={() => {
+                        setFilter('Watchlist');
+                        setExpandedGroup(null);
+                    }}
+                >
+                    Watchlist
+                    <span className={styles.countBadge}>{favorites.size}</span>
+                </button>
+
+                {/* 2. Hyperliquid Group */}
+                <div className={`${styles.groupContainer} ${expandedGroup === 'hyperliquid' ? styles.expanded : ''}`}>
                     <button
-                        key={f}
-                        className={`${styles.filterChip} ${filter === f ? styles.active : ''}`}
-                        onClick={() => setFilter(f)}
+                        className={`${styles.filterChip} ${expandedGroup === 'hyperliquid' ? styles.activeGroup : ''}`}
+                        onClick={() => setExpandedGroup(expandedGroup === 'hyperliquid' ? null : 'hyperliquid')}
                     >
-                        {f} {f === 'Launchable' && <span className={styles.newBadge}>NEW</span>}
+                        Hyperliquid
+                        <span className={styles.countBadge}>{getGroupCount('hyperliquid')}</span>
                     </button>
-                ))}
+
+                    <div className={styles.subCategories}>
+                        {HL_CATEGORIES.map(f => {
+                            const count = f === 'Crypto'
+                                ? markets.filter(m => m.source === 'hyperliquid' || m.category === 'Crypto').length
+                                : markets.filter(m => m.category === f).length;
+
+                            if (count === 0) return null;
+                            return (
+                                <button
+                                    key={f}
+                                    className={`${styles.filterChip} ${styles.subChip} ${filter === f ? styles.active : ''}`}
+                                    onClick={() => {
+                                        setFilter(f);
+                                        setExpandedGroup(null);
+                                    }}
+                                >
+                                    {f}
+                                    <span className={styles.countBadge}>{count}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* 3. Ostium Group */}
+                <div className={`${styles.groupContainer} ${expandedGroup === 'ostium' ? styles.expanded : ''}`}>
+                    <button
+                        className={`${styles.filterChip} ${expandedGroup === 'ostium' ? styles.activeGroup : ''}`}
+                        onClick={() => setExpandedGroup(expandedGroup === 'ostium' ? null : 'ostium')}
+                    >
+                        Ostium
+                        <span className={styles.countBadge}>{getGroupCount('ostium')}</span>
+                    </button>
+
+                    <div className={styles.subCategories}>
+                        {OST_CATEGORIES.map(f => {
+                            const count = markets.filter(m => m.category === f).length;
+                            if (count === 0) return null;
+                            return (
+                                <button
+                                    key={f}
+                                    className={`${styles.filterChip} ${styles.subChip} ${filter === f ? styles.active : ''}`}
+                                    onClick={() => {
+                                        setFilter(f);
+                                        setExpandedGroup(null);
+                                    }}
+                                >
+                                    {f}
+                                    <span className={styles.countBadge}>{count}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
 
             {/* 2. Search Section */}
@@ -249,7 +331,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                     <input
                         type="text"
                         className={styles.searchInput}
-                        placeholder="e.g. &quot;ETH&quot; or &quot;Ethereum&quot;"
+                        placeholder="e.g. &quot;ETH&quot; or &quot;EUR&quot;"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         autoFocus={!isEmbedded}
@@ -257,85 +339,78 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                 </div>
             </div>
 
-
-
             {/* Table */}
             <div className={styles.tableContainer}>
                 <table className={styles.table}>
                     <thead>
                         <tr>
                             <th onClick={() => handleSort('symbol')} style={{ cursor: 'pointer' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     Market
                                     <SortIcon columnKey="symbol" />
                                 </div>
                             </th>
                             <th onClick={() => handleSort('price')} style={{ cursor: 'pointer' }} className={styles.hideOnSmallMobile}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                                     Price
                                     <SortIcon columnKey="price" />
                                 </div>
                             </th>
-                            <th onClick={() => handleSort('change')} style={{ cursor: 'pointer' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                                    24h
-                                    <SortIcon columnKey="change" />
+                            <th onClick={() => handleSort('change24hPercent')} style={{ cursor: 'pointer' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                                    24h %
+                                    <SortIcon columnKey="change24hPercent" />
                                 </div>
                             </th>
                             <th
                                 style={{ cursor: 'pointer' }}
-                                onClick={() => handleSort('volume')}
+                                onClick={() => handleSort('volume24h')}
                                 className={styles.hideOnMobile}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                                    Volume
-                                    <SortIcon columnKey="volume" />
-                                </div>
-                            </th>
-                            <th onClick={() => handleSort('spotVol')} style={{ cursor: 'pointer' }} className={styles.hideOnMobile}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                                    24h Spot Volume
-                                    <SortIcon columnKey="spotVol" />
-                                </div>
-                            </th>
-                            <th onClick={() => handleSort('mktCap')} style={{ cursor: 'pointer' }} className={styles.hideOnMobile}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                                    Market Cap
-                                    <SortIcon columnKey="mktCap" />
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                                    Vol / OI
+                                    <SortIcon columnKey="volume24h" />
                                 </div>
                             </th>
                         </tr>
                     </thead>
                     <tbody>
                         {paginatedData.map(item => {
-                            const isNegative = item.change.startsWith('-');
-                            const changeText = isNegative ? item.change : `+${item.change.replace('+', '')}`;
+                            const isPositive = item.change24hPercent >= 0;
 
                             return (
-                                <tr key={item.id} onClick={() => onSelect(item)}>
+                                <tr key={item.symbol} onClick={() => handleItemClick(item)}>
                                     <td className={styles.marketCell}>
-                                        <button className={styles.starBtn}>
-                                            <img src={item.isFavorite ? activeStar : inactiveStar} alt="fav" style={{ width: 14, height: 14 }} />
-                                        </button>
-                                        <div className={styles.coinIcon} style={{ background: '#2C2C2C', overflow: 'hidden' }}>
-                                            <img src={`https://assets.coincap.io/assets/icons/${item.base.toLowerCase()}@2x.png`} alt={item.base}
-                                                onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.base}&background=random` }}
-                                                style={{ width: '100%', height: '100%' }}
+                                        <button
+                                            className={styles.starBtn}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleFavorite(item.symbol, item.source);
+                                            }}
+                                        >
+                                            <img
+                                                src={favorites.has(item.symbol) ? activeStar : inactiveStar}
+                                                alt="fav"
+                                                style={{ width: 14, height: 14 }}
                                             />
+                                        </button>
+                                        <div className={styles.coinIcon} style={{ background: 'transparent' }}>
+                                            {item.source === 'ostium' ? (
+                                                <OstiumIcon symbol={item.symbol} size={24} />
+                                            ) : (
+                                                <TokenIcon symbol={item.symbol} size={24} />
+                                            )}
                                         </div>
                                         <span className={styles.symbol}>{item.symbol}</span>
-                                        <span className={styles.leverageBadge}>{item.leverage}</span>
-                                        {item.tags.map(t => (
-                                            <span key={t} className={styles.feeBadge}>{t}</span>
-                                        ))}
+                                        <div className={styles.badges}>
+                                            <span className={styles.feeBadge}>{item.source}</span>
+                                        </div>
                                     </td>
-                                    <td className={styles.hideOnSmallMobile}>{item.price}</td>
-                                    <td className={isNegative ? styles.negative : styles.positive}>
-                                        {changeText}
+                                    <td className={styles.hideOnSmallMobile}>{formatPrice(item.price)}</td>
+                                    <td className={!isPositive ? styles.negative : styles.positive}>
+                                        {isPositive ? '+' : ''}{formatPercent(item.change24hPercent)}
                                     </td>
-                                    <td className={styles.hideOnMobile}>{item.volume}</td>
-                                    <td className={styles.hideOnMobile}>{item.spotVol}</td>
-                                    <td className={styles.hideOnMobile}>{item.mktCap}</td>
+                                    <td className={styles.hideOnMobile}>{formatVol(item.volume24h)}</td>
                                 </tr>
                             );
                         })}

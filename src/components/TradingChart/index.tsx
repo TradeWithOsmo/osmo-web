@@ -9,6 +9,7 @@ interface TVChartContainerProps {
   height?: string;
   hideTopToolbar?: boolean;
   hideSideToolbar?: boolean;
+  source?: 'hyperliquid' | 'ostium'; // Add source prop
   customColors?: {
     background?: string;
     grid?: string;
@@ -25,7 +26,8 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
   interval = "1D",
   theme = "dark",
   height = "700px",
-  hideSideToolbar = false
+  hideSideToolbar = false,
+  source = 'hyperliquid' // Default to hyperliquid
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
@@ -46,7 +48,7 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
       const height = container.offsetHeight;
 
       if (width > 0 && height > 0 && !hasInitialized.current) {
-        console.log('[TradingChart] Container ready, initializing widget', { width, height });
+        console.log('[TradingChart] Container ready, initializing widget', { width, height, source });
         hasInitialized.current = true;
         initializeWidget();
       }
@@ -63,7 +65,7 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [symbol, interval, theme, hideSideToolbar]);
+  }, [symbol, interval, theme, hideSideToolbar, source]);
 
   const initializeWidget = async () => {
     try {
@@ -74,8 +76,13 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
         throw new Error('TradingView library not loaded');
       }
       const { widget } = TradingViewLib;
+
+      // Dynamically load datafeed based on source
+      console.log(`[TradingChart] Loading datafeed for source: ${source}`);
       // @ts-ignore
-      const Datafeed = await import('../../charting/datafeeds/datafeed_custom.js');
+      const Datafeed = source === 'ostium'
+        ? await import('../../charting/datafeeds/Ostium/datafeed_ostium.js')
+        : await import('../../charting/datafeeds/datafeed_custom.js');
 
       const disabledFeatures = [
         "symbol_search_hot_key",
@@ -165,6 +172,45 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
     }
   };
 
+  // Update symbol when prop changes
+  useEffect(() => {
+    if (!isChartReady || !widgetRef.current) return;
+
+    try {
+      const chart = widgetRef.current.chart();
+      if (chart && chart.symbol() !== symbol) {
+        console.log('[TradingChart] Symbol changed from props, updating widget to', symbol);
+        chart.setSymbol(symbol, () => {
+          console.log('[TradingChart] Widget symbol updated successfully');
+        });
+      }
+    } catch (e) {
+      console.error('[TradingChart] Failed to update symbol:', e);
+    }
+  }, [symbol, isChartReady]);
+
+  // Recreate widget when source changes (datafeed can't be hot-swapped)
+  useEffect(() => {
+    if (!isChartReady || !widgetRef.current) return;
+
+    console.log('[TradingChart] Source changed, need to recreate widget');
+
+    // Cleanup old widget
+    if (widgetRef.current && widgetRef.current.remove) {
+      widgetRef.current.remove();
+      widgetRef.current = null;
+    }
+
+    // Reset state and reinitialize
+    setIsChartReady(false);
+    hasInitialized.current = false;
+
+    // Reinitialize with new source
+    setTimeout(() => {
+      initializeWidget();
+    }, 100);
+  }, [source]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -235,17 +281,17 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
         {!isChartReady && (
           <div
+            className="skeleton skeletonChart"
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: '#12000A',
+              zIndex: 10,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10
+              justifyContent: 'center'
             }}
           >
             <div
@@ -258,12 +304,6 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
                 animation: 'spin 1s linear infinite'
               }}
             />
-            <style>{`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}</style>
           </div>
         )}
       </div>

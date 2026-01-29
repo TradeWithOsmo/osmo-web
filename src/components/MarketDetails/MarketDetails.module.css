@@ -280,3 +280,52 @@
         border-top: 1px solid #3A2530;
     }
 }
+
+/* Skeleton Loading */
+.skeleton {
+    background: linear-gradient(90deg, #1A0D15 25%, #2A1D25 50%, #1A0D15 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeletonCircle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.skeletonStar {
+    width: 16px;
+    height: 16px;
+}
+
+.skeletonSymbol {
+    width: 60px;
+    height: 18px;
+}
+
+.skeletonStat {
+    width: 80px;
+    height: 14px;
+    margin-top: 4px;
+}
+
+.skeletonFullWidth {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    gap: 15px;
+}

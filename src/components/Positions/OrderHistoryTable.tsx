@@ -59,9 +59,17 @@ const OrderHistoryTable: React.FC<OrderHistoryTableProps> = ({ orders, footerCon
                     </tr>
                 </thead>
                 <tbody>
-                    {orders.map(order => (
-                        <OrderHistoryRow key={order.id} order={order} />
-                    ))}
+                    {orders.length > 0 ? (
+                        orders.map(order => (
+                            <OrderHistoryRow key={order.id} order={order} />
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan={12} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                                No order history
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
             {footerContent}

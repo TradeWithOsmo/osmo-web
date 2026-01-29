@@ -1,18 +1,27 @@
 import React, { useState } from 'react';
 import { Navbar } from './components';
-import { AppRouter } from './router'; // Keeping import just in case, or remove if unused
+import { AppRouter } from './router';
+import { useGlobalMarketStream } from './hooks/useGlobalMarketStream';
+import { useTokenListStore } from './store/useTokenListStore';
 
 function App() {
   const [currentRoute, setCurrentRoute] = useState(window.location.pathname === '/' ? '/trade' : window.location.pathname);
 
+  // Enable global real-time market data stream
+  useGlobalMarketStream();
+
+  const { fetchTokenList } = useTokenListStore();
+
   React.useEffect(() => {
+    fetchTokenList();
+
     const handlePopState = () => {
       setCurrentRoute(window.location.pathname);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [fetchTokenList]);
 
   const navItems = [
     { label: 'Trade', href: '/trade', isActive: currentRoute === '/trade' || currentRoute === '/autos' },

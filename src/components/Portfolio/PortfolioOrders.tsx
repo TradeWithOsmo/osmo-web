@@ -1,67 +1,55 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styles from './Portfolio.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import OrdersTable from '../Positions/OrdersTable';
-import type { OrderData } from '../Positions/OrderRow';
+import type { OrderData as UIOrderData } from '../Positions/OrderRow';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useWallet } from '../../hooks';
+import type { OrderData as APIOrderData } from '../../api/orderService';
 
-// Mock Data
-const MOCK_ORDERS: OrderData[] = [
-    {
-        id: '1',
-        time: '30/12/2025 - 16.04.22',
-        type: 'Limit',
-        symbol: 'SOL',
-        direction: 'Long',
-        size: 9.85,
-        originalSize: 9.85,
-        orderValue: 1222.78,
-        price: 124.14,
+// Mapper function to convert backend data to UI format
+const mapAPIOrderToUI = (apiOrder: APIOrderData): UIOrderData => {
+    return {
+        id: apiOrder.id,
+        time: apiOrder.created_at ? new Date(apiOrder.created_at).toLocaleString() : 'N/A',
+        type: (apiOrder.order_type.charAt(0).toUpperCase() + apiOrder.order_type.slice(1)) as any,
+        symbol: apiOrder.symbol.split('-')[0],
+        direction: (apiOrder.side === 'buy' ? 'Long' : 'Short') as any,
+        size: apiOrder.size,
+        originalSize: apiOrder.size,
+        orderValue: apiOrder.notional_usd,
+        price: apiOrder.price || 0,
         reduceOnly: false,
-        triggerConditions: 'N/A',
+        triggerConditions: apiOrder.stop_price ? `Stop @ ${apiOrder.stop_price}` : 'N/A',
         tp: '--',
         sl: '--'
-    },
-    {
-        id: '2',
-        time: '29/12/2025 - 10.15.00',
-        type: 'Market',
-        symbol: 'BTC',
-        direction: 'Short',
-        size: 0.5,
-        originalSize: 0.5,
-        orderValue: 22500.00,
-        price: 45000.00,
-        reduceOnly: true,
-        triggerConditions: 'Mark < 44000',
-        tp: '42000',
-        sl: '46000'
-    },
-    { id: '3', time: '29/12/2025 - 08.45.12', type: 'Limit', symbol: 'ETH', direction: 'Long', size: 1.5, originalSize: 1.5, orderValue: 3600.00, price: 2400.00, reduceOnly: false, triggerConditions: 'N/A', tp: '2600', sl: '2300' },
-    { id: '4', time: '28/12/2025 - 22.10.05', type: 'Stop Limit', symbol: 'SOL', direction: 'Short', size: 20.0, originalSize: 20.0, orderValue: 2400.00, price: 115.00, reduceOnly: true, triggerConditions: 'Mark < 118', tp: '100', sl: '125' },
-    { id: '5', time: '28/12/2025 - 19.30.00', type: 'Limit', symbol: 'AVAX', direction: 'Long', size: 100.0, originalSize: 100.0, orderValue: 3200.00, price: 32.00, reduceOnly: false, triggerConditions: 'N/A', tp: '--', sl: '--' },
-    { id: '6', time: '27/12/2025 - 15.00.00', type: 'Market', symbol: 'BTC', direction: 'Long', size: 0.05, originalSize: 0.05, orderValue: 2150.00, price: 43000.00, reduceOnly: false, triggerConditions: 'N/A', tp: '--', sl: '--' },
-    { id: '7', time: '27/12/2025 - 11.20.15', type: 'Stop Limit', symbol: 'LINK', direction: 'Short', size: 50.0, originalSize: 50.0, orderValue: 750.00, price: 13.50, reduceOnly: true, triggerConditions: 'Mark > 15', tp: '13.50', sl: '--' },
-    { id: '8', time: '26/12/2025 - 09.05.30', type: 'Limit', symbol: 'DOT', direction: 'Long', size: 200.0, originalSize: 200.0, orderValue: 1300.00, price: 6.50, reduceOnly: false, triggerConditions: 'N/A', tp: '8.00', sl: '6.00' },
-    { id: '9', time: '25/12/2025 - 18.45.00', type: 'Stop Market', symbol: 'ADA', direction: 'Short', size: 5000.0, originalSize: 5000.0, orderValue: 2500.00, price: 0.48, reduceOnly: true, triggerConditions: 'Mark < 0.50', tp: '--', sl: '--' },
-    { id: '10', time: '25/12/2025 - 14.10.10', type: 'Limit', symbol: 'MATIC', direction: 'Long', size: 1000.0, originalSize: 1000.0, orderValue: 800.00, price: 0.80, reduceOnly: false, triggerConditions: 'N/A', tp: '1.00', sl: '--' },
-    { id: '11', time: '24/12/2025 - 12.00.00', type: 'Limit', symbol: 'UNI', direction: 'Short', size: 100.0, originalSize: 100.0, orderValue: 750.00, price: 7.50, reduceOnly: false, triggerConditions: 'N/A', tp: '6.00', sl: '8.00' },
-    { id: '12', time: '24/12/2025 - 08.30.25', type: 'Market', symbol: 'DOGE', direction: 'Long', size: 5000.0, originalSize: 5000.0, orderValue: 500.00, price: 0.10, reduceOnly: false, triggerConditions: 'N/A', tp: '--', sl: '--' }
-];
+    };
+};
 
 const PortfolioOrders: React.FC = () => {
+    const { openOrders, fetchOrders } = usePortfolioStore();
+    const { walletAddress, authenticated } = useWallet();
+
     const [sortBy, setSortBy] = React.useState<'value' | 'coin'>('value');
     const [filterBy, setFilterBy] = React.useState<'all' | 'active' | 'long' | 'short'>('all');
     const [isSortOpen, setIsSortOpen] = React.useState(false);
     const [isFilterOpen, setIsFilterOpen] = React.useState(false);
 
+    useEffect(() => {
+        if (authenticated && walletAddress) {
+            fetchOrders(walletAddress, 'pending');
+        }
+    }, [authenticated, walletAddress, fetchOrders]);
+
     const filteredOrders = React.useMemo(() => {
-        let result = [...MOCK_ORDERS];
+        if (!authenticated || !walletAddress) return [];
+
+        // Map API data to UI format
+        let result = openOrders.map(mapAPIOrderToUI);
 
         // Filter
         if (filterBy !== 'all') {
-            if (filterBy === 'active') {
-                // "Active" implies all open orders here.
-            } else if (filterBy === 'long') {
+            if (filterBy === 'long') {
                 result = result.filter(o => o.direction === 'Long');
             } else if (filterBy === 'short') {
                 result = result.filter(o => o.direction === 'Short');
@@ -71,15 +59,15 @@ const PortfolioOrders: React.FC = () => {
         // Sort
         result.sort((a, b) => {
             if (sortBy === 'value') {
-                return b.orderValue - a.orderValue; // Descending value
+                return b.orderValue - a.orderValue;
             } else if (sortBy === 'coin') {
-                return a.symbol.localeCompare(b.symbol); // Alphabetical
+                return a.symbol.localeCompare(b.symbol);
             }
             return 0;
         });
 
         return result;
-    }, [filterBy, sortBy]);
+    }, [filterBy, sortBy, openOrders, authenticated, walletAddress]);
 
     const toggleSort = () => {
         setIsSortOpen(!isSortOpen);

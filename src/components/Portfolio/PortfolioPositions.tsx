@@ -1,49 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './Portfolio.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import PositionRow from '../Positions/PositionRow';
 import type { PositionData } from '../Positions/PositionRow';
 import OrdersTable from '../Positions/OrdersTable';
 import type { OrderData } from '../Positions/OrderRow';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useWallet } from '../../hooks';
+import type { PositionData as APIPositionData, OrderData as APIOrderData } from '../../api/orderService';
+
+// Mapper functions to convert backend data to UI format
+const mapAPIPositionToUI = (apiPos: APIPositionData): PositionData => {
+    return {
+        id: apiPos.symbol + '-' + Date.now(),
+        symbol: apiPos.symbol.split('-')[0], // BTC-USD -> BTC
+        pair: apiPos.symbol,  // BTC-USD
+        side: apiPos.side === 'long' ? 'Long' : 'Short',
+        size: apiPos.size,
+        sizeUsd: apiPos.size * (apiPos.mark_price || apiPos.entry_price),
+        leverage: `${apiPos.leverage}x`,
+        entryPrice: apiPos.entry_price,
+        markPrice: apiPos.mark_price || apiPos.entry_price,
+        liquidationPrice: apiPos.liquidation_price || null,
+        unrealizedPnl: apiPos.unrealized_pnl,
+        unrealizedPnlPercent: ((apiPos.unrealized_pnl / (apiPos.margin_used || 1)) * 100),
+        margin: apiPos.margin_used || 0,
+        funding: 0, // TODO: add funding from backend
+        tp: '--',
+        sl: '--'
+    };
+};
+
+const mapAPIOrderToUI = (apiOrder: APIOrderData): OrderData => {
+    return {
+        id: apiOrder.id,
+        time: apiOrder.created_at ? new Date(apiOrder.created_at).toLocaleString() : 'N/A',
+        type: apiOrder.order_type === 'market' ? 'Market' : apiOrder.order_type === 'limit' ? 'Limit' : 'Stop Limit',
+        symbol: apiOrder.symbol.split('-')[0],
+        direction: apiOrder.side === 'buy' ? 'Long' : 'Short',
+        size: apiOrder.size,
+        originalSize: apiOrder.size,
+        orderValue: apiOrder.notional_usd,
+        price: apiOrder.price || 0,
+        reduceOnly: false,
+        triggerConditions: apiOrder.stop_price ? `Stop @ ${apiOrder.stop_price}` : 'N/A',
+        tp: '--',
+        sl: '--'
+    };
+};
 
 
 
-// Mock Data
-const MOCK_POSITIONS: PositionData[] = [
-    { id: '1', symbol: 'BTC', pair: 'BTC-USD', side: 'Long', size: 0.0055, sizeUsd: 484.24, leverage: '10x', entryPrice: 90648, markPrice: 87724, liquidationPrice: null, unrealizedPnl: -16.14, unrealizedPnlPercent: -32.3, margin: 48.42, funding: 16.64, tp: '--', sl: '--' },
-    { id: '2', symbol: 'LINK', pair: 'LINK-USD', side: 'Short', size: 15.32, sizeUsd: 224.50, leverage: '5x', entryPrice: 14.25, markPrice: 13.90, liquidationPrice: 18.50, unrealizedPnl: 5.35, unrealizedPnlPercent: 2.38, margin: 44.90, funding: 0.12, tp: 12.50, sl: 15.00 },
-    { id: '3', symbol: 'SOL', pair: 'SOL-USD', side: 'Long', size: 15.0, sizeUsd: 1860.00, leverage: '5x', entryPrice: 120.00, markPrice: 124.00, liquidationPrice: null, unrealizedPnl: 60.00, unrealizedPnlPercent: 3.33, margin: 372.00, funding: 2.50, tp: '150', sl: '100' },
-    { id: '4', symbol: 'AVAX', pair: 'AVAX-USD', side: 'Short', size: 50.0, sizeUsd: 1750.00, leverage: '20x', entryPrice: 38.00, markPrice: 35.00, liquidationPrice: 42.00, unrealizedPnl: 150.00, unrealizedPnlPercent: 42.85, margin: 87.50, funding: -1.20, tp: '30', sl: '40' },
-    { id: '5', symbol: 'DOGE', pair: 'DOGE-USD', side: 'Long', size: 10000.0, sizeUsd: 1200.00, leverage: '10x', entryPrice: 0.1150, markPrice: 0.1200, liquidationPrice: 0.1050, unrealizedPnl: 50.00, unrealizedPnlPercent: 4.35, margin: 120.00, funding: 0.80, tp: '0.15', sl: '0.10' },
-    { id: '6', symbol: 'XRP', pair: 'XRP-USD', side: 'Short', size: 2500.0, sizeUsd: 1500.00, leverage: '5x', entryPrice: 0.6200, markPrice: 0.6000, liquidationPrice: 0.7400, unrealizedPnl: 50.00, unrealizedPnlPercent: 16.66, margin: 300.00, funding: -0.40, tp: '0.50', sl: '0.65' },
-    { id: '7', symbol: 'ADA', pair: 'ADA-USD', side: 'Long', size: 2000.0, sizeUsd: 1100.00, leverage: '10x', entryPrice: 0.5400, markPrice: 0.5500, liquidationPrice: 0.4900, unrealizedPnl: 20.00, unrealizedPnlPercent: 3.70, margin: 110.00, funding: 0.30, tp: '--', sl: '--' },
-    { id: '8', symbol: 'MATIC', pair: 'MATIC-USD', side: 'Long', size: 1500.0, sizeUsd: 1275.00, leverage: '5x', entryPrice: 0.8200, markPrice: 0.8500, liquidationPrice: 0.6800, unrealizedPnl: 45.00, unrealizedPnlPercent: 7.05, margin: 255.00, funding: 0.25, tp: '1.00', sl: '0.75' },
-    { id: '9', symbol: 'DOT', pair: 'DOT-USD', side: 'Short', size: 150.0, sizeUsd: 1050.00, leverage: '10x', entryPrice: 7.200, markPrice: 7.000, liquidationPrice: 7.900, unrealizedPnl: 30.00, unrealizedPnlPercent: 28.57, margin: 105.00, funding: -0.15, tp: '6.00', sl: '7.50' },
-    { id: '10', symbol: 'LTC', pair: 'LTC-USD', side: 'Long', size: 15.0, sizeUsd: 1050.00, leverage: '20x', entryPrice: 68.00, markPrice: 70.00, liquidationPrice: 65.00, unrealizedPnl: 30.00, unrealizedPnlPercent: 57.14, margin: 52.50, funding: 0.50, tp: '--', sl: '--' },
-    { id: '11', symbol: 'UNI', pair: 'UNI-USD', side: 'Short', size: 200.0, sizeUsd: 1400.00, leverage: '5x', entryPrice: 7.50, markPrice: 7.00, liquidationPrice: 9.00, unrealizedPnl: 100.00, unrealizedPnlPercent: 35.71, margin: 280.00, funding: -0.20, tp: '6.00', sl: '8.00' },
-    { id: '12', symbol: 'ATOM', pair: 'ATOM-USD', side: 'Long', size: 100.0, sizeUsd: 950.00, leverage: '10x', entryPrice: 9.20, markPrice: 9.50, liquidationPrice: 8.50, unrealizedPnl: 30.00, unrealizedPnlPercent: 31.57, margin: 95.00, funding: 0.10, tp: '12.00', sl: '8.00' }
-];
-
-const MOCK_ORDERS: OrderData[] = [
-    { id: '1', time: '30/12/2025 - 16.04.22', type: 'Limit', symbol: 'SOL', direction: 'Long', size: 9.85, originalSize: 9.85, orderValue: 1222.78, price: 124.14, reduceOnly: false, triggerConditions: 'N/A', tp: '--', sl: '--' },
-    { id: '2', time: '30/12/2025 - 15.30.00', type: 'Market', symbol: 'ETH', direction: 'Short', size: 1.5, originalSize: 1.5, orderValue: 3500.00, price: 2300.00, reduceOnly: true, triggerConditions: 'N/A', tp: '2200', sl: '2400' },
-    { id: '3', time: '29/12/2025 - 10.15.00', type: 'Limit', symbol: 'BTC', direction: 'Long', size: 0.5, originalSize: 0.5, orderValue: 22000.00, price: 44000.00, reduceOnly: false, triggerConditions: 'N/A', tp: '46000', sl: '43000' },
-    { id: '4', time: '28/12/2025 - 12.00.00', type: 'Limit', symbol: 'ADA', direction: 'Long', size: 1000, originalSize: 1000, orderValue: 500.00, price: 0.50, reduceOnly: false, triggerConditions: 'N/A', tp: '--', sl: '--' },
-    { id: '5', time: '28/12/2025 - 11.45.00', type: 'Market', symbol: 'DOT', direction: 'Short', size: 50, originalSize: 50, orderValue: 350.00, price: 7.00, reduceOnly: true, triggerConditions: 'N/A', tp: '6.50', sl: '7.50' },
-    { id: '6', time: '28/12/2025 - 09.30.00', type: 'Limit', symbol: 'AVAX', direction: 'Long', size: 20, originalSize: 20, orderValue: 800.00, price: 40.00, reduceOnly: false, triggerConditions: 'N/A', tp: '45.00', sl: '35.00' },
-    { id: '7', time: '27/12/2025 - 18.20.00', type: 'Limit', symbol: 'LINK', direction: 'Short', size: 100, originalSize: 100, orderValue: 1400.00, price: 14.00, reduceOnly: false, triggerConditions: 'N/A', tp: '12.00', sl: '15.00' },
-    { id: '8', time: '27/12/2025 - 16.10.00', type: 'Market', symbol: 'UNI', direction: 'Long', size: 200, originalSize: 200, orderValue: 1200.00, price: 6.00, reduceOnly: true, triggerConditions: 'N/A', tp: '--', sl: '--' },
-    { id: '9', time: '27/12/2025 - 14.00.00', type: 'Limit', symbol: 'LTC', direction: 'Short', size: 10, originalSize: 10, orderValue: 700.00, price: 70.00, reduceOnly: false, triggerConditions: 'N/A', tp: '65.00', sl: '75.00' },
-    { id: '10', time: '26/12/2025 - 10.00.00', type: 'Limit', symbol: 'XRP', direction: 'Long', size: 5000, originalSize: 5000, orderValue: 3000.00, price: 0.60, reduceOnly: false, triggerConditions: 'N/A', tp: '0.70', sl: '0.55' },
-    { id: '11', time: '26/12/2025 - 08.30.00', type: 'Market', symbol: 'DOGE', direction: 'Short', size: 10000, originalSize: 10000, orderValue: 1000.00, price: 0.10, reduceOnly: true, triggerConditions: 'N/A', tp: '0.08', sl: '0.12' },
-    { id: '12', time: '25/12/2025 - 20.00.00', type: 'Limit', symbol: 'ATOM', direction: 'Long', size: 50, originalSize: 50, orderValue: 500.00, price: 10.00, reduceOnly: false, triggerConditions: 'N/A', tp: '12.00', sl: '9.00' },
-    { id: '13', time: '25/12/2025 - 18.00.00', type: 'Limit', symbol: 'NEAR', direction: 'Short', size: 100, originalSize: 100, orderValue: 300.00, price: 3.00, reduceOnly: false, triggerConditions: 'N/A', tp: '2.50', sl: '3.50' },
-    { id: '14', time: '25/12/2025 - 15.00.00', type: 'Market', symbol: 'APT', direction: 'Long', size: 20, originalSize: 20, orderValue: 160.00, price: 8.00, reduceOnly: true, triggerConditions: 'N/A', tp: '--', sl: '--' },
-    { id: '15', time: '24/12/2025 - 12.00.00', type: 'Limit', symbol: 'ARB', direction: 'Short', size: 1000, originalSize: 1000, orderValue: 1000.00, price: 1.00, reduceOnly: false, triggerConditions: 'N/A', tp: '0.90', sl: '1.10' }
-];
+// ------------------------------------------------------------------------------------------------
 
 const PortfolioPositions: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'Positions' | 'Orders'>('Positions');
+
+    // Get data from store
+    const { positions, openOrders, fetchPositions, fetchOrders } = usePortfolioStore();
+
+    // Get wallet from Privy
+    const { authenticated, walletAddress } = useWallet();
+
+    // Fetch data on mount and tab change
+    useEffect(() => {
+        // Only fetch if wallet is connected
+        if (!authenticated || !walletAddress) return;
+
+        if (activeTab === 'Positions') {
+            fetchPositions(walletAddress);
+        } else {
+            fetchOrders(walletAddress, 'pending'); // Only pending orders
+        }
+    }, [activeTab, authenticated, walletAddress, fetchPositions, fetchOrders]);
 
     // Sort/Filter
     const [sortBy, setSortBy] = React.useState<string>('default');
@@ -88,7 +117,8 @@ const PortfolioPositions: React.FC = () => {
 
     const filteredData = React.useMemo(() => {
         if (activeTab === 'Positions') {
-            let result = [...MOCK_POSITIONS];
+            // Map API data to UI format
+            let result = positions.map(mapAPIPositionToUI);
             // Sort
             if (sortBy === 'value') {
                 result.sort((a, b) => sortDirection === 'asc' ? a.sizeUsd - b.sizeUsd : b.sizeUsd - a.sizeUsd);
@@ -100,14 +130,15 @@ const PortfolioPositions: React.FC = () => {
             if (filterBy === 'short') result = result.filter(p => p.side === 'Short');
             return result;
         } else {
-            let result = [...MOCK_ORDERS];
+            // Map API data to UI format
+            let result = openOrders.map(mapAPIOrderToUI);
             // Sort for orders by orderValue
             if (sortBy === 'orderValue') {
                 result.sort((a, b) => sortDirection === 'asc' ? a.orderValue - b.orderValue : b.orderValue - a.orderValue);
             }
             return result;
         }
-    }, [activeTab, sortBy, sortDirection, filterBy]);
+    }, [activeTab, sortBy, sortDirection, filterBy, positions, openOrders]);
 
 
     // Logic: If items <= 5, just show them. If > 5, show preview with View All button
