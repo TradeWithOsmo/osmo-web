@@ -21,7 +21,7 @@ export const searchSymbols = (
   ];
 
   // Filter symbols based on user input
-  const filteredSymbols = symbols.filter(item => 
+  const filteredSymbols = symbols.filter(item =>
     item.symbol.toLowerCase().includes(userInput.toLowerCase()) ||
     item.full_name.toLowerCase().includes(userInput.toLowerCase()) ||
     item.description.toLowerCase().includes(userInput.toLowerCase())

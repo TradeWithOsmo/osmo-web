@@ -24,9 +24,17 @@ const TradeHistoryTable: React.FC<TradeHistoryTableProps> = ({ trades, footerCon
                     </tr>
                 </thead>
                 <tbody>
-                    {trades.map(trade => (
-                        <TradeHistoryRow key={trade.id} trade={trade} />
-                    ))}
+                    {trades.length > 0 ? (
+                        trades.map(trade => (
+                            <TradeHistoryRow key={trade.id} trade={trade} />
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan={8} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                                No trade history
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
             {footerContent}

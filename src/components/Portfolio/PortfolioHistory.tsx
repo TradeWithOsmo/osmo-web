@@ -1,55 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './Portfolio.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import TradeHistoryTable from '../Positions/TradeHistoryTable';
 import OrderHistoryTable from '../Positions/OrderHistoryTable';
 import type { TradeHistoryData } from '../Positions/TradeHistoryRow';
-import type { OrderHistoryData } from '../Positions/OrderHistoryRow';
+import type { OrderHistoryData as APIOrderHistoryData } from '../Positions/OrderHistoryRow';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useWallet } from '../../hooks';
+import type { OrderData } from '../../api/orderService';
 
-// Mock Data for Trade History
-// Helper to generate mock data
-const generateMockTrades = (count: number): TradeHistoryData[] => {
-    return Array.from({ length: count }, (_, i) => ({
-        id: `${i + 1}`,
-        time: `30/12/2025 - 16.04.${(i % 60).toString().padStart(2, '0')}`,
-        symbol: i % 2 === 0 ? 'SOL' : 'ETH',
-        direction: i % 3 === 0 ? 'Open Long' : (i % 3 === 1 ? 'Close Short' : 'Open Short'),
-        price: 100 + Math.random() * 2000,
-        size: 1 + Math.random() * 10,
-        sizeAsset: i % 2 === 0 ? 'SOL' : 'ETH',
-        tradeValue: 1000 + Math.random() * 5000,
-        tradeValueAsset: 'USDC',
-        fee: 0.1 + Math.random() * 2,
-        feeAsset: 'USDC',
-        closedPnl: (Math.random() - 0.5) * 200,
-        closedPnlAsset: 'USDC'
-    }));
-};
-
-const generateMockOrders = (count: number): OrderHistoryData[] => {
-    return Array.from({ length: count }, (_, i) => ({
-        id: `${i + 1}`,
-        time: `29/12/2025 - 14.20.${(i % 60).toString().padStart(2, '0')}`,
-        type: i % 2 === 0 ? 'Market' : 'Limit',
-        symbol: i % 2 === 0 ? 'BTC' : 'ETH',
-        direction: i % 2 === 0 ? 'Short' : 'Long',
-        size: 0.1 + Math.random(),
-        originalSize: 0.1 + Math.random(),
-        orderValue: 2000 + Math.random() * 5000,
-        price: 2000 + Math.random() * 40000,
-        reduceOnly: Math.random() > 0.5,
-        triggerConditions: 'N/A',
+// Mapper to convert store OrderData to UI OrderHistoryData
+const mapOrderToHistoryUI = (order: OrderData): APIOrderHistoryData => {
+    return {
+        id: order.id,
+        time: order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A',
+        type: (order.order_type.charAt(0).toUpperCase() + order.order_type.slice(1)) as any,
+        symbol: order.symbol.split('-')[0],
+        direction: (order.side === 'buy' ? 'Long' : 'Short') as any,
+        size: order.size,
+        originalSize: order.size,
+        orderValue: order.notional_usd,
+        price: order.price || 0,
+        reduceOnly: false,
+        triggerConditions: order.stop_price ? `Mark < ${order.stop_price}` : 'N/A',
         tp: '--',
         sl: '--',
-        status: i % 3 === 0 ? 'Filled' : (i % 3 === 1 ? 'Cancelled' : 'Partially Filled')
-    }));
+        status: (order.status.charAt(0).toUpperCase() + order.status.slice(1)) as any
+    };
 };
 
-const MOCK_TRADE_HISTORY = generateMockTrades(50);
-const MOCK_ORDER_HISTORY = generateMockOrders(50);
-
 const PortfolioHistory: React.FC = () => {
-    const [subTab, setSubTab] = useState<'Trades' | 'Orders'>('Trades');
+    const [subTab, setSubTab] = useState<'Trades' | 'Orders'>('Orders'); // Default to Orders as we have real data for it
+    const { orderHistory, fetchOrders } = usePortfolioStore();
+    const { walletAddress, authenticated } = useWallet();
+
+    useEffect(() => {
+        if (authenticated && walletAddress) {
+            fetchOrders(walletAddress);
+        }
+    }, [authenticated, walletAddress, fetchOrders]);
 
     // Sort/Filter State
     const [sortBy, setSortBy] = useState<string>('time');
@@ -60,18 +49,17 @@ const PortfolioHistory: React.FC = () => {
     // Pagination / View Mode State
     const [viewMode, setViewMode] = useState<'preview' | 'full'>('preview');
     const [currentPage, setCurrentPage] = useState(1);
-    const [rowsPerPage, setRowsPerPage] = useState(10); // Standard for full view
+    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
 
     const toggleRowsDropdown = () => setIsRowsDropdownOpen(!isRowsDropdownOpen);
 
-    // Reset filters and view mode when tab changes
     React.useEffect(() => {
         setSortBy('time');
         setFilterBy('all');
         setIsSortOpen(false);
         setIsFilterOpen(false);
-        setViewMode('preview'); // Reset to preview on tab switch
+        setViewMode('preview');
         setCurrentPage(1);
     }, [subTab]);
 
@@ -82,26 +70,15 @@ const PortfolioHistory: React.FC = () => {
     const toggleSort = () => { setIsSortOpen(!isSortOpen); setIsFilterOpen(false); };
     const toggleFilter = () => { setIsFilterOpen(!isFilterOpen); setIsSortOpen(false); };
 
-    // --- MOVE filteredData HERE ---
     const filteredData = React.useMemo(() => {
-        if (subTab === 'Trades') {
-            let result = [...MOCK_TRADE_HISTORY];
-            // Filter
-            if (filterBy === 'long') result = result.filter(t => t.direction.toLowerCase().includes('long'));
-            if (filterBy === 'short') result = result.filter(t => t.direction.toLowerCase().includes('short'));
-            if (filterBy === 'win') result = result.filter(t => t.closedPnl > 0);
-            if (filterBy === 'loss') result = result.filter(t => t.closedPnl <= 0);
+        if (!authenticated || !walletAddress) return [];
 
-            // Sort
-            result.sort((a, b) => {
-                if (sortBy === 'time') return b.time.localeCompare(a.time);
-                if (sortBy === 'pnl') return b.closedPnl - a.closedPnl;
-                if (sortBy === 'size') return b.size - a.size;
-                return 0;
-            });
-            return result;
+        if (subTab === 'Trades') {
+            // Trade history not yet implemented in backend, return empty
+            return [];
         } else {
-            let result = [...MOCK_ORDER_HISTORY];
+            let result = orderHistory.map(mapOrderToHistoryUI);
+
             // Filter
             if (filterBy === 'filled') result = result.filter(o => o.status === 'Filled');
             if (filterBy === 'cancelled') result = result.filter(o => o.status === 'Cancelled');
@@ -111,7 +88,7 @@ const PortfolioHistory: React.FC = () => {
 
             return result;
         }
-    }, [subTab, filterBy, sortBy]);
+    }, [subTab, filterBy, sortBy, orderHistory, authenticated, walletAddress]);
 
     // Pagination Logic (Now filteredData is defined)
     const totalItems = filteredData.length;
@@ -320,9 +297,9 @@ const PortfolioHistory: React.FC = () => {
                 </div>
 
                 {subTab === 'Trades' ? (
-                    <TradeHistoryTable trades={paginatedData as TradeHistoryData[]} footerContent={renderFooter()} />
+                    <TradeHistoryTable trades={paginatedData as unknown as TradeHistoryData[]} footerContent={renderFooter()} />
                 ) : (
-                    <OrderHistoryTable orders={paginatedData as OrderHistoryData[]} footerContent={renderFooter()} />
+                    <OrderHistoryTable orders={paginatedData as unknown as APIOrderHistoryData[]} footerContent={renderFooter()} />
                 )}
             </div>
         </div>

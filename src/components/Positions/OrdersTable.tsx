@@ -67,9 +67,17 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders }) => {
                 </tr>
             </thead>
             <tbody>
-                {sortedOrders.map(order => (
-                    <OrderRow key={order.id} order={order} />
-                ))}
+                {sortedOrders.length > 0 ? (
+                    sortedOrders.map(order => (
+                        <OrderRow key={order.id} order={order} />
+                    ))
+                ) : (
+                    <tr>
+                        <td colSpan={12} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                            No open orders
+                        </td>
+                    </tr>
+                )}
             </tbody>
         </table>
     );

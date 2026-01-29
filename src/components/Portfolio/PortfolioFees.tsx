@@ -506,9 +506,17 @@ const PortfolioFees: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {displayedData.map((item: any) => (
-                                    <FeeTierRow key={item.tier} tier={item} />
-                                ))}
+                                {displayedData.length > 0 ? (
+                                    displayedData.map((item: any) => (
+                                        <FeeTierRow key={item.tier} tier={item} />
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                                            No fee tiers found
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     ) : (
@@ -521,9 +529,17 @@ const PortfolioFees: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {displayedData.map((item: any) => (
-                                    <ModelFeeRow key={item.name} model={item} />
-                                ))}
+                                {displayedData.length > 0 ? (
+                                    displayedData.map((item: any) => (
+                                        <ModelFeeRow key={item.name} model={item} />
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={3} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                                            No model fees found
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     )}

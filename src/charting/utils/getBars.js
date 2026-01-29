@@ -1,3 +1,4 @@
+const BACKEND_URL = 'http://localhost:8000';
 
 export const getBars = async (
   symbolInfo,
@@ -6,106 +7,62 @@ export const getBars = async (
   onHistoryCallback,
   onErrorCallback
 ) => {
+
   try {
-    const requiredBars = periodParams.countBack || 100;
-    const toTime = periodParams.to * 1000; // milliseconds
-    const bars = [];
+    const symbol = symbolInfo.name.replace('/', '-');
+    const limit = periodParams.countBack || 300;
+    const url = `${BACKEND_URL}/api/candles/${symbol}?limit=${limit}`;
 
-    // Generate dummy data (BTC-like price)
-    let currentPrice = 45000;
-    let currentTime = toTime;
+    const response = await fetch(url);
 
-    // Resolution to ms
-    const resolutionToMs = (res) => {
-      if (res === '1D') return 24 * 60 * 60 * 1000;
-      if (res === '240') return 4 * 60 * 60 * 1000;
-      if (res === '60') return 60 * 60 * 1000;
-      return 15 * 60 * 1000; // default 15m
-    }
-
-    const timeStep = resolutionToMs(resolution);
-
-    for (let i = 0; i < requiredBars + 50; i++) {
-      // Random walk
-      const volatility = currentPrice * 0.02; // 2% volatility
-      const change = (Math.random() - 0.5) * volatility;
-
-      const open = currentPrice;
-      const close = currentPrice + change;
-      const high = Math.max(open, close) + Math.random() * volatility * 0.5;
-      const low = Math.min(open, close) - Math.random() * volatility * 0.5;
-
-      bars.unshift({
-        time: currentTime,
-        open: open,
-        high: high,
-        low: low,
-        close: close,
-        volume: Math.random() * 1000 * (i % 3 === 0 ? 5 : 1) // occasional spike
-      });
-
-      currentPrice = open - (Math.random() - 0.5) * volatility; // Walk backwards roughly
-      currentTime -= timeStep;
-    }
-
-    // Since we walked backwards, let's just make sure they are sorted (unshift does this, but logic is time descending during gen)
-    // Actually, simple generator:
-    // Generate forward from (to - requiredBars * step)
-
-    // Let's do a cleaner generation to ensure continuity
-    const cleanBars = [];
-    const step = resolutionToMs(resolution);
-    const startTime = periodParams.to * 1000 - (requiredBars * step);
-
-    let price = 42000; // Start price
-
-    for (let i = 0; i < requiredBars; i++) {
-      const time = startTime + (i * step);
-      if (time > periodParams.to * 1000) break;
-
-      const vol = price * 0.015;
-      const change = (Math.random() - 0.5) * vol;
-      const close = price + change;
-      const high = Math.max(price, close) + Math.random() * vol * 0.3;
-      const low = Math.min(price, close) - Math.random() * vol * 0.3;
-
-      cleanBars.push({
-        time: time,
-        open: price,
-        high: high,
-        low: low,
-        close: close,
-        volume: 500 + Math.random() * 1000
-      });
-
-      price = close;
-    }
-
-    if (cleanBars.length === 0) {
+    if (!response.ok) {
+      console.error(`[Hyperliquid] ❌ HTTP ${response.status} for ${symbol}`);
       onHistoryCallback([], { noData: true });
-    } else {
-      onHistoryCallback(cleanBars, { noData: false });
+      return;
     }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      console.warn(`[Hyperliquid] ⚠️ No data for ${symbol}`);
+      onHistoryCallback([], { noData: true });
+      return;
+    }
+
+    // Format for TradingView
+    // Backend returns [{timestamp, open, high, low, close, volume}, ...] (Hyperliquid)
+    // or [{t, o, h, l, c, i}, ...] (Ostium)
+    // TradingView expects [{time, open, high, low, close, volume}, ...]
+    // IMPORTANT: TradingView expects time in SECONDS, not milliseconds!
+    const bars = data.map(b => {
+      // Get timestamp (could be ms or s depending on source)
+      let timestamp = b.time || b.timestamp || b.t;
+
+      // Convert milliseconds to seconds if needed (timestamps > 10^10 are likely milliseconds)
+      if (timestamp > 10000000000) {
+        timestamp = Math.floor(timestamp / 1000);
+      }
+
+      return {
+        time: timestamp,
+        open: parseFloat(b.open || b.o),
+        high: parseFloat(b.high || b.h),
+        low: parseFloat(b.low || b.l),
+        close: parseFloat(b.close || b.c),
+        volume: parseFloat(b.volume || b.v || 0)
+      };
+    }).sort((a, b) => a.time - b.time);
+
+    console.log(`[getBars]: Returning ${bars.length} bars, time range: ${bars[0]?.time} - ${bars[bars.length - 1]?.time}`);
+    onHistoryCallback(bars, { noData: false });
   } catch (err) {
-    console.error(err);
+    console.error('[Hyperliquid] ❌ Error:', err.message);
     onErrorCallback(err);
   }
 };
 
-// Store active subscriptions
+// Store active subscriptions and their cleanup functions
 const activeSubscriptions = new Map();
-
-// Generate a random bar based on the last bar
-const getLastBar = () => ({
-  time: Date.now(),
-  open: 42000,
-  high: 42100,
-  low: 41900,
-  close: 42050,
-  volume: 100
-}); // Placeholder
-
-let lastBar = getLastBar();
 
 export const subscribeBars = (
   symbolInfo,
@@ -116,39 +73,62 @@ export const subscribeBars = (
 ) => {
   console.log('[subscribeBars]: Method call with subscriberUID:', subscriberUID);
 
-  if (activeSubscriptions.has(subscriberUID)) {
-    clearInterval(activeSubscriptions.get(subscriberUID));
-  }
+  const symbol = symbolInfo.name.replace('/', '-');
+  const wsUrl = `ws://localhost:8000/ws/hyperliquid/${symbol}`;
+  const ws = new WebSocket(wsUrl);
 
-  const interval = setInterval(() => {
-    // Simulate tick
-    const now = Date.now();
-    const vol = lastBar.close * 0.002;
-    const change = (Math.random() - 0.5) * vol;
+  let lastBar = {
+    time: 0,
+    open: 0,
+    high: 0,
+    low: 0,
+    close: 0,
+    volume: 0
+  };
 
-    const newPrice = lastBar.close + change;
+  ws.onmessage = (event) => {
+    try {
+      const message = JSON.parse(event.data);
+      if (message.type === 'price_update' && message.data) {
+        const data = message.data;
+        const price = parseFloat(data.price);
+        const now = Date.now();
 
-    const bar = {
-      time: now,
-      open: lastBar.close,
-      high: Math.max(lastBar.close, newPrice) + 5,
-      low: Math.min(lastBar.close, newPrice) - 5,
-      close: newPrice,
-      volume: Math.random() * 100
-    };
+        // TradingView expect updates for the CURRENT bar interval
+        // For simplicity, we create/update a 1m bar (or matching resolution)
+        // TradingView handles merging multiple ticks into the same bar if timing matches
 
-    lastBar = bar;
-    onRealtimeCallback(bar);
-  }, 1000);
+        const bar = {
+          time: now,
+          open: lastBar.close || price,
+          high: Math.max(lastBar.high || price, price),
+          low: Math.min(lastBar.low || price, price),
+          close: price,
+          volume: data.volume_24h || 0
+        };
 
-  activeSubscriptions.set(subscriberUID, interval);
+        lastBar = bar;
+        onRealtimeCallback(bar);
+      }
+    } catch (e) {
+      console.error('[subscribeBars]: WS error', e);
+    }
+  };
+
+  ws.onclose = () => console.log('[subscribeBars]: WS closed');
+
+  activeSubscriptions.set(subscriberUID, {
+    ws: ws,
+    close: () => ws.close()
+  });
 };
 
 export const unsubscribeBars = (subscriberUID) => {
   console.log('[unsubscribeBars]: Method call with subscriberUID:', subscriberUID);
 
-  if (activeSubscriptions.has(subscriberUID)) {
-    clearInterval(activeSubscriptions.get(subscriberUID));
+  const subscription = activeSubscriptions.get(subscriberUID);
+  if (subscription) {
+    subscription.close();
     activeSubscriptions.delete(subscriberUID);
   }
 };
