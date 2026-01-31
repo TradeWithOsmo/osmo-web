@@ -26,9 +26,19 @@
     /* No gap between items */
     position: relative;
     transition: width 0.3s ease;
-    overflow-y: auto;
+    overflow: hidden;
+    /* Hide overflow on container, manage in content */
     flex-shrink: 0;
     /* consistent with Autos */
+}
+
+/* Sidebar Scrollable Content */
+.sidebarContent {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
 }
 
 .sidebarMinimized {
@@ -142,6 +152,36 @@
     opacity: 1;
 }
 
+/* Sidebar Footer Action Button */
+.sidebarActionButton {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 12px;
+    background-color: #660035;
+    border: 1px solid #36001E;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: capitalize;
+}
+
+.sidebarFooter {
+    padding: 24px;
+    flex-shrink: 0;
+    margin-top: auto;
+    border-top: 1px solid #3A2530;
+    /* Push to bottom if content is short, though flex-column handles it */
+}
+
+.sidebarActionButton:hover {
+    background-color: #800042;
+}
+
 /* Main Content Area */
 .contentArea {
     flex: 1;
@@ -162,7 +202,7 @@
 }
 
 .contentCentered>* {
-    max-width: 1200px;
+    max-width: 1300px;
     width: 100%;
 }
 
@@ -171,7 +211,7 @@
     display: flex;
     flex-direction: column;
     gap: 32px;
-    max-width: 1200px;
+    max-width: 1300px;
 }
 
 .sectionTitle {
@@ -282,17 +322,17 @@
 
 /* Right Side: Graph/Connect */
 .graphSection {
-    padding-top: 23px;
     flex: 1;
     position: relative;
-    background-image: radial-gradient(circle, #333 1px, transparent 1px);
-    background-size: cover;
-    background-position: 0 0;
-    /* Default position */
-    background-color: #15050C;
+    background: linear-gradient(rgba(18, 0, 10, 0.85), rgba(18, 0, 10, 0.85)), url("../../assets/Dots pettern.png");
+    background-size: 60px;
+    /* Make pattern smaller/neater if needed */
+    background-position: center;
+    background-color: #12000A;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 }
 
 .timeframeBtn {

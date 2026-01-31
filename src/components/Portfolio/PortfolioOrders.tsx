@@ -4,31 +4,21 @@ import panelStyles from '../Positions/PositionsPanel.module.css';
 import OrdersTable from '../Positions/OrdersTable';
 import type { OrderData as UIOrderData } from '../Positions/OrderRow';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
-import { useWallet } from '../../hooks';
-import type { OrderData as APIOrderData } from '../../api/orderService';
+// import { useWallet } from '../../hooks';
+// import type { OrderData as APIOrderData } from '../../api/orderService';
 
 // Mapper function to convert backend data to UI format
+/*
 const mapAPIOrderToUI = (apiOrder: APIOrderData): UIOrderData => {
-    return {
-        id: apiOrder.id,
-        time: apiOrder.created_at ? new Date(apiOrder.created_at).toLocaleString() : 'N/A',
-        type: (apiOrder.order_type.charAt(0).toUpperCase() + apiOrder.order_type.slice(1)) as any,
-        symbol: apiOrder.symbol.split('-')[0],
-        direction: (apiOrder.side === 'buy' ? 'Long' : 'Short') as any,
-        size: apiOrder.size,
-        originalSize: apiOrder.size,
-        orderValue: apiOrder.notional_usd,
-        price: apiOrder.price || 0,
-        reduceOnly: false,
-        triggerConditions: apiOrder.stop_price ? `Stop @ ${apiOrder.stop_price}` : 'N/A',
-        tp: '--',
-        sl: '--'
-    };
+    ...
 };
+*/
 
 const PortfolioOrders: React.FC = () => {
-    const { openOrders, fetchOrders } = usePortfolioStore();
-    const { walletAddress, authenticated } = useWallet();
+    // const { openOrders, fetchOrders } = usePortfolioStore();
+    // const { walletAddress, authenticated } = useWallet();
+    const authenticated = true;
+    const walletAddress = "0xDemo...1234";
 
     const [sortBy, setSortBy] = React.useState<'value' | 'coin'>('value');
     const [filterBy, setFilterBy] = React.useState<'all' | 'active' | 'long' | 'short'>('all');
@@ -36,16 +26,30 @@ const PortfolioOrders: React.FC = () => {
     const [isFilterOpen, setIsFilterOpen] = React.useState(false);
 
     useEffect(() => {
-        if (authenticated && walletAddress) {
-            fetchOrders(walletAddress, 'pending');
-        }
-    }, [authenticated, walletAddress, fetchOrders]);
+        // DISCONNECTED FROM BACKEND
+    }, [authenticated, walletAddress]);
 
     const filteredOrders = React.useMemo(() => {
-        if (!authenticated || !walletAddress) return [];
+        // DISCONNECTED FROM BACKEND - Using Mock Data
+        const mockOrders: UIOrderData[] = [
+            {
+                id: '1',
+                time: '30/12/2025 - 16.04.22',
+                type: 'Limit',
+                symbol: 'SOL',
+                direction: 'Long',
+                size: 9.85,
+                originalSize: 9.85,
+                orderValue: 1222.78,
+                price: 124.14,
+                reduceOnly: false,
+                triggerConditions: 'N/A',
+                tp: '--',
+                sl: '--'
+            }
+        ];
 
-        // Map API data to UI format
-        let result = openOrders.map(mapAPIOrderToUI);
+        let result = [...mockOrders];
 
         // Filter
         if (filterBy !== 'all') {
@@ -67,7 +71,7 @@ const PortfolioOrders: React.FC = () => {
         });
 
         return result;
-    }, [filterBy, sortBy, openOrders, authenticated, walletAddress]);
+    }, [filterBy, sortBy, authenticated, walletAddress]);
 
     const toggleSort = () => {
         setIsSortOpen(!isSortOpen);

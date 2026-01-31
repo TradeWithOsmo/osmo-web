@@ -3,6 +3,7 @@ import { Navbar } from './components';
 import { AppRouter } from './router';
 import { useGlobalMarketStream } from './hooks/useGlobalMarketStream';
 import { useTokenListStore } from './store/useTokenListStore';
+import { DepositModal, ReversePositionModal, MarketCloseModal, TPSLModal, CloseAllModal, LimitCloseModal, FaucetModal } from './components/Modals';
 
 function App() {
   const [currentRoute, setCurrentRoute] = useState(window.location.pathname === '/' ? '/trade' : window.location.pathname);
@@ -24,9 +25,11 @@ function App() {
   }, [fetchTokenList]);
 
   const navItems = [
-    { label: 'Trade', href: '/trade', isActive: currentRoute === '/trade' || currentRoute === '/autos' },
+    { label: 'Trade', href: '/trade', isActive: currentRoute === '/trade' },
 
     { label: 'Portfolio', href: '/portfolio', isActive: currentRoute.startsWith('/portfolio') },
+    { label: 'Usage', href: '/usage', isActive: currentRoute.startsWith('/usage') },
+    { label: 'Faucet', href: '/faucet', isActive: currentRoute.startsWith('/faucet') },
 
     // { label: 'Points', href: '/points', isActive: currentRoute === '/points' },
 
@@ -47,6 +50,13 @@ function App() {
       <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AppRouter route={currentRoute} />
       </div>
+      <DepositModal />
+      <ReversePositionModal />
+      <MarketCloseModal />
+      <TPSLModal />
+      <CloseAllModal />
+      <LimitCloseModal />
+      <FaucetModal />
     </div>
   );
 }

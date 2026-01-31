@@ -717,15 +717,17 @@
 }
 
 .checkbox.checked {
-    background-color: #3A2530;
-    border-color: #A77590;
+    background-color: #00E396;
+    border-color: #00E396;
 }
 
 .checkMark {
-    width: 10px;
+    width: 6px;
     height: 10px;
-    background-color: #A77590;
-    border-radius: 2px;
+    border: solid #12000A;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    margin-bottom: 2px;
 }
 
 .checkboxLabel {
@@ -763,10 +765,10 @@
 }
 
 .tpslInput {
-    background-color: #3A2530;
+    background-color: #0A0005;
     border: 1px solid #3A2530;
-    border-radius: 6px;
-    padding: 8px 12px;
+    border-radius: 8px;
+    padding: 10px 12px;
     display: flex;
     flex-direction: column;
     justify-content: center;

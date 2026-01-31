@@ -4,6 +4,13 @@ import activeStar from '../../assets/Icons/start/active.png'
 import inactiveStar from '../../assets/Icons/start/inactive.png'
 import expandIcon from '../../assets/Icons/Arrow/Arrow-down-Bullet.png'
 import collapseIcon from '../../assets/Icons/Arrow/Arrow-up-Bullet.png'
+// Layout Icons - Standard
+import layoutStandardActive from '../../assets/layout/Layout trading active.png'
+import layoutStandardInactive from '../../assets/layout/Layout trading non active.png'
+// Layout Icons - Assist
+import layoutAssistActive from '../../assets/layout/Layout Trading + Asist active.png'
+import layoutAssistInactive from '../../assets/layout/Layout Trading + Asist non active.png'
+
 import MarketSelector from './MarketSelector'
 import TokenIcon from './TokenIcon'
 import OstiumIcon from './OstiumIcon'
@@ -14,10 +21,14 @@ import { useWatchlistStore } from '../../store/useWatchlistStore'
 export interface MarketDetailsProps {
     isFavorite?: boolean
     onToggleFavorite?: () => void
+    layoutMode?: 'standard' | 'assist'
+    setLayoutMode?: (mode: 'standard' | 'assist') => void
 }
 
 const MarketDetails: React.FC<MarketDetailsProps> = ({
     onToggleFavorite,
+    layoutMode,
+    setLayoutMode
 }) => {
     const { selectedMarket, isLoading, error, fetchMarkets } = useMarketStore()
     const { favorites, toggleFavorite, fetchWatchlist } = useWatchlistStore()
@@ -220,6 +231,38 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                         <span className={styles.statValue}>{selectedMarket.low24h ? formatPrice(selectedMarket.low24h) : '-'}</span>
                     </div>
                 </div>
+
+                {/* Layout Switcher (Desktop Only usually, but let's keep it generally available if space permits, or hide on mobile if needed) */}
+                {layoutMode && setLayoutMode && (
+                    <div className={styles.rightSection}>
+                        <div className={styles.layoutTabs}>
+                            <button
+                                className={`${styles.layoutTab} ${layoutMode === 'standard' ? styles.activeLayoutTab : ''}`}
+                                onClick={() => setLayoutMode('standard')}
+                                title="Standard Layout"
+                            >
+                                <img
+                                    src={layoutMode === 'standard' ? layoutStandardActive : layoutStandardInactive}
+                                    alt="Standard"
+                                    className={styles.layoutIcon}
+                                />
+                                <span className={styles.layoutTabText}>Standard</span>
+                            </button>
+                            <button
+                                className={`${styles.layoutTab} ${layoutMode === 'assist' ? styles.activeLayoutTab : ''}`}
+                                onClick={() => setLayoutMode('assist')}
+                                title="Trading Assist Layout"
+                            >
+                                <img
+                                    src={layoutMode === 'assist' ? layoutAssistActive : layoutAssistInactive}
+                                    alt="Assist"
+                                    className={styles.layoutIcon}
+                                />
+                                <span className={styles.layoutTabText}>Assist</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Mobile Stats Section - outside container for expand */}

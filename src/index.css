@@ -16,8 +16,8 @@ body,
 body {
   font-family: 'Satoshi', sans-serif;
   line-height: 1.5;
-  color: #12000A;
-  background: #ffffff;
+  color: #FFE1F2;
+  background: #12000A;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

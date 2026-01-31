@@ -8,7 +8,9 @@
     min-height: 0;
     /* Fix for flex child scrolling */
     position: relative;
-    background-color: #12000A;
+    background: linear-gradient(rgba(18, 0, 10, 0.9), rgba(18, 0, 10, 0.9)), url("../../assets/circle pettern.png");
+    background-size: cover;
+    background-position: center;
     /* App background */
     color: #FFE1F2;
 
@@ -165,7 +167,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 15px 24px 24px 24px;
+    padding: 32px 24px 24px 24px;
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
@@ -928,7 +930,7 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
-    padding: 20px 0;
+    padding: 40px 0 20px 0;
     margin-bottom: 20px;
     /* Hide Scrollbar */
     scrollbar-width: none;

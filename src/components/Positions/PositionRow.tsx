@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './PositionsPanel.module.css';
+import { useUIStore } from '../../store/useUIStore';
 
 export interface PositionData {
     id: string;
@@ -25,6 +26,7 @@ interface PositionRowProps {
 }
 
 const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
+    const { openReverseModal, openMarketCloseModal, openTPSLModal, openLimitCloseModal } = useUIStore();
     const [isExpanded, setIsExpanded] = useState(false);
     const isLong = position.side === 'Long';
 
@@ -120,17 +122,21 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
                 {/* Close All */}
                 <td className={styles.td}>
                     <div className={styles.actionGroup}>
-                        <button className={styles.actionButton}>Limit</button>
-                        <button className={styles.actionButton}>Market</button>
-                        <button className={styles.actionButton}>Reverse</button>
+                        <button className={styles.actionButton} onClick={() => openLimitCloseModal(position)}>Limit</button>
+                        <button className={styles.actionButton} onClick={() => openMarketCloseModal(position)}>Market</button>
+                        <button className={styles.actionButton} onClick={() => openReverseModal(position)}>Reverse</button>
                     </div>
                 </td>
 
                 {/* TP/SL */}
                 <td className={styles.td} style={{ textAlign: 'right' }}>
                     <div className={styles.actionGroup} style={{ justifyContent: 'flex-end' }}>
-                        <span style={{ fontSize: '12px' }}>-- / --</span>
-                        <button className={styles.editButton}>✎</button>
+                        <span style={{ fontSize: '12px' }}>
+                            {position.tp && position.sl ? `${position.tp} / ${position.sl}` :
+                                position.tp ? `${position.tp} / --` :
+                                    position.sl ? `-- / ${position.sl}` : '-- / --'}
+                        </span>
+                        <button className={styles.editButton} onClick={() => openTPSLModal(position)}>✎</button>
                     </div>
                 </td>
             </tr>
@@ -204,19 +210,23 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
                                 </div>
                                 <div className={styles.mobileDetailRow}>
                                     <span className={styles.mobileLabel}>Funding</span>
-                                    <span className={`${styles.mobileValue} ${styles.positive}`}>${formatUsd(position.funding)}</span>
+                                    <span className={`${styles.mobileValue} ${position.funding >= 0 ? styles.positive : styles.negative}`}>${formatUsd(position.funding)}</span>
                                 </div>
                                 <div className={styles.mobileDetailRow}>
                                     <span className={styles.mobileLabel}>TP/SL</span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span className={styles.mobileValue}>-- / --</span>
-                                        <button className={styles.editButton}>✎</button>
+                                        <span className={styles.mobileValue}>
+                                            {position.tp && position.sl ? `${position.tp} / ${position.sl}` :
+                                                position.tp ? `${position.tp} / --` :
+                                                    position.sl ? `-- / ${position.sl}` : '-- / --'}
+                                        </span>
+                                        <button className={styles.editButton} onClick={() => openTPSLModal(position)}>✎</button>
                                     </div>
                                 </div>
                                 <div className={styles.mobileDetailRow} style={{ borderBottom: 'none', paddingTop: '16px', justifyContent: 'flex-start', gap: '16px' }}>
-                                    <button className={styles.actionButton} style={{ fontSize: '13px', border: '1px solid #2E93fF', padding: '4px 12px', borderRadius: '4px' }}>Limit</button>
-                                    <button className={styles.actionButton} style={{ fontSize: '13px', border: '1px solid #2E93fF', padding: '4px 12px', borderRadius: '4px' }}>Market</button>
-                                    <button className={styles.actionButton} style={{ fontSize: '13px', border: '1px solid #2E93fF', padding: '4px 12px', borderRadius: '4px' }}>Reverse</button>
+                                    <button className={styles.actionButton} style={{ fontSize: '13px', border: '1px solid #2E93fF', padding: '4px 12px', borderRadius: '4px' }} onClick={() => openLimitCloseModal(position)}>Limit</button>
+                                    <button className={styles.actionButton} style={{ fontSize: '13px', border: '1px solid #2E93fF', padding: '4px 12px', borderRadius: '4px' }} onClick={() => openMarketCloseModal(position)}>Market</button>
+                                    <button className={styles.actionButton} style={{ fontSize: '13px', border: '1px solid #2E93fF', padding: '4px 12px', borderRadius: '4px' }} onClick={() => openReverseModal(position)}>Reverse</button>
                                 </div>
                             </div>
                         )}

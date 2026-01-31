@@ -204,6 +204,7 @@
 
 .dropdownItem:hover {
   background-color: #240114;
+  color: #FFE1F2;
 }
 
 .dropdownItem:active,
@@ -491,6 +492,33 @@
     height: 48px;
     width: 100%;
   }
+
+  /* Shared Action Footer for tablet/mobile */
+  .mobileActionFooter {
+    display: flex;
+    padding: 24px;
+    background-color: #12000A;
+    gap: 16px;
+    margin-top: auto;
+    border-top: 1px solid #3A2530;
+    /* Ensure it pushes to bottom */
+  }
+
+  .mobileActionButton {
+    flex: 1;
+    padding: 12px;
+    background-color: #660035;
+    border: 1px solid #36001E;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-transform: capitalize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* Tablet only (650px - 1042px) */
@@ -514,6 +542,11 @@
 
   .mobileOnly {
     display: flex !important;
+  }
+
+  .mobileActionFooter {
+    flex-direction: row;
+    /* Side-by-side on tablet */
   }
 }
 
@@ -547,6 +580,11 @@
   .address {
     font-size: 0.8rem;
     max-width: 100px;
+  }
+
+  .mobileActionFooter {
+    flex-direction: row;
+    /* Side-by-side on mobile too */
   }
 }
 

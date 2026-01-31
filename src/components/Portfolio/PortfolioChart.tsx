@@ -1,230 +1,138 @@
-import React, { useState, useEffect } from 'react';
-import { portfolioService, type PortfolioTimeframe, type PortfolioHistoryPoint } from '../../api/portfolioService';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer
+} from 'recharts';
 import styles from './Portfolio.module.css';
 
-interface PortfolioChartProps {
-    userAddress: string;
+interface DataPoint {
+    timestamp: string;
+    displayTime: string;
+    value: number;
 }
 
-const PortfolioChart: React.FC<PortfolioChartProps> = ({ userAddress }) => {
-    const [timeframe, setTimeframe] = useState<PortfolioTimeframe>('1d');
-    const [chartData, setChartData] = useState<PortfolioHistoryPoint[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+const PortfolioChart: React.FC = () => {
+    const [timeframe, setTimeframe] = useState('1D');
+    const [chartData, setChartData] = useState<DataPoint[]>([]);
 
+    // Generate Mock Data
     useEffect(() => {
-        if (!userAddress) return;
+        const data: DataPoint[] = [];
+        const now = new Date();
+        let points = 20;
+        let interval = 60 * 60 * 1000; // 1 hour
 
-        setIsLoading(true);
-        setError(null);
+        if (timeframe === '7D') { points = 28; interval = 6 * 60 * 60 * 1000; }
+        else if (timeframe === '1M') { points = 30; interval = 24 * 60 * 60 * 1000; }
+        else if (timeframe === 'ALL') { points = 50; interval = 48 * 60 * 60 * 1000; }
 
-        portfolioService.getPortfolioHistory(userAddress, timeframe)
-            .then(response => {
-                setChartData(response.data);
-                setIsLoading(false);
-            })
-            .catch(err => {
-                console.error('Failed to fetch portfolio history:', err);
-                setError('Failed to load chart data');
-                setIsLoading(false);
+        let lastVal = 12000 + Math.random() * 1000;
+        for (let i = points; i >= 0; i--) {
+            const time = new Date(now.getTime() - i * interval);
+            lastVal += (Math.random() - 0.45) * 400;
+            data.push({
+                timestamp: time.toISOString(),
+                displayTime: timeframe === '1D'
+                    ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : time.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                value: parseFloat(lastVal.toFixed(2))
             });
-    }, [userAddress, timeframe]);
-
-    const formatTime = (timestamp: string) => {
-        const date = new Date(timestamp);
-        if (timeframe === '1d') {
-            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        } else {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         }
-    };
+        setChartData(data);
+    }, [timeframe]);
 
-    const formatCurrency = (val: number) => {
-        if (val >= 1000000) {
-            return `$${(val / 1000000).toFixed(2)}M`;
-        } else if (val >= 1000) {
-            return `$${(val / 1000).toFixed(2)}K`;
-        } else {
-            return `$${val.toFixed(2)}`;
-        }
-    };
-
-    // Calculate min/max for Y-axis
-    const values = chartData.map(d => d.value);
-    const minValue = Math.min(...values) * 0.95; // 5% padding below
-    const maxValue = Math.max(...values) * 1.05; // 5% padding above
-    const valueRange = maxValue - minValue;
-
-    // SVG dimensions
-    const width = 800;
-    const height = 300;
-    const padding = { top: 20, right: 20, bottom: 40, left: 60 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-
-    // Generate path data
-    const generatePath = () => {
-        if (chartData.length === 0) return '';
-
-        const points = chartData.map((point, index) => {
-            const x = padding.left + (index / (chartData.length - 1 || 1)) * chartWidth;
-            const y = padding.top + chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
-            return `${x},${y}`;
-        });
-
-        return `M ${points.join(' L ')}`;
-    };
-
-    // Generate area path (for gradient fill)
-    const generateAreaPath = () => {
-        if (chartData.length === 0) return '';
-
-        const points = chartData.map((point, index) => {
-            const x = padding.left + (index / (chartData.length - 1 || 1)) * chartWidth;
-            const y = padding.top + chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
-            return `${x},${y}`;
-        });
-
-        const firstX = padding.left;
-        const lastX = padding.left + chartWidth;
-        const bottomY = padding.top + chartHeight;
-
-        return `M ${firstX},${bottomY} L ${points.join(' L ')} L ${lastX},${bottomY} Z`;
-    };
-
-    if (isLoading) {
-        return (
-            <div style={{ textAlign: 'center', padding: '120px 24px', color: '#A77590' }}>
-                Loading chart...
-            </div>
-        );
-    }
-
-    if (error || chartData.length === 0) {
-        return (
-            <div style={{ textAlign: 'center', padding: '120px 24px', color: '#A77590' }}>
-                <div style={{ fontSize: '14px' }}>
-                    Start trading to see your portfolio performance
-                </div>
-            </div>
-        );
-    }
-
-    const currentValue = chartData[chartData.length - 1]?.value || 0;
-    const firstValue = chartData[0]?.value || 0;
-    const change = currentValue - firstValue;
-    const changePercent = firstValue > 0 ? (change / firstValue) * 100 : 0;
+    const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
 
     return (
-        <div className={styles.chartContainer}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <div>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#FFE1F2' }}>
-                        {formatCurrency(currentValue)}
-                    </div>
-                    <div style={{
-                        fontSize: '14px',
-                        color: change >= 0 ? '#00E396' : '#FF4560',
-                        marginTop: '4px'
-                    }}>
-                        {change >= 0 ? '+' : ''}{formatCurrency(change)} ({change >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
-                    </div>
-                </div>
-
-                {/* Timeframe Selector */}
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    {(['1d', '7d', '30d', 'all'] as PortfolioTimeframe[]).map(tf => (
-                        <button
-                            key={tf}
-                            onClick={() => setTimeframe(tf)}
-                            style={{
-                                background: timeframe === tf ? '#663399' : 'transparent',
-                                color: timeframe === tf ? '#FFF' : '#A77590',
-                                border: '1px solid #3A2530',
-                                borderRadius: '6px',
-                                padding: '6px 12px',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                fontWeight: 500,
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            {tf.toUpperCase()}
-                        </button>
-                    ))}
-                </div>
+        <div style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '0',
+            boxSizing: 'border-box',
+            position: 'relative'
+        }}>
+            {/* Minimalist Timeframe Buttons */}
+            <div style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                zIndex: 10,
+                display: 'flex',
+                gap: '8px'
+            }}>
+                {['1D', '7D', '1M', 'ALL'].map((tf) => (
+                    <button
+                        key={tf}
+                        onClick={() => setTimeframe(tf)}
+                        style={{
+                            background: timeframe === tf ? 'rgba(102, 0, 53, 0.4)' : 'transparent',
+                            color: timeframe === tf ? '#FFE1F2' : '#8B8B9B',
+                            border: '1px solid',
+                            borderColor: timeframe === tf ? '#660035' : '#3A2530',
+                            borderRadius: '20px',
+                            padding: '4px 14px',
+                            fontSize: '15px',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            transition: 'all 0.2s',
+                            fontWeight: timeframe === tf ? 600 : 400
+                        }}
+                    >
+                        {tf.toLowerCase()}
+                    </button>
+                ))}
             </div>
 
-            {/* Chart SVG */}
-            <svg width={width} height={height} style={{ overflow: 'visible' }}>
-                <defs>
-                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
-                    </linearGradient>
-                </defs>
-
-                {/* Gradient Area */}
-                <path
-                    d={generateAreaPath()}
-                    fill="url(#chartGradient)"
-                />
-
-                {/* Line */}
-                <path
-                    d={generatePath()}
-                    stroke="#8B5CF6"
-                    strokeWidth={2}
-                    fill="none"
-                />
-
-                {/* Y-axis labels */}
-                {[0, 0.25, 0.5, 0.75, 1].map(ratio => {
-                    const value = minValue + valueRange * ratio;
-                    const y = padding.top + chartHeight - ratio * chartHeight;
-                    return (
-                        <g key={ratio}>
-                            <line
-                                x1={padding.left}
-                                y1={y}
-                                x2={padding.left + chartWidth}
-                                y2={y}
-                                stroke="#3A2530"
-                                strokeWidth={1}
-                                strokeDasharray="4 4"
-                            />
-                            <text
-                                x={padding.left - 10}
-                                y={y + 4}
-                                textAnchor="end"
-                                fill="#A77590"
-                                fontSize={12}
-                            >
-                                {formatCurrency(value)}
-                            </text>
-                        </g>
-                    );
-                })}
-
-                {/* X-axis labels */}
-                {chartData.filter((_, i, arr) => i % Math.max(1, Math.floor(arr.length / 6)) === 0).map((point, index) => {
-                    const dataIndex = chartData.indexOf(point);
-                    const x = padding.left + (dataIndex / (chartData.length - 1 || 1)) * chartWidth;
-                    return (
-                        <text
-                            key={index}
-                            x={x}
-                            y={padding.top + chartHeight + 20}
-                            textAnchor="middle"
-                            fill="#A77590"
-                            fontSize={12}
-                        >
-                            {formatTime(point.timestamp)}
-                        </text>
-                    );
-                })}
-            </svg>
+            <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 60, right: 4, left: 4, bottom: 5 }}>
+                        <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#660035" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#12000A" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <XAxis
+                            dataKey="displayTime"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#8B8B9B', fontSize: 10 }}
+                            minTickGap={60}
+                            interval="preserveStart"
+                        />
+                        <YAxis hide domain={['auto', 'auto']} />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: '#1A0010',
+                                border: '1px solid #3A2530',
+                                borderRadius: '8px',
+                                padding: '8px 12px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                                color: '#FFE1F2'
+                            }}
+                            itemStyle={{ color: '#FFE1F2', fontSize: '13px', fontWeight: 600 }}
+                            labelStyle={{ color: '#8B8B9B', fontSize: '11px', marginBottom: '2px' }}
+                            formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                            cursor={{ stroke: '#660035', strokeWidth: 1 }}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="value"
+                            stroke="#660035"
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill="url(#colorValue)"
+                            animationDuration={800}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </div>
     );
 };

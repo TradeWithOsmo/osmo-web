@@ -1,0 +1,120 @@
+import React, { useState } from 'react';
+
+// Assets
+import circlePattern from '../assets/circle pettern.png';
+import dotsPattern from '../assets/Dots pettern.png';
+import activeLogo from '../assets/deposited chain/Active.png';
+import nonActiveLogo from '../assets/deposited chain/nonactive.png';
+// Store
+import { useUIStore } from '../store/useUIStore';
+
+// Logo removed as per new layering request
+import logo from '../assets/Icons/Osmo-Logos.png'; // Keeping import just in case, but unused
+
+const Faucet: React.FC = () => {
+    const [isHovered, setIsHovered] = useState(false);
+    const { openFaucetModal } = useUIStore();
+
+    const handleClaim = () => {
+        // Trigger Faucet Modal
+        openFaucetModal();
+    };
+
+    return (
+        <div style={{
+            position: 'relative',
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            backgroundColor: '#12000A',
+            paddingBottom: '80px' // Offset for bottom nav or visual balance
+        }}>
+            {/* Layer 1: Dots Pattern (New) */}
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0.1,
+                zIndex: 1,
+                pointerEvents: 'none'
+            }}>
+                <img
+                    src={dotsPattern}
+                    alt="Dots Pattern"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+            </div>
+
+            {/* Layer 2: Circle Pattern (Old) */}
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0.15,
+                zIndex: 2,
+                pointerEvents: 'none'
+            }}>
+                <img
+                    src={circlePattern}
+                    alt="Circle Pattern"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+            </div>
+
+            {/* Layer 3: Double Circle Button with USDC Logo */}
+            <button
+                onClick={handleClaim}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: isHovered ? 'translate(-50%, -50%) scale(1.05)' : 'translate(-50%, -50%) scale(1)',
+                    width: 'min(90vw, 800px)', // Responsive Outer Circle
+                    height: 'min(90vw, 800px)',
+                    borderRadius: '50%',
+                    border: '1px solid #420024',
+                    background: isHovered ? '#12000A' : '#0A0005', // Hover effect
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    zIndex: 20,
+                    outline: 'none',
+                    boxShadow: isHovered ? '0 0 60px rgba(66, 0, 36, 0.5)' : 'none'
+                }}
+            >
+                {/* Inner Circle */}
+                <div style={{
+                    width: 'min(78vw, 700px)', // Responsive Inner Circle
+                    height: 'min(78vw, 700px)',
+                    borderRadius: '50%',
+                    border: '1px solid #420024',
+                    background: isHovered ? '#12000A' : '#0A0005',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.3s ease'
+                }}>
+                    {/* Logo Always Shown */}
+                    <img
+                        src={isHovered ? nonActiveLogo : activeLogo}
+                        alt="Claim"
+                        style={{ width: 'min(50vw, 450px)', height: 'min(50vw, 450px)', objectFit: 'contain' }}
+                    />
+                </div>
+            </button>
+        </div>
+    );
+};
+
+export default Faucet;

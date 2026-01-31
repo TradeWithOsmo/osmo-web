@@ -2,7 +2,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background-color: #000;
+    background-color: #12000A;
     /* Default bg */
     overflow: hidden;
 }
@@ -79,7 +79,7 @@
     z-index: 10;
     flex-shrink: 0;
     position: relative;
-    background-color: #11050D;
+    background-color: #12000A;
     height: auto;
     /* Allow it to take necessary height */
     /* Removed min-height, let component dictate or use specific height in PositionsPanel */

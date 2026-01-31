@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styles from './ChatInterface.module.css';
 import type { Workspace, Message } from '../../types/autos';
 
+
 interface ChatInterfaceProps {
     activeSessionId?: string;
     activeSessionTitle?: string;
@@ -16,6 +17,7 @@ interface ChatInterfaceProps {
     onEditMessage?: (sessionId: string, messageId: string, newContent: string) => void;
     onRegenerateResponse?: (messageId: string) => void;
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike' | null) => void;
+    currentSymbol?: string;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -31,7 +33,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onOpenChart,
     onEditMessage,
     onRegenerateResponse,
-    onFeedback
+    onFeedback,
+    currentSymbol
 }) => {
     const [inputValue, setInputValue] = useState('');
 
@@ -556,7 +559,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                         )}
                                                     </div>
                                                     <div className={styles.artifactInfo}>
-                                                        <span className={styles.artifactTitle}>{msg.artifact.title}</span>
+                                                        <span className={styles.artifactTitle}>
+                                                            {msg.artifact.type === 'chart' && currentSymbol
+                                                                ? `${currentSymbol} Analysis Chart`
+                                                                : msg.artifact.title}
+                                                        </span>
                                                         <span className={styles.artifactType}>Interactive {msg.artifact.type === 'chart' ? 'Chart' : 'Artifact'}</span>
                                                     </div>
                                                 </div>
