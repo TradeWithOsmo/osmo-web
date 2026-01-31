@@ -21,6 +21,7 @@ export interface OrderResult {
 }
 
 export interface PositionData {
+    id: string;
     symbol: string;
     side: 'long' | 'short';
     size: number;
@@ -31,6 +32,8 @@ export interface PositionData {
     leverage: number;
     margin_used?: number;
     exchange: string;
+    tp?: string;
+    sl?: string;
 }
 
 export interface OrderData {

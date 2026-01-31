@@ -326,7 +326,7 @@ const PortfolioLeaderboard: React.FC = () => {
         <div style={{ paddingBottom: '32px' }}>
             <div className={styles.sectionTitle}>Leaderboard</div>
 
-            <div className={panelStyles.tableContainer} style={{ height: 'auto', maxHeight: 'calc(100vh - 140px)', minHeight: 0, display: 'flex', flexDirection: 'column', border: '1px solid #3A2530', borderRadius: '12px' }}>
+            <div className={panelStyles.tableContainer} style={{ height: 'auto', maxHeight: 'calc(100vh - 140px)', minHeight: '500px', display: 'flex', flexDirection: 'column', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden' }}>
                 {/* Navbar Style Tabs */}
                 <div className={styles.tabsContainer}>
                     <button
@@ -481,7 +481,7 @@ const PortfolioLeaderboard: React.FC = () => {
                         <div className={panelStyles.tableFooter}>
                             <div className={panelStyles.footerGrid}>
                                 <div className={panelStyles.footerMessage}>
-                                    Showing {((currentPage - 1) * rowsPerPage) + 1} - {Math.min(currentPage * rowsPerPage, pagination.total)} out of {pagination.total}
+                                    Showing {pagination.total === 0 ? 0 : ((currentPage - 1) * rowsPerPage) + 1} - {Math.min(currentPage * rowsPerPage, pagination.total)} out of {pagination.total}
                                 </div>
 
                                 <div className={panelStyles.footerControls}>

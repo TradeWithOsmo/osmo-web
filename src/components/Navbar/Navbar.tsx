@@ -1,5 +1,6 @@
 import React from 'react'
 import { useWallet, useNavigation } from '../../hooks'
+import { useUIStore } from '../../store/useUIStore'
 import styles from './Navbar.module.css'
 import notificationIcon from '../../assets/Icons/Notifikasi/Notifications.png'
 import notificationBulletIcon from '../../assets/Icons/Notifikasi/Notifications-Bullet.png'
@@ -27,6 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavClick,
   hasNotifications = false,
 }) => {
+  const { openDepositModal } = useUIStore()
   // Wallet hooks
   const {
     ready,
@@ -54,6 +56,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const [isPortfolioDropdownOpen, setIsPortfolioDropdownOpen] = React.useState(false)
   const togglePortfolioDropdown = () => setIsPortfolioDropdownOpen(!isPortfolioDropdownOpen)
+
+  const [isUsageDropdownOpen, setIsUsageDropdownOpen] = React.useState(false)
+  const toggleUsageDropdown = () => setIsUsageDropdownOpen(!isUsageDropdownOpen)
 
   // Lock body scroll when mobile menu is open
   React.useEffect(() => {
@@ -278,6 +283,58 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span>{item.label}</span>
                     </a>
                   </>
+                ) : item.label === 'Usage' ? (
+                  <>
+                    {/* Mobile: Dropdown */}
+                    <button
+                      className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly}`}
+                      onClick={() => toggleUsageDropdown()}
+                      style={{ justifyContent: 'space-between', width: '100%' }}
+                    >
+                      <span>{item.label}</span>
+                      <svg
+                        width="10"
+                        height="6"
+                        viewBox="0 0 10 6"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        className={`${styles.navArrow} ${isUsageDropdownOpen ? styles.rotate : ''}`}
+                      >
+                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    {isUsageDropdownOpen && (
+                      <div className={`${styles.mobileSubMenu} ${styles.mobileOnly}`}>
+                        {['Overview', 'Usage', 'Model Fee'].map(subItem => (
+                          <a
+                            key={subItem}
+                            href={`/usage?tab=${subItem}`}
+                            className={styles.mobileSubMenuItem}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              onNavClick?.(`/usage?tab=${subItem}`)
+                              closeMobileMenu()
+                            }}
+                          >
+                            {subItem}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Desktop: Simple Link */}
+                    <a
+                      href={item.href}
+                      className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly}`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        onNavClick?.(item.href)
+                      }}
+                      title={item.label}
+                    >
+                      <span>{item.label}</span>
+                    </a>
+                  </>
                 ) : (
 
                   <a
@@ -296,7 +353,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {index < navItems.length - 1 && <div className={styles.divider} />}
               </React.Fragment>
             ))}
+
+            {/* Mobile Action Footer */}
+            <div className={`${styles.mobileActionFooter} ${styles.mobileOnly}`}>
+              <button className={styles.mobileActionButton} onClick={() => openDepositModal('deposit')}>
+                Deposit
+              </button>
+              <button className={styles.mobileActionButton} onClick={() => openDepositModal('refill')}>
+                Refill
+              </button>
+            </div>
           </div>
+
         )}
 
         {/* Right Section - Icons & Profile */}

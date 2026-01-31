@@ -5,49 +5,14 @@ import PositionRow from '../Positions/PositionRow';
 import type { PositionData } from '../Positions/PositionRow';
 import OrdersTable from '../Positions/OrdersTable';
 import type { OrderData } from '../Positions/OrderRow';
-import { usePortfolioStore } from '../../store/usePortfolioStore';
-import { useWallet } from '../../hooks';
-import type { PositionData as APIPositionData, OrderData as APIOrderData } from '../../api/orderService';
+import { useUIStore } from '../../store/useUIStore';
 
-// Mapper functions to convert backend data to UI format
+// Map API data to UI format (Keep for future use)
+/*
 const mapAPIPositionToUI = (apiPos: APIPositionData): PositionData => {
-    return {
-        id: apiPos.symbol + '-' + Date.now(),
-        symbol: apiPos.symbol.split('-')[0], // BTC-USD -> BTC
-        pair: apiPos.symbol,  // BTC-USD
-        side: apiPos.side === 'long' ? 'Long' : 'Short',
-        size: apiPos.size,
-        sizeUsd: apiPos.size * (apiPos.mark_price || apiPos.entry_price),
-        leverage: `${apiPos.leverage}x`,
-        entryPrice: apiPos.entry_price,
-        markPrice: apiPos.mark_price || apiPos.entry_price,
-        liquidationPrice: apiPos.liquidation_price || null,
-        unrealizedPnl: apiPos.unrealized_pnl,
-        unrealizedPnlPercent: ((apiPos.unrealized_pnl / (apiPos.margin_used || 1)) * 100),
-        margin: apiPos.margin_used || 0,
-        funding: 0, // TODO: add funding from backend
-        tp: '--',
-        sl: '--'
-    };
+    ...
 };
-
-const mapAPIOrderToUI = (apiOrder: APIOrderData): OrderData => {
-    return {
-        id: apiOrder.id,
-        time: apiOrder.created_at ? new Date(apiOrder.created_at).toLocaleString() : 'N/A',
-        type: apiOrder.order_type === 'market' ? 'Market' : apiOrder.order_type === 'limit' ? 'Limit' : 'Stop Limit',
-        symbol: apiOrder.symbol.split('-')[0],
-        direction: apiOrder.side === 'buy' ? 'Long' : 'Short',
-        size: apiOrder.size,
-        originalSize: apiOrder.size,
-        orderValue: apiOrder.notional_usd,
-        price: apiOrder.price || 0,
-        reduceOnly: false,
-        triggerConditions: apiOrder.stop_price ? `Stop @ ${apiOrder.stop_price}` : 'N/A',
-        tp: '--',
-        sl: '--'
-    };
-};
+*/
 
 
 
@@ -57,22 +22,27 @@ const PortfolioPositions: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'Positions' | 'Orders'>('Positions');
 
     // Get data from store
-    const { positions, openOrders, fetchPositions, fetchOrders } = usePortfolioStore();
+    // const { positions, openOrders, fetchPositions, fetchOrders } = usePortfolioStore();
+    const { openCloseAllModal } = useUIStore();
 
     // Get wallet from Privy
-    const { authenticated, walletAddress } = useWallet();
+    // const { authenticated, walletAddress } = useWallet();
+    const authenticated = true;
+    const walletAddress = "0xDemo...1234";
 
     // Fetch data on mount and tab change
     useEffect(() => {
-        // Only fetch if wallet is connected
+        // Disconnected from backend for demo purposes
+        /*
         if (!authenticated || !walletAddress) return;
 
         if (activeTab === 'Positions') {
             fetchPositions(walletAddress);
         } else {
-            fetchOrders(walletAddress, 'pending'); // Only pending orders
+            fetchOrders(walletAddress, 'pending'); 
         }
-    }, [activeTab, authenticated, walletAddress, fetchPositions, fetchOrders]);
+        */
+    }, [activeTab, authenticated, walletAddress]);
 
     // Sort/Filter
     const [sortBy, setSortBy] = React.useState<string>('default');
@@ -117,28 +87,65 @@ const PortfolioPositions: React.FC = () => {
 
     const filteredData = React.useMemo(() => {
         if (activeTab === 'Positions') {
-            // Map API data to UI format
-            let result = positions.map(mapAPIPositionToUI);
+            // DISCONNECTED FROM BACKEND - Using Mock Data
+            const mockPositions: PositionData[] = [
+                {
+                    id: '3',
+                    symbol: 'SOL',
+                    pair: 'SOL-USD',
+                    side: 'Long',
+                    size: 37.35,
+                    sizeUsd: 4926.84,
+                    leverage: '20x',
+                    entryPrice: 131.91,
+                    markPrice: 115.34,
+                    liquidationPrice: 95.20,
+                    unrealizedPnl: -618.89,
+                    unrealizedPnlPercent: -12.54,
+                    margin: 246.34,
+                    funding: -2.45,
+                    tp: '--',
+                    sl: '--'
+                }
+            ];
+
+            let result = [...mockPositions];
             // Sort
             if (sortBy === 'value') {
                 result.sort((a, b) => sortDirection === 'asc' ? a.sizeUsd - b.sizeUsd : b.sizeUsd - a.sizeUsd);
             } else if (sortBy === 'coin') {
-                result.sort((a, b) => sortDirection === 'asc' ? a.symbol.localeCompare(b.symbol) : b.symbol.localeCompare(a.symbol));
+                result.sort((a, b) => sortDirection === 'asc' ? a.symbol.localeCompare(b.symbol) : b.symbol.localeCompare(a.symbol) || 0);
             }
             // Filter
             if (filterBy === 'long') result = result.filter(p => p.side === 'Long');
             if (filterBy === 'short') result = result.filter(p => p.side === 'Short');
             return result;
         } else {
-            // Map API data to UI format
-            let result = openOrders.map(mapAPIOrderToUI);
-            // Sort for orders by orderValue
+            // Orders Mock Data
+            const mockOrders: OrderData[] = [
+                {
+                    id: '1',
+                    time: '30/12/2025 - 16.04.22',
+                    type: 'Limit',
+                    symbol: 'SOL',
+                    direction: 'Long',
+                    size: 9.85,
+                    originalSize: 9.85,
+                    orderValue: 1222.78,
+                    price: 124.14,
+                    reduceOnly: false,
+                    triggerConditions: 'N/A',
+                    tp: '--',
+                    sl: '--'
+                }
+            ];
+            let result = [...mockOrders];
             if (sortBy === 'orderValue') {
                 result.sort((a, b) => sortDirection === 'asc' ? a.orderValue - b.orderValue : b.orderValue - a.orderValue);
             }
             return result;
         }
-    }, [activeTab, sortBy, sortDirection, filterBy, positions, openOrders]);
+    }, [activeTab, sortBy, sortDirection, filterBy]);
 
 
     // Logic: If items <= 5, just show them. If > 5, show preview with View All button
@@ -364,7 +371,23 @@ const PortfolioPositions: React.FC = () => {
                     </div>
 
                     <div className={panelStyles.actionButtons}>
-                        <span className={panelStyles.actionButtonDanger}>Close All Positions</span>
+                        <button
+                            className={panelStyles.actionButtonDanger}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                font: 'inherit',
+                                color: '#FF4560',
+                                cursor: 'pointer'
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openCloseAllModal();
+                            }}
+                        >
+                            Close All Positions
+                        </button>
                     </div>
                 </div>
 

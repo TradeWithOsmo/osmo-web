@@ -1,7 +1,7 @@
 .layoutContainer {
     display: flex;
     width: 100%;
-    height: calc(100vh - 48px);
+    height: 100%;
     /* Consistent with Portfolio layout */
     background-color: #12000A;
     color: #FFE1F2;
@@ -21,6 +21,7 @@
     position: relative;
     transition: width 0.3s ease;
     flex-shrink: 0;
+    /* Must be > ChatInterface input (z-index 50) */
 }
 
 .sidebarMinimized {
@@ -346,6 +347,7 @@
 /* Workspace List Item (Nested) */
 .workspaceItem {
     padding: 12px 24px 12px 48px;
+    /* border-left removed to prevent any shift */
     /* Indented, slightly less tall than header */
     color: #A77590;
     /* Muted by default like sub-items */
@@ -354,25 +356,38 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    transition: all 0.2s;
-    border-bottom: 1px solid #12000A;
-    /* Subtle separator */
+    transition: background-color 0.1s ease, color 0.1s ease;
+    border-bottom: 1px solid #1F0A15;
+    /* Darker than sidebar bg for depth */
     position: relative;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .workspaceItem:hover {
-    background-color: #12000A;
+    background-color: rgba(255, 225, 242, 0.03);
     color: #FFE1F2;
 }
 
 .activeItem {
-    background-color: #3A2530;
-    color: #FFE1F2;
-    border-left: 2px solid #5D5FEF;
-    /* Active indicator */
-    padding-left: 46px;
-    /* Adjust for border */
+    background-color: #2D1B26;
+    /* Slightly softer than #3A2530 for premium feel */
+    color: #FFFFFF;
+}
+
+.activeItem::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #5D5FEF;
+}
+
+.workspaceItem:active {
+    background-color: #1F0A15;
+    /* Gentle "press" visual without shift */
 }
 
 .sessionTitle {
@@ -412,7 +427,7 @@
     transition: opacity 0.2s;
     cursor: pointer;
     border-radius: 4px;
-    padding-bottom: 12px;
+    padding: 0;
 }
 
 .workspaceItem:hover .optionsBtn {
@@ -540,7 +555,7 @@
 }
 
 .contentCentered>* {
-    max-width: 1200px;
+    max-width: 1300px;
     width: 100%;
 }
 
@@ -617,6 +632,32 @@
     font-size: 14px;
     font-family: 'Satoshi', sans-serif;
     font-weight: 500;
+}
+
+.tabScrollContainer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 0;
+    flex: 1;
+    margin-right: 8px;
+    mask-image: linear-gradient(to right, black 95%, transparent 100%);
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+    cursor: grab;
+    user-select: none;
+}
+
+.tabScrollContainer::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
+}
+
+.tabScrollContainer:active {
+    cursor: grabbing;
 }
 
 .closeArtifactBtn {
@@ -712,4 +753,97 @@
         height: 100% !important;
         z-index: 5000;
     }
+}
+
+/* Forced Mobile Sidebar Mode (for Trade Assist Integration) */
+.sidebarMobile {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    max-width: 272px;
+    border-right: 1px solid #3A2530;
+    flex-shrink: 0;
+}
+
+.sidebarMobile.sidebarMinimized {
+    width: 0 !important;
+    border-right: none;
+    overflow: visible;
+    box-shadow: none;
+}
+
+.sidebarMobile.sidebarMinimized .toggleButton {
+    right: -46px;
+    /* Push out further to be safe */
+    top: 12px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    width: 32px;
+    /* Slightly larger touch target */
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fix icon centering in the larger button */
+/* Compact Mode (for Assist/Embedded usage) */
+.compact .sidebar {
+    width: 100%;
+}
+
+.compact .sidebarMinimized {
+    width: 0 !important;
+    border-right: none;
+    overflow: visible;
+}
+
+.compact .sidebarMinimized .toggleButton {
+    right: auto;
+    left: 12px;
+    background-color: #12000A;
+    /* Ensure visibility over chat */
+    border: 1px solid #3A2530;
+}
+
+.compact .contentArea {
+    padding: 16px;
+}
+
+.compact .toggleButton {
+    right: 13px;
+    top: 12px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+}
+
+.compact .toggleButton:hover {
+    background-color: #3A2530;
+}
+
+.compact .toggleButton .toggleIcon {
+    width: 18px;
+    height: 18px;
+}
+
+.compact .sidebarSectionTitle,
+.compact .sectionHeader,
+.compact .menuItem,
+.compact .workspaceHeader,
+.compact .workspaceItem {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.compact .startConversationBtn {
+    margin: 16px;
+    width: calc(100% - 32px);
 }

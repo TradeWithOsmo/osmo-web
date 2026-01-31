@@ -8,7 +8,11 @@ import { commandRegistry } from '../charting/commands/registry';
  * @param widget - The TradingView widget instance
  * @param enabled - Whether data syncing is enabled
  */
-export const useTradingViewConnector = (widget: any, enabled: boolean = true) => {
+export const useTradingViewConnector = (
+    widget: any,
+    enabled: boolean = true,
+    onStateChange?: (state: { symbol: string; timeframe: string; indicators: string[] }) => void
+) => {
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Map common Agent/User friendly names to TradingView internal study names
@@ -107,6 +111,19 @@ export const useTradingViewConnector = (widget: any, enabled: boolean = true) =>
                     indicators,
                     timestamp: Date.now()
                 };
+
+                // Notify Local Component
+                if (onStateChange) {
+                    // Extract simple indicator names list
+                    const studies = chart.getAllStudies();
+                    const activeIndicators = studies.map((s: any) => s.name);
+
+                    onStateChange({
+                        symbol,
+                        timeframe: resolution,
+                        indicators: activeIndicators
+                    });
+                }
 
                 // POST to Backend
                 await fetch('http://localhost:8000/api/connectors/tradingview/indicators', {

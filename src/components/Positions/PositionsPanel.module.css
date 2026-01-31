@@ -12,14 +12,15 @@
 }
 
 /* Base Heights (Desktop) */
+/* Ideally, allow both to fill the container, because Trade.tsx controls the height via inline styles */
 .collapsed {
-    height: 50px;
+    height: 100%;
+    /* Was 50px */
 }
 
 .expanded {
-    height: 210px;
-    max-height: 50vh;
-    /* Limit to prevent taking too much screen space */
+    height: 100%;
+    /* Fill the container provided by Trade.tsx resizer */
 }
 
 /* Tablet */
@@ -164,6 +165,25 @@
     white-space: nowrap;
     box-shadow: 0 1px 0 #3A2530;
     /* Optional: adds a bottom border illusion if normal border moves */
+}
+
+.closeAllHeaderBtn {
+    background: none;
+    border: 1px solid rgba(255, 69, 96, 0.4);
+    color: #FF4560;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Satoshi', sans-serif;
+    text-transform: uppercase;
+}
+
+.closeAllHeaderBtn:hover {
+    background-color: rgba(255, 69, 96, 0.1);
+    border-color: #FF4560;
 }
 
 .row {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styles from '../../pages/Autos.module.css';
+import styles from './Autos.module.css';
 import type { Workspace, Session } from '../../types/autos';
 import sidebarIcon from '../../assets/Icons/Sidebar.png';
 
@@ -12,6 +12,8 @@ interface AutosSidebarProps {
     setWorkspaces: React.Dispatch<React.SetStateAction<Workspace[]>>;
     inboxSessions: Session[];
     setInboxSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+    forceMobileMode?: boolean;
+    hideToggle?: boolean;
 }
 
 interface MenuState {
@@ -37,7 +39,9 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
     workspaces,
     setWorkspaces,
     inboxSessions,
-    setInboxSessions
+    setInboxSessions,
+    forceMobileMode,
+    hideToggle = false
 }) => {
     // UI State
     const [showAllWorkspaces, setShowAllWorkspaces] = useState(false);
@@ -50,6 +54,17 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
         document.addEventListener('click', handleClick);
         return () => document.removeEventListener('click', handleClick);
     }, [menu]);
+
+    // Data Handlers
+    // ... rest of the file ...
+
+    // We need to apply the class in render.
+    // I can't see the render return here in the context, but I know I need to update it.
+    // I'll make a separate replacement call for the render part if needed, or include everything?
+    // The previous view_file gave me the full content.
+    // I will split this into two calls or one large one, but context limits might be hit.
+    // I'll do the props update first.
+
 
     // Data Handlers
     const toggleWorkspace = (workspaceId: string, e: React.MouseEvent) => {
@@ -156,8 +171,8 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
             type,
             targetId,
             parentId,
-            x: rect.right + 1, // Position menu to the right of element (or cursor)
-            y: rect.top
+            x: rect.right - 180, // Align right edge of menu (approx width 160px) with right edge of button
+            y: rect.bottom + 4 // Position below the button
         });
     };
 
@@ -213,13 +228,13 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
     };
 
     return (
-        <div className={`${styles.sidebar} ${isMinimized ? styles.sidebarMinimized : ''}`}>
+        <div className={`${styles.sidebar} ${isMinimized ? styles.sidebarMinimized : ''} ${forceMobileMode ? styles.sidebarMobile : ''}`}>
 
             {/* Context Menu Render */}
             {menu.visible && (
                 <div
                     className={styles.dropdownMenu}
-                    style={{ top: menu.y, left: menu.x, position: 'fixed' }} // Use fixed for viewport coords
+                    style={{ top: menu.y, left: menu.x, position: 'fixed' }}
                     onClick={(e) => e.stopPropagation()}
                 >
                     {menu.type === 'workspace' && (
@@ -265,102 +280,67 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
                                 <span>Delete Session</span>
                             </div>
                         </>
-                    )}
-                </div>
+                    )
+                    }
+                </div >
             )}
 
             {/* Toggle Button */}
-            <button
-                className={styles.toggleButton}
-                onClick={onToggleMinimize}
-            >
-                <img src={sidebarIcon} alt="Toggle Sidebar" className={styles.toggleIcon} />
-            </button>
+            {!hideToggle && (
+                <button
+                    className={styles.toggleButton}
+                    onClick={onToggleMinimize}
+                    aria-label={isMinimized ? "Expand sidebar" : "Minimize sidebar"}
+                >
+                    <img src={sidebarIcon} alt="Toggle Sidebar" className={styles.toggleIcon} />
+                </button>
+            )}
 
-            {/* Inbox Section */}
-            <div className={styles.sidebarSectionTitle}>
-                {isMinimized ? '...' : 'Inbox'}
-            </div>
-
-            <button className={styles.startConversationBtn} onClick={() => handleAddSession('inbox')}>
-                <span className={styles.icon}>+</span>
-                {!isMinimized && <span>New Chat</span>}
-            </button>
-
-            {/* Scrollable Area */}
-            <div className={styles.sidebarScrollable}>
-                {/* Workspaces Section */}
-                <div className={styles.workspaceSection}>
-                    <div className={styles.sectionHeader}>
-                        <span>Workspaces</span>
-                        {!isMinimized && (
-                            <span
-                                className={styles.plusIcon}
-                                onClick={handleAddWorkspace}
-                                title="Create New Workspace"
-                            >
-                                +
-                            </span>
-                        )}
+            {!isMinimized && (
+                <>
+                    {/* Inbox Section */}
+                    <div className={styles.sidebarSectionTitle}>
+                        <span>Inbox</span>
                     </div>
 
-                    {!isMinimized && workspaces.map(workspace => (
-                        <div
-                            key={workspace.id}
-                            className={styles.workspaceGroup}
-                            onDragOver={(e) => onDragOver(e, workspace.id)}
-                            onDragLeave={onDragLeave}
-                            onDrop={(e) => onDrop(e, workspace.id)}
-                        >
-                            <div className={styles.workspaceHeader}>
-                                <div
-                                    className={styles.headerTitleGroup}
-                                    onClick={(e) => !workspace.isEditing && toggleWorkspace(workspace.id, e)}
-                                >
-                                    <span className={`${styles.arrowIcon} ${workspace.isExpanded ? styles.expanded : ''}`}>›</span>
-                                    {workspace.isEditing ? (
-                                        <input
-                                            autoFocus
-                                            className={styles.workspaceInput}
-                                            value={workspace.name}
-                                            onChange={(e) => handleRenameWorkspace(workspace.id, e.target.value)}
-                                            onBlur={() => handleNameSubmit(workspace.id)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit(workspace.id)}
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                    ) : (
-                                        <span>{workspace.name}</span>
-                                    )}
-                                </div>
-                                {/* Workspace Menu Trigger (+) */}
-                                <span
-                                    className={styles.plusIcon}
-                                    onClick={(e) => handleMenuClick(e, 'workspace', workspace.id)}
-                                >
-                                    +
-                                </span>
-                            </div>
+                    <button className={styles.startConversationBtn} onClick={() => handleAddSession('inbox')}>
+                        <span className={styles.icon}>+</span>
+                        {!isMinimized && <span>New Chat</span>}
+                    </button>
 
-                            {workspace.isExpanded && (
+                    {/* Scrollable Area */}
+                    <div className={styles.sidebarScrollable}>
+                        {/* Inbox Session List (Recent) */}
+                        {!isMinimized && inboxSessions.length > 0 && (
+                            <div
+                                className={styles.workspaceSection}
+                                style={{ marginBottom: '16px' }}
+                                onDragOver={(e) => onDragOver(e, 'inbox')}
+                                onDragLeave={onDragLeave}
+                                onDrop={(e) => onDrop(e, 'inbox')}
+                            >
+                                <div className={styles.sectionHeader}>
+                                    <span>Recent</span>
+                                </div>
                                 <div className={styles.workspaceList}>
-                                    {workspace.sessions.map(session => (
+                                    {inboxSessions.map(session => (
                                         <div
                                             key={session.id}
                                             className={`${styles.workspaceItem} ${activeSessionId === session.id ? styles.activeItem : ''}`}
                                             onClick={() => !session.isEditing && onSessionChange(session.id)}
                                             draggable="true"
-                                            onDragStart={(e) => onDragStart(e, session, workspace.id)}
+                                            onDragStart={(e) => onDragStart(e, session, 'inbox')}
                                             onDragEnd={onDragEnd}
                                         >
                                             {session.isEditing ? (
                                                 <input
                                                     autoFocus
                                                     className={styles.workspaceInput}
-                                                    style={{ width: '100%', fontSize: '13px', padding: '0' }}
+                                                    style={{ width: '100%', fontSize: '13px' }}
                                                     value={session.title}
-                                                    onChange={(e) => handleRenameSession(workspace.id, session.id, e.target.value)}
-                                                    onBlur={() => handleSessionNameSubmit(workspace.id, session.id)}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleSessionNameSubmit(workspace.id, session.id)}
+                                                    onChange={(e) => handleRenameSession('inbox', session.id, e.target.value)}
+                                                    onBlur={() => handleSessionNameSubmit('inbox', session.id)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleSessionNameSubmit('inbox', session.id)}
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
                                             ) : (
@@ -368,10 +348,9 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
                                                     {session.type === 'position' && <span className={styles.positionIcon}>⌖</span>}
                                                     <span className={styles.sessionTitle}>{session.title}</span>
 
-                                                    {/* Session Menu Trigger (...) */}
                                                     <span
                                                         className={styles.optionsBtn}
-                                                        onClick={(e) => handleMenuClick(e, 'session', session.id, workspace.id)}
+                                                        onClick={(e) => handleMenuClick(e, 'session', session.id, 'inbox')}
                                                     >
                                                         ...
                                                     </span>
@@ -379,86 +358,130 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
                                             )}
                                         </div>
                                     ))}
-                                    {/* Dummy Items Logic for v1-web only for demonstration */}
-                                    {workspace.name === 'v1-web' && (
-                                        <>
-                                            {showAllWorkspaces && Array.from({ length: 70 }).map((_, index) => (
-                                                <div key={`dummy-${index}`} className={styles.workspaceItem}>
-                                                    <span>Workspace Session {index + 1}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Workspaces Section */}
+                        <div className={styles.workspaceSection}>
+                            <div className={styles.sectionHeader}>
+                                <span>Workspaces</span>
+                                {!isMinimized && (
+                                    <span
+                                        className={styles.plusIcon}
+                                        onClick={handleAddWorkspace}
+                                        title="Create New Workspace"
+                                    >
+                                        +
+                                    </span>
+                                )}
+                            </div>
+
+                            {!isMinimized && workspaces.map(workspace => (
+                                <div
+                                    key={workspace.id}
+                                    className={styles.workspaceGroup}
+                                    onDragOver={(e) => onDragOver(e, workspace.id)}
+                                    onDragLeave={onDragLeave}
+                                    onDrop={(e) => onDrop(e, workspace.id)}
+                                >
+                                    <div className={styles.workspaceHeader}>
+                                        <div
+                                            className={styles.headerTitleGroup}
+                                            onClick={(e) => !workspace.isEditing && toggleWorkspace(workspace.id, e)}
+                                        >
+                                            <span className={`${styles.arrowIcon} ${workspace.isExpanded ? styles.expanded : ''}`}>›</span>
+                                            {workspace.isEditing ? (
+                                                <input
+                                                    autoFocus
+                                                    className={styles.workspaceInput}
+                                                    value={workspace.name}
+                                                    onChange={(e) => handleRenameWorkspace(workspace.id, e.target.value)}
+                                                    onBlur={() => handleNameSubmit(workspace.id)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit(workspace.id)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            ) : (
+                                                <span>{workspace.name}</span>
+                                            )}
+                                        </div>
+                                        {/* Workspace Menu Trigger (+) */}
+                                        <span
+                                            className={styles.plusIcon}
+                                            onClick={(e) => handleMenuClick(e, 'workspace', workspace.id)}
+                                        >
+                                            +
+                                        </span>
+                                    </div>
+
+                                    {workspace.isExpanded && (
+                                        <div className={styles.workspaceList}>
+                                            {workspace.sessions.map(session => (
+                                                <div
+                                                    key={session.id}
+                                                    className={`${styles.workspaceItem} ${activeSessionId === session.id ? styles.activeItem : ''}`}
+                                                    onClick={() => !session.isEditing && onSessionChange(session.id)}
+                                                    draggable="true"
+                                                    onDragStart={(e) => onDragStart(e, session, workspace.id)}
+                                                    onDragEnd={onDragEnd}
+                                                >
+                                                    {session.isEditing ? (
+                                                        <input
+                                                            autoFocus
+                                                            className={styles.workspaceInput}
+                                                            style={{ width: '100%', fontSize: '13px', padding: '0' }}
+                                                            value={session.title}
+                                                            onChange={(e) => handleRenameSession(workspace.id, session.id, e.target.value)}
+                                                            onBlur={() => handleSessionNameSubmit(workspace.id, session.id)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleSessionNameSubmit(workspace.id, session.id)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        />
+                                                    ) : (
+                                                        <>
+                                                            {session.type === 'position' && <span className={styles.positionIcon}>⌖</span>}
+                                                            <span className={styles.sessionTitle}>{session.title}</span>
+
+                                                            {/* Session Menu Trigger (...) */}
+                                                            <span
+                                                                className={styles.optionsBtn}
+                                                                onClick={(e) => handleMenuClick(e, 'session', session.id, workspace.id)}
+                                                            >
+                                                                ...
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             ))}
+                                            {/* Dummy Items Logic for v1-web only for demonstration */}
+                                            {workspace.name === 'v1-web' && (
+                                                <>
+                                                    {showAllWorkspaces && Array.from({ length: 70 }).map((_, index) => (
+                                                        <div key={`dummy-${index}`} className={styles.workspaceItem}>
+                                                            <span>Workspace Session {index + 1}</span>
+                                                        </div>
+                                                    ))}
 
-                                            <div
-                                                className={styles.workspaceItem}
-                                                style={{ color: '#3A2530' }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setShowAllWorkspaces(!showAllWorkspaces);
-                                                }}
-                                            >
-                                                <span>{showAllWorkspaces ? 'Show less' : 'See all (73)'}</span>
-                                            </div>
-                                        </>
-                                    )}
+                                                    <div
+                                                        className={styles.workspaceItem}
+                                                        style={{ color: '#3A2530' }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowAllWorkspaces(!showAllWorkspaces);
+                                                        }}
+                                                    >
+                                                        <span>{showAllWorkspaces ? 'Show less' : 'See all (73)'}</span>
+                                                    </div>
+                                                </>
+                                            )}
 
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                {/* Inbox Session List (Recent) */}
-                {!isMinimized && inboxSessions.length > 0 && (
-                    <div
-                        className={styles.workspaceSection}
-                        style={{ marginTop: '16px' }}
-                        onDragOver={(e) => onDragOver(e, 'inbox')}
-                        onDragLeave={onDragLeave}
-                        onDrop={(e) => onDrop(e, 'inbox')}
-                    >
-                        <div className={styles.sectionHeader}>
-                            <span>Recent</span>
-                        </div>
-                        <div className={styles.workspaceList}>
-                            {inboxSessions.map(session => (
-                                <div
-                                    key={session.id}
-                                    className={`${styles.workspaceItem} ${activeSessionId === session.id ? styles.activeItem : ''}`}
-                                    onClick={() => !session.isEditing && onSessionChange(session.id)}
-                                    draggable="true"
-                                    onDragStart={(e) => onDragStart(e, session, 'inbox')}
-                                    onDragEnd={onDragEnd}
-                                >
-                                    {session.isEditing ? (
-                                        <input
-                                            autoFocus
-                                            className={styles.workspaceInput}
-                                            style={{ width: '100%', fontSize: '13px' }}
-                                            value={session.title}
-                                            onChange={(e) => handleRenameSession('inbox', session.id, e.target.value)}
-                                            onBlur={() => handleSessionNameSubmit('inbox', session.id)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleSessionNameSubmit('inbox', session.id)}
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                    ) : (
-                                        <>
-                                            {session.type === 'position' && <span className={styles.positionIcon}>⌖</span>}
-                                            <span className={styles.sessionTitle}>{session.title}</span>
-
-                                            <span
-                                                className={styles.optionsBtn}
-                                                onClick={(e) => handleMenuClick(e, 'session', session.id, 'inbox')}
-                                            >
-                                                ...
-                                            </span>
-                                        </>
+                                        </div>
                                     )}
                                 </div>
                             ))}
                         </div>
                     </div>
-                )}
-            </div>
+                </>
+            )}
         </div>
     );
 };

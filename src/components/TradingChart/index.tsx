@@ -19,6 +19,8 @@ interface TVChartContainerProps {
     volumeUp?: string;
     volumeDown?: string;
   };
+  onChartStateChange?: (state: { symbol: string; timeframe: string; indicators: string[] }) => void;
+  studies?: string[];
 }
 
 const TVChartContainer: React.FC<TVChartContainerProps> = ({
@@ -27,7 +29,9 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
   theme = "dark",
   height = "700px",
   hideSideToolbar = false,
-  source = 'hyperliquid' // Default to hyperliquid
+  source = 'hyperliquid', // Default to hyperliquid
+  onChartStateChange,
+  studies = []
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<any>(null);
@@ -35,7 +39,72 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
   const hasInitialized = useRef(false);
 
   // Sync data to backend when chart is ready (Hook v3.1)
-  useTradingViewConnector(widgetRef.current, isChartReady);
+  useTradingViewConnector(widgetRef.current, isChartReady, onChartStateChange);
+
+  // Sync Studies (Indicators)
+  useEffect(() => {
+    if (!isChartReady || !widgetRef.current) return;
+
+    try {
+      const chart = widgetRef.current.chart();
+      const currentStudies = chart.getAllStudies();
+      const currentNames = currentStudies.map((s: any) => s.name);
+
+      // Find studies to add
+      const toAdd = studies.filter(s => !currentNames.includes(s));
+
+      // Find studies to remove (safeguard: don't remove Volume if it's default, but for sync purposes we might want to)
+      // For now, let's only sync "added" indicators from the list.
+      // If we want exact sync (remove what's not in list), we do:
+      const toRemove = currentStudies.filter((s: any) => !studies.includes(s.name) && s.name !== 'Volume');
+      // Note: 'Volume' is often a default study, maybe keep it or handle explicitly.
+
+      toRemove.forEach((s: any) => {
+        console.log(`[TradingChart] removing study: ${s.name}`);
+        chart.removeEntity(s.id);
+      });
+
+      toAdd.forEach((studyName: string) => {
+        console.log(`[TradingChart] adding study: ${studyName}`);
+        chart.createStudy(studyName, false, false);
+      });
+
+    } catch (e) {
+      console.error('[TradingChart] Failed to sync studies:', e);
+    }
+  }, [studies, isChartReady]);
+
+  // Sync Symbol
+  useEffect(() => {
+    if (!isChartReady || !widgetRef.current) return;
+    try {
+      const chart = widgetRef.current.chart();
+      if (chart.symbol() !== symbol) {
+        console.log(`[TradingChart] Switching symbol to ${symbol}`);
+        chart.setSymbol(symbol, () => {
+          console.log(`[TradingChart] Symbol switched to ${symbol}`);
+        });
+      }
+    } catch (e) {
+      console.error('[TradingChart] Failed to set symbol:', e);
+    }
+  }, [symbol, isChartReady]);
+
+  // Sync Interval
+  useEffect(() => {
+    if (!isChartReady || !widgetRef.current) return;
+    try {
+      const chart = widgetRef.current.chart();
+      if (chart.resolution() !== interval) {
+        console.log(`[TradingChart] Switching interval to ${interval}`);
+        chart.setResolution(interval, () => {
+          console.log(`[TradingChart] Interval switched to ${interval}`);
+        });
+      }
+    } catch (e) {
+      console.error('[TradingChart] Failed to set resolution:', e);
+    }
+  }, [interval, isChartReady]);
 
   // Wait for container to have proper dimensions before initializing
   useEffect(() => {
@@ -188,6 +257,23 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
       console.error('[TradingChart] Failed to update symbol:', e);
     }
   }, [symbol, isChartReady]);
+
+  // Update interval when prop changes
+  useEffect(() => {
+    if (!isChartReady || !widgetRef.current) return;
+
+    try {
+      const chart = widgetRef.current.chart();
+      if (chart && chart.resolution() !== interval) {
+        console.log('[TradingChart] Interval changed from props, updating widget to', interval);
+        chart.setResolution(interval, () => {
+          console.log('[TradingChart] Widget interval updated successfully');
+        });
+      }
+    } catch (e) {
+      console.error('[TradingChart] Failed to update interval:', e);
+    }
+  }, [interval, isChartReady]);
 
   // Recreate widget when source changes (datafeed can't be hot-swapped)
   useEffect(() => {

@@ -1,22 +1,24 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import styles from './Portfolio.module.css';
 import PortfolioPositions from './PortfolioPositions';
 import PortfolioChart from './PortfolioChart';
-import { usePortfolioStore } from '../../store/usePortfolioStore';
-import { useWallet } from '../../hooks';
+
 
 const Overview: React.FC = () => {
-    const { summary, fetchPositions, positions } = usePortfolioStore();
-    const { walletAddress, authenticated } = useWallet();
+    // DISCONNECTED FROM BACKEND
+    // MOCK SUMMARY DATA
+    const mockSummary = {
+        account_value: 12540.50,
+        free_collateral: 8412.20,
+        total_margin_used: 4128.30,
+        margin_usage: 32,
+        leverage: 2.5
+    };
 
-    useEffect(() => {
-        if (authenticated && walletAddress) {
-            fetchPositions(walletAddress);
-        }
-    }, [authenticated, walletAddress, fetchPositions]);
-
-    // Check if user has ever traded (has positions or trading history)
-    const hasTradingHistory = positions && positions.length > 0;
+    const summary = mockSummary; // Overwrite store summary with mock
+    const hasTradingHistory = true; // Always true for demo
+    const authenticated = true; // Always true for demo
+    const walletAddress = "0xDemo...1234"; // Always true for demo
 
     const formatVal = (val: number | undefined, prefix = '$', suffix = '') => {
         // If not authenticated → show "-"
@@ -44,9 +46,6 @@ const Overview: React.FC = () => {
         if (val === undefined || val === null) return '-';
         return `${val.toFixed(0)}%`;
     };
-
-    // Check if user has balance
-    const hasBalance = authenticated && walletAddress && summary && summary.account_value > 0;
 
     return (
         <div className={styles.overviewContainer}>
@@ -104,25 +103,7 @@ const Overview: React.FC = () => {
 
                 {/* Right Side: Graph */}
                 <div className={styles.graphSection} style={{ overflow: 'hidden' }}>
-                    {!authenticated || !walletAddress || !hasBalance ? (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '80px 24px',
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            color: '#A77590'
-                        }}>
-                            <div style={{ fontSize: '14px' }}>
-                                {!authenticated || !walletAddress
-                                    ? 'Connect your wallet to deposit funds & start trading.'
-                                    : 'Deposit funds & start trading.'}
-                            </div>
-                        </div>
-                    ) : (
-                        <PortfolioChart userAddress={walletAddress} />
-                    )}
+                    <PortfolioChart />
                 </div>
             </div>
 

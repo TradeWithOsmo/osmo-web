@@ -6,39 +6,27 @@ import OrderHistoryTable from '../Positions/OrderHistoryTable';
 import type { TradeHistoryData } from '../Positions/TradeHistoryRow';
 import type { OrderHistoryData as APIOrderHistoryData } from '../Positions/OrderHistoryRow';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
-import { useWallet } from '../../hooks';
-import type { OrderData } from '../../api/orderService';
+// import { useWallet } from '../../hooks';
+// import type { OrderData } from '../../api/orderService';
 
 // Mapper to convert store OrderData to UI OrderHistoryData
+/*
 const mapOrderToHistoryUI = (order: OrderData): APIOrderHistoryData => {
-    return {
-        id: order.id,
-        time: order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A',
-        type: (order.order_type.charAt(0).toUpperCase() + order.order_type.slice(1)) as any,
-        symbol: order.symbol.split('-')[0],
-        direction: (order.side === 'buy' ? 'Long' : 'Short') as any,
-        size: order.size,
-        originalSize: order.size,
-        orderValue: order.notional_usd,
-        price: order.price || 0,
-        reduceOnly: false,
-        triggerConditions: order.stop_price ? `Mark < ${order.stop_price}` : 'N/A',
-        tp: '--',
-        sl: '--',
-        status: (order.status.charAt(0).toUpperCase() + order.status.slice(1)) as any
-    };
+    ...
 };
+*/
 
 const PortfolioHistory: React.FC = () => {
     const [subTab, setSubTab] = useState<'Trades' | 'Orders'>('Orders'); // Default to Orders as we have real data for it
-    const { orderHistory, fetchOrders } = usePortfolioStore();
-    const { walletAddress, authenticated } = useWallet();
+    // const { fetchOrders } = usePortfolioStore();
+    // const { walletAddress, authenticated } = useWallet();
 
     useEffect(() => {
-        if (authenticated && walletAddress) {
-            fetchOrders(walletAddress);
-        }
-    }, [authenticated, walletAddress, fetchOrders]);
+        // DISCONNECTED FROM BACKEND
+    }, []);
+
+    const authenticated = true; // Always true for demo
+    const walletAddress = "0xDemo...1234"; // Always true for demo
 
     // Sort/Filter State
     const [sortBy, setSortBy] = useState<string>('time');
@@ -71,24 +59,71 @@ const PortfolioHistory: React.FC = () => {
     const toggleFilter = () => { setIsFilterOpen(!isFilterOpen); setIsSortOpen(false); };
 
     const filteredData = React.useMemo(() => {
-        if (!authenticated || !walletAddress) return [];
-
         if (subTab === 'Trades') {
-            // Trade history not yet implemented in backend, return empty
-            return [];
+            // Mock Trade History
+            const mockTrades: TradeHistoryData[] = [
+                {
+                    id: '1',
+                    time: '30/12/2025 - 16.04.04',
+                    symbol: 'SOL',
+                    direction: 'Open Long',
+                    price: 124.60,
+                    size: 5.19,
+                    sizeAsset: 'SOL',
+                    tradeValue: 646.66,
+                    tradeValueAsset: 'USDC',
+                    fee: 0.29,
+                    feeAsset: 'USDC',
+                    closedPnl: -0.29,
+                    closedPnlAsset: 'USDC'
+                }
+            ];
+            return mockTrades;
         } else {
-            let result = orderHistory.map(mapOrderToHistoryUI);
+            // Mock Order History
+            const mockHistory: APIOrderHistoryData[] = [
+                {
+                    id: '1',
+                    time: '29/12/2025 - 14.20.10',
+                    type: 'Market',
+                    symbol: 'ETH',
+                    direction: 'Short',
+                    size: 2.5,
+                    originalSize: 2.5,
+                    orderValue: 6200.50,
+                    price: 2480.20,
+                    reduceOnly: true,
+                    triggerConditions: 'N/A',
+                    tp: '--',
+                    sl: '--',
+                    status: 'Filled'
+                },
+                {
+                    id: '2',
+                    time: '29/12/2025 - 10.15.00',
+                    type: 'Limit',
+                    symbol: 'BTC',
+                    direction: 'Long',
+                    size: 0.1,
+                    originalSize: 0.1,
+                    orderValue: 4500.00,
+                    price: 45000.00,
+                    reduceOnly: false,
+                    triggerConditions: 'N/A',
+                    tp: '--',
+                    sl: '--',
+                    status: 'Cancelled'
+                }
+            ];
 
+            let result = [...mockHistory];
             // Filter
             if (filterBy === 'filled') result = result.filter(o => o.status === 'Filled');
             if (filterBy === 'cancelled') result = result.filter(o => o.status === 'Cancelled');
 
-            // Sort
-            result.sort((a, b) => b.time.localeCompare(a.time));
-
             return result;
         }
-    }, [subTab, filterBy, sortBy, orderHistory, authenticated, walletAddress]);
+    }, [subTab, filterBy, sortBy]);
 
     // Pagination Logic (Now filteredData is defined)
     const totalItems = filteredData.length;

@@ -1,14 +1,16 @@
 import React from 'react';
 import {
     Trade,
-    Autos,
+
 
 
     Portfolio,
+    Usage,
 
 
     Points,
-    Leaderboard
+    Leaderboard,
+    Faucet
 } from '../pages';
 
 interface AppRouterProps {
@@ -20,10 +22,12 @@ export const AppRouter: React.FC<AppRouterProps> = ({ route }) => {
     const currentPath = route.split('?')[0].toLowerCase();
 
     if (currentPath === '/trade' || currentPath === '/') return <Trade />;
-    if (currentPath === '/autos') return <Autos />;
+
 
 
     if (currentPath === '/portfolio') return <Portfolio />;
+    if (currentPath === '/usage') return <Usage />;
+    if (currentPath === '/faucet') return <Faucet />;
 
 
     if (currentPath === '/points') return <Points />;
