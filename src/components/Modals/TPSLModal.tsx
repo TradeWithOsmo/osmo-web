@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import styles from './TPSLModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { usePrivy } from '@privy-io/react-auth';
 
 export const TPSLModal: React.FC = () => {
     const { isTPSLModalOpen, closeTPSLModal, selectedPosition } = useUIStore();
     const { updateTPSL } = usePortfolioStore();
+    const { user } = usePrivy();
+    const walletAddress = user?.wallet?.address;
     const [tpPrice, setTpPrice] = useState('');
     const [tpGain, setTpGain] = useState('');
     const [slPrice, setSlPrice] = useState('');
@@ -27,6 +30,36 @@ export const TPSLModal: React.FC = () => {
         }
         return () => { document.body.style.overflow = ''; };
     }, [isTPSLModalOpen]);
+
+    // Pre-fill existing TP/SL
+    React.useEffect(() => {
+        if (selectedPosition) {
+            const parseValue = (val: string | number | undefined, setPrice: (v: string) => void, setGainLoss: (v: string) => void, setUnit: (v: 'USD' | '%') => void) => {
+                if (!val) {
+                    setPrice('');
+                    setGainLoss('');
+                    return;
+                }
+                const strVal = String(val);
+                if (strVal.endsWith('%')) {
+                    setGainLoss(strVal.slice(0, -1));
+                    setUnit('%');
+                    setPrice('');
+                } else if (strVal.endsWith('$')) {
+                    setGainLoss(strVal.slice(0, -1));
+                    setUnit('USD');
+                    setPrice('');
+                } else {
+                    // Assume it's a price
+                    setPrice(strVal);
+                    setGainLoss('');
+                }
+            };
+
+            parseValue(selectedPosition.tp, setTpPrice, setTpGain, setTpUnit);
+            parseValue(selectedPosition.sl, setSlPrice, setSlLoss, setSlUnit);
+        }
+    }, [selectedPosition]);
 
     if (!isTPSLModalOpen || !selectedPosition) return null;
 
@@ -217,7 +250,7 @@ export const TPSLModal: React.FC = () => {
                             if (selectedPosition) {
                                 const finalTP = tpPrice || (tpGain ? `${tpGain}${tpUnit}` : undefined);
                                 const finalSL = slPrice || (slLoss ? `${slLoss}${slUnit}` : undefined);
-                                updateTPSL(selectedPosition.id, finalTP, finalSL);
+                                updateTPSL(walletAddress || '', selectedPosition.id, finalTP, finalSL);
                             }
                             closeTPSLModal();
                         }}

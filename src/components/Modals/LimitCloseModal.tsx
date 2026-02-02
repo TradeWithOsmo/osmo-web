@@ -2,10 +2,18 @@ import React, { useState } from 'react';
 import styles from './LimitCloseModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
 
+import { useWallet } from '../../hooks/useWallet';
+import { orderService } from '../../api/orderService';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import toast from 'react-hot-toast';
+
 export const LimitCloseModal: React.FC = () => {
     const { isLimitCloseModalOpen, closeLimitCloseModal, selectedPosition } = useUIStore();
+    const { refreshAll } = usePortfolioStore();
+    const { walletAddress } = useWallet();
     const [percentage, setPercentage] = useState(100);
     const [limitPrice, setLimitPrice] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Prevent background scrolling
     React.useEffect(() => {
@@ -28,6 +36,33 @@ export const LimitCloseModal: React.FC = () => {
     const assetSymbol = selectedPosition.symbol.split('-')[0];
     const closingSize = (selectedPosition.size * (percentage / 100)).toFixed(4);
     const isFormValid = !!limitPrice;
+
+    const handleConfirm = async () => {
+        if (!walletAddress || !selectedPosition) return;
+        setIsSubmitting(true);
+        try {
+            const side = selectedPosition.side === 'Long' ? 'sell' : 'buy';
+
+            await orderService.placeOrder({
+                user_address: walletAddress,
+                symbol: selectedPosition.symbol,
+                side,
+                order_type: 'limit',
+                price: parseFloat(limitPrice),
+                amount_usd: selectedPosition.sizeUsd * (percentage / 100),
+                leverage: parseFloat(selectedPosition.leverage.replace('x', '')),
+                reduce_only: true
+            });
+
+            toast.success('Limit close order placed');
+            closeLimitCloseModal();
+            await refreshAll(walletAddress);
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to place limit close order');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className={styles.overlay} onClick={handleBackdropClick}>
@@ -125,8 +160,12 @@ export const LimitCloseModal: React.FC = () => {
                     </div>
 
                     {/* Action Button */}
-                    <button className={`${styles.confirmButton} ${!isFormValid ? styles.disabledButton : ''}`} onClick={closeLimitCloseModal}>
-                        Limit Close
+                    <button
+                        className={`${styles.confirmButton} ${!isFormValid || isSubmitting ? styles.disabledButton : ''}`}
+                        onClick={handleConfirm}
+                        disabled={!isFormValid || isSubmitting}
+                    >
+                        {isSubmitting ? 'Placing...' : 'Limit Close'}
                     </button>
                 </div>
             </div>

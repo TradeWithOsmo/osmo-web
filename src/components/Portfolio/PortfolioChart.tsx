@@ -8,6 +8,8 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import styles from './Portfolio.module.css';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useWallet } from '../../hooks';
 
 interface DataPoint {
     timestamp: string;
@@ -18,32 +20,48 @@ interface DataPoint {
 const PortfolioChart: React.FC = () => {
     const [timeframe, setTimeframe] = useState('1D');
     const [chartData, setChartData] = useState<DataPoint[]>([]);
+    const { summary, history, fetchHistory } = usePortfolioStore();
+    const { authenticated, walletAddress } = useWallet();
 
-    // Generate Mock Data
+    // Fetch history when timeframe or wallet changes
     useEffect(() => {
-        const data: DataPoint[] = [];
-        const now = new Date();
-        let points = 20;
-        let interval = 60 * 60 * 1000; // 1 hour
-
-        if (timeframe === '7D') { points = 28; interval = 6 * 60 * 60 * 1000; }
-        else if (timeframe === '1M') { points = 30; interval = 24 * 60 * 60 * 1000; }
-        else if (timeframe === 'ALL') { points = 50; interval = 48 * 60 * 60 * 1000; }
-
-        let lastVal = 12000 + Math.random() * 1000;
-        for (let i = points; i >= 0; i--) {
-            const time = new Date(now.getTime() - i * interval);
-            lastVal += (Math.random() - 0.45) * 400;
-            data.push({
-                timestamp: time.toISOString(),
-                displayTime: timeframe === '1D'
-                    ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : time.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-                value: parseFloat(lastVal.toFixed(2))
-            });
+        if (authenticated && walletAddress) {
+            fetchHistory(walletAddress, timeframe);
         }
-        setChartData(data);
-    }, [timeframe]);
+    }, [authenticated, walletAddress, timeframe, fetchHistory]);
+
+    // Use current account value or default to 0
+    const currentValue = summary?.account_value ?? 0;
+
+    // Generate Chart Data from Store History
+    useEffect(() => {
+        if (history && history.length > 0) {
+            const data: DataPoint[] = history.map(point => {
+                const time = new Date(point.timestamp);
+                return {
+                    timestamp: point.timestamp,
+                    displayTime: timeframe === '1D'
+                        ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : time.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                    value: point.value
+                };
+            });
+            setChartData(data);
+        } else if (currentValue > 0) {
+            // Fallback: If no history but we have current value, show a flat line or single point
+            // For now, let's just show an empty chart or single point to indicate "no history"
+            const now = new Date();
+            setChartData([{
+                timestamp: now.toISOString(),
+                displayTime: timeframe === '1D'
+                    ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : now.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                value: currentValue
+            }]);
+        } else {
+            setChartData([]);
+        }
+    }, [history, timeframe, currentValue]);
 
     const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
 

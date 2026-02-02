@@ -3,12 +3,19 @@ import styles from '../Portfolio/Portfolio.module.css'; // Reusing Portfolio sty
 import UsageChart from './UsageChart';
 import UsageHistoryTable from './UsageHistoryTable';
 
+import { useUsageStore } from '../../store/useUsageStore';
+import { useWallet } from '../../hooks/useWallet';
+import { useEffect } from 'react';
+
 const Overview: React.FC = () => {
-    // Mock values as per request
-    const creditValue = 0.00;
-    const tokensValue = 0.00;
-    const spendValue = 0.00;
-    const totalRequest = 0;
+    const { walletAddress } = useWallet();
+    const { stats, fetchStats } = useUsageStore();
+
+    useEffect(() => {
+        if (walletAddress) {
+            fetchStats(walletAddress);
+        }
+    }, [walletAddress, fetchStats]);
 
     const formatVal = (val: number, prefix = '$', suffix = '') => {
         return `${prefix}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
@@ -20,7 +27,7 @@ const Overview: React.FC = () => {
             <div style={{ marginBottom: '0px' }}>
                 <div className={styles.sectionTitle}>Credit</div>
                 <div className={styles.balanceValue} style={{ fontSize: '32px', marginTop: '8px' }}>
-                    {formatVal(creditValue)}
+                    {formatVal(stats.credit_balance)}
                 </div>
 
 
@@ -34,9 +41,9 @@ const Overview: React.FC = () => {
                         <div className={styles.cardTitle}>Credit</div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div className={styles.balanceValue}>{formatVal(creditValue)}</div>
+                            <div className={styles.balanceValue}>{formatVal(stats.credit_balance)}</div>
                             <div style={{ color: '#A77590', fontSize: '12px' }}>
-                                Tokens: {formatVal(tokensValue, '', '')}
+                                Tokens: {formatVal(stats.total_tokens, '', '')}
                             </div>
                         </div>
                     </div>
@@ -44,11 +51,11 @@ const Overview: React.FC = () => {
                     <div className={styles.tradingAccountBottom}>
                         <div className={styles.bottomStatBox}>
                             <span className={styles.cardTitle}>Total Request</span>
-                            <span className={styles.statVal}>{totalRequest}</span>
+                            <span className={styles.statVal}>{stats.request_count}</span>
                         </div>
                         <div className={styles.bottomStatBox}>
                             <span className={styles.cardTitle}>Spend</span>
-                            <span className={styles.statVal}>{formatVal(spendValue)}</span>
+                            <span className={styles.statVal}>{formatVal(stats.total_cost)}</span>
                         </div>
                     </div>
                 </div>

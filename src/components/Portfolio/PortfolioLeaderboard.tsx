@@ -468,8 +468,22 @@ const PortfolioLeaderboard: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={activeTab === 'model' || activeTab === 'agent' ? 7 : 6} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
-                                            No results found
+                                        <td colSpan={activeTab === 'model' || activeTab === 'agent' ? 7 : 6}>
+                                            <div style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                padding: '64px 0',
+                                                gap: '16px',
+                                                color: '#A77590'
+                                            }}>
+                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.5 }}>
+                                                    <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                </svg>
+                                                <div style={{ fontSize: '16px', fontWeight: 500 }}>No results found</div>
+                                                <div style={{ fontSize: '13px', opacity: 0.7 }}>Try adjusting your search or filters</div>
+                                            </div>
                                         </td>
                                     </tr>
                                 )}
@@ -477,7 +491,7 @@ const PortfolioLeaderboard: React.FC = () => {
                         </table>
                     )}
 
-                    {!isLoading && pagination && (
+                    {!isLoading && pagination && filteredData.length > 0 && (
                         <div className={panelStyles.tableFooter}>
                             <div className={panelStyles.footerGrid}>
                                 <div className={panelStyles.footerMessage}>

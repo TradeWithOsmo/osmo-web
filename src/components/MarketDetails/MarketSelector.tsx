@@ -5,6 +5,7 @@ import activeStar from '../../assets/Icons/start/active.png';
 import { useMarketStore } from '../../store/useMarketStore';
 import { useWatchlistStore } from '../../store/useWatchlistStore';
 import { type MarketData } from '../../api/marketService';
+import { useWallet } from '../../hooks/useWallet';
 import TokenIcon from './TokenIcon';
 import OstiumIcon from './OstiumIcon';
 
@@ -26,12 +27,13 @@ export interface MarketSelectorProps {
 const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSelect, isEmbedded = false }) => {
     const { markets, fetchMarkets, setMarket } = useMarketStore();
     const { favorites, toggleFavorite, fetchWatchlist } = useWatchlistStore();
+    const { authenticated, walletAddress } = useWallet();
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
     const [expandedGroup, setExpandedGroup] = useState<'hyperliquid' | 'ostium' | null>(null);
 
     // Sorting State
-    const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' } | null>(null);
+    const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' } | null>({ key: 'change24hPercent', direction: 'desc' });
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -73,8 +75,12 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         if (markets.length === 0) {
             fetchMarkets();
         }
-        fetchWatchlist();
-    }, [markets.length, fetchMarkets, fetchWatchlist]);
+        if (authenticated && walletAddress) {
+            fetchWatchlist(walletAddress);
+        } else {
+            fetchWatchlist(); // Will clear watchlist due to store update
+        }
+    }, [markets.length, fetchMarkets, fetchWatchlist, authenticated, walletAddress]);
 
     useEffect(() => {
         if (!isEmbedded) {
@@ -108,7 +114,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
         if (filter === 'All') return true;
         if (filter === 'Watchlist') {
-            return favorites.has(item.symbol);
+            return favorites.has(`${item.source || 'hyperliquid'}:${item.symbol}`);
         }
         if (filter === 'Crypto') {
             return item.source === 'hyperliquid' || item.category === 'Crypto';
@@ -126,6 +132,25 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
                 const valA = a[key];
                 const valB = b[key];
+
+                // Fields that should be treated as numbers
+                const numericFields: (keyof MarketData)[] = [
+                    'price', 'change24h', 'change24hPercent',
+                    'high24h', 'low24h', 'volume24h'
+                ];
+
+                if (numericFields.includes(key)) {
+                    const parseVal = (v: any) => {
+                        if (typeof v === 'number') return v;
+                        if (typeof v === 'string') return parseFloat(v.replace(/,/g, '').replace(/%/g, ''));
+                        return NaN;
+                    };
+                    const numA = parseVal(valA);
+                    const numB = parseVal(valB);
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return dir * (numA - numB);
+                    }
+                }
 
                 if (typeof valA === 'string' && typeof valB === 'string') {
                     return dir * valA.localeCompare(valB);
@@ -172,22 +197,32 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         return markets.filter(m => m.source === 'ostium').length;
     };
 
-    const SortIcon = ({ columnKey }: { columnKey: keyof MarketData }) => (
-        <svg
-            width="8"
-            height="5"
-            viewBox="0 0 8 5"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            style={{
-                transform: sortConfig?.key === columnKey && sortConfig.direction === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s',
-                opacity: sortConfig?.key === columnKey ? 1 : 0.3
-            }}
-        >
-            <path d="M4 5L0 0L8 0L4 5Z" fill="currentColor" />
-        </svg>
-    );
+    const SortIcon = ({ columnKey }: { columnKey: keyof MarketData }) => {
+        const active = sortConfig?.key === columnKey;
+        const direction = sortConfig?.direction || 'desc';
+        const activeColor = '#FFE1F2';
+        const inactiveColor = 'rgba(93, 64, 80, 0.3)';
+
+        return (
+            <svg width="8" height="11" viewBox="0 0 10 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M5 0L9 4H1L5 0Z"
+                    fill={active && direction === 'desc' ? activeColor : inactiveColor}
+                    stroke={active && direction === 'desc' ? activeColor : inactiveColor}
+                    strokeWidth="1.2"
+                    strokeLinejoin="round"
+                />
+                <path
+                    d="M5 14L1 10H9L5 14Z"
+                    fill={active && direction === 'asc' ? activeColor : inactiveColor}
+                    stroke={active && direction === 'asc' ? activeColor : inactiveColor}
+                    strokeWidth="1.2"
+                    strokeLinejoin="round"
+                />
+
+            </svg>
+        );
+    };
 
     // Helper for formatting
     const formatPrice = (val: number) => {
@@ -344,19 +379,18 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                 <table className={styles.table}>
                     <thead>
                         <tr>
-                            <th onClick={() => handleSort('symbol')} style={{ cursor: 'pointer' }}>
+                            <th>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     Market
-                                    <SortIcon columnKey="symbol" />
                                 </div>
                             </th>
-                            <th onClick={() => handleSort('price')} style={{ cursor: 'pointer' }} className={styles.hideOnSmallMobile}>
+                            <th onClick={(e) => { e.stopPropagation(); handleSort('price'); }} style={{ cursor: 'pointer' }} className={styles.hideOnSmallMobile}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                                     Price
                                     <SortIcon columnKey="price" />
                                 </div>
                             </th>
-                            <th onClick={() => handleSort('change24hPercent')} style={{ cursor: 'pointer' }}>
+                            <th onClick={(e) => { e.stopPropagation(); handleSort('change24hPercent'); }} style={{ cursor: 'pointer' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                                     24h %
                                     <SortIcon columnKey="change24hPercent" />
@@ -364,7 +398,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                             </th>
                             <th
                                 style={{ cursor: 'pointer' }}
-                                onClick={() => handleSort('volume24h')}
+                                onClick={(e) => { e.stopPropagation(); handleSort('volume24h'); }}
                                 className={styles.hideOnMobile}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
@@ -379,17 +413,21 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                             const isPositive = item.change24hPercent >= 0;
 
                             return (
-                                <tr key={item.symbol} onClick={() => handleItemClick(item)}>
+                                <tr key={`${item.source || 'hyperliquid'}:${item.symbol}`} onClick={() => handleItemClick(item)}>
                                     <td className={styles.marketCell}>
                                         <button
                                             className={styles.starBtn}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                toggleFavorite(item.symbol, item.source);
+                                                if (authenticated && walletAddress) {
+                                                    toggleFavorite(item.symbol, item.source, walletAddress);
+                                                }
                                             }}
+                                            style={{ opacity: authenticated ? 1 : 0.5, cursor: authenticated ? 'pointer' : 'not-allowed' }}
+                                            title={authenticated ? "Toggle Favorite" : "Connect wallet to manage favorites"}
                                         >
                                             <img
-                                                src={favorites.has(item.symbol) ? activeStar : inactiveStar}
+                                                src={favorites.has(`${item.source || 'hyperliquid'}:${item.symbol}`) ? activeStar : inactiveStar}
                                                 alt="fav"
                                                 style={{ width: 14, height: 14 }}
                                             />

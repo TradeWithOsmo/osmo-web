@@ -42,7 +42,7 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
         fetchWatchlist();
     }, [fetchMarkets, fetchWatchlist]);
 
-    const isFavoriteNow = selectedMarket ? favorites.has(selectedMarket.symbol) : false;
+    const isFavoriteNow = selectedMarket ? favorites.has(`${selectedMarket.source || 'hyperliquid'}:${selectedMarket.symbol}`) : false;
 
     const handleFavoriteClick = () => {
         if (selectedMarket) {

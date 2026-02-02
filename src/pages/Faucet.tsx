@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// HMR Refresh Trigger
 
 // Assets
 import circlePattern from '../assets/circle pettern.png';
@@ -11,12 +12,51 @@ import { useUIStore } from '../store/useUIStore';
 // Logo removed as per new layering request
 import logo from '../assets/Icons/Osmo-Logos.png'; // Keeping import just in case, but unused
 
+const FaucetBackground = React.memo(() => (
+    <>
+        {/* Layer 1: Dots Pattern (New) */}
+        <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            opacity: 0.1,
+            zIndex: 1,
+            pointerEvents: 'none'
+        }}>
+            <img
+                src={dotsPattern}
+                alt="Dots Pattern"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+        </div>
+
+        {/* Layer 2: Circle Pattern (Old) */}
+        <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            opacity: 0.15,
+            zIndex: 2,
+            pointerEvents: 'none'
+        }}>
+            <img
+                src={circlePattern}
+                alt="Circle Pattern"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+        </div>
+    </>
+));
+
 const Faucet: React.FC = () => {
     const [isHovered, setIsHovered] = useState(false);
     const { openFaucetModal } = useUIStore();
 
     const handleClaim = () => {
-        // Trigger Faucet Modal
         openFaucetModal();
     };
 
@@ -30,43 +70,9 @@ const Faucet: React.FC = () => {
             justifyContent: 'center',
             overflow: 'hidden',
             backgroundColor: '#12000A',
-            paddingBottom: '80px' // Offset for bottom nav or visual balance
+            paddingBottom: '80px'
         }}>
-            {/* Layer 1: Dots Pattern (New) */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                opacity: 0.1,
-                zIndex: 1,
-                pointerEvents: 'none'
-            }}>
-                <img
-                    src={dotsPattern}
-                    alt="Dots Pattern"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-            </div>
-
-            {/* Layer 2: Circle Pattern (Old) */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                opacity: 0.15,
-                zIndex: 2,
-                pointerEvents: 'none'
-            }}>
-                <img
-                    src={circlePattern}
-                    alt="Circle Pattern"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-            </div>
+            <FaucetBackground />
 
             {/* Layer 3: Double Circle Button with USDC Logo */}
             <button

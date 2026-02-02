@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { orderService, type PositionData, type OrderData, type AccountSummary } from '../api/orderService';
+import { portfolioService, type PortfolioHistoryPoint } from '../api/portfolioService';
 
 export interface TradeHistoryData {
     id: string;
@@ -22,15 +23,21 @@ interface PortfolioState {
     openOrders: OrderData[];
     orderHistory: OrderData[];
     tradeHistory: TradeHistoryData[];
+    history: PortfolioHistoryPoint[];
     summary: AccountSummary | null;
     isLoading: boolean;
     error: string | null;
 
     // Actions
+    // Actions
     fetchPositions: (userAddress: string) => Promise<void>;
     fetchOrders: (userAddress: string, status?: string) => Promise<void>;
     refreshAll: (userAddress: string) => Promise<void>;
-    updateTPSL: (positionId: string, tp?: string, sl?: string) => void;
+    fetchHistory: (userAddress: string, timeframe?: string) => Promise<void>;
+    updateTPSL: (userAddress: string, positionId: string, tp?: string, sl?: string) => Promise<void>;
+
+    // Internal
+    localTPSL: Record<string, { tp?: string; sl?: string }>;
 }
 
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
@@ -40,33 +47,29 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     openOrders: [],
     orderHistory: [],
     tradeHistory: [],
+    history: [],
 
-    // Mock Data Initial State
-    positions: [
-        {
-            id: '3',
-            symbol: 'SOL-USD',
-            side: 'long',
-            size: 37.35,
-            leverage: 20,
-            entry_price: 131.91,
-            mark_price: 115.34,
-            liquidation_price: 95.20,
-            unrealized_pnl: -618.89,
-            margin_used: 246.34,
-            exchange: 'Hyperliquid',
-            tp: undefined,
-            sl: undefined
-        }
-    ],
+    // Initial State
+    positions: [],
+
+    // State for local TP/SL persistence
+    localTPSL: {},
 
     fetchPositions: async (userAddress: string) => {
         set({ isLoading: true, error: null });
         try {
             const result = await orderService.getPositions(userAddress);
             if (result.success) {
+                // Merge with local TP/SL data
+                const currentLocalTPSL = get().localTPSL;
+                const mergedPositions = result.positions.map(p => ({
+                    ...p,
+                    tp: currentLocalTPSL[p.id]?.tp ?? p.tp,
+                    sl: currentLocalTPSL[p.id]?.sl ?? p.sl
+                }));
+
                 set({
-                    positions: result.positions,
+                    positions: mergedPositions,
                     summary: result.summary,
                     isLoading: false
                 });
@@ -95,15 +98,54 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     refreshAll: async (userAddress: string) => {
         await Promise.all([
             get().fetchPositions(userAddress),
-            get().fetchOrders(userAddress)
+            get().fetchPositions(userAddress),
+            get().fetchOrders(userAddress),
+            get().fetchHistory(userAddress) // Add history fetch to refresh
         ]);
     },
 
-    updateTPSL: (positionId, tp, sl) => {
-        set(state => ({
-            positions: state.positions.map(p =>
-                p.id === positionId ? { ...p, tp: tp ?? p.tp, sl: sl ?? p.sl } : p
-            )
-        }));
+    fetchHistory: async (userAddress: string, timeframe: string = '1d') => {
+        // Don't set global isLoading to avoid flickering entire UI for just chart update
+        try {
+            const result = await portfolioService.getPortfolioHistory(userAddress, timeframe as any);
+            if (result && result.data) {
+                set({ history: result.data });
+            }
+        } catch (error) {
+            console.error("Failed to fetch history:", error);
+            // Non-critical, don't set global error
+        }
+    },
+
+    updateTPSL: async (userAddress: string, positionId: string, tp?: string, sl?: string) => {
+        // Optimistic update
+        set(state => {
+            const currentEntry = state.localTPSL[positionId] || {};
+            const newEntry = {
+                tp: tp ?? currentEntry.tp,
+                sl: sl ?? currentEntry.sl
+            };
+
+            return {
+                localTPSL: {
+                    ...state.localTPSL,
+                    [positionId]: newEntry
+                },
+                positions: state.positions.map(p =>
+                    p.id === positionId ? { ...p, tp: newEntry.tp ?? p.tp, sl: newEntry.sl ?? p.sl } : p
+                )
+            };
+        });
+
+        // Sync to backend
+        try {
+            const position = get().positions.find(p => p.id === positionId);
+            // If position found, use its symbol. If not (maybe new order from OrderForm), assume positionId IS the symbol.
+            const symbol = position ? position.symbol : positionId;
+
+            await orderService.updateTPSL(userAddress, symbol, tp, sl);
+        } catch (error) {
+            console.error("Failed to sync TP/SL to backend:", error);
+        }
     }
 }));

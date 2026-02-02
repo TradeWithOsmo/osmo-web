@@ -2,10 +2,18 @@ import React, { useState } from 'react';
 import styles from './MarketCloseModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
 
+import { useWallet } from '../../hooks/useWallet';
+import { orderService } from '../../api/orderService';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import toast from 'react-hot-toast';
+
 export const MarketCloseModal: React.FC = () => {
     const { isMarketCloseModalOpen, closeMarketCloseModal, selectedPosition } = useUIStore();
+    const { refreshAll } = usePortfolioStore();
+    const { walletAddress } = useWallet();
     const [percentage, setPercentage] = useState(100);
     const [dontShowAgain, setDontShowAgain] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Prevent background scrolling
     React.useEffect(() => {
@@ -26,8 +34,35 @@ export const MarketCloseModal: React.FC = () => {
     };
 
     const assetSymbol = selectedPosition.symbol.split('-')[0];
-    const closingSize = (selectedPosition.size * (percentage / 100)).toFixed(4);
-    const isFormValid = true; // Market close always has input (default 100%)
+    const closingSize = (selectedPosition.size * (percentage / 100)); // Keep as number for logic
+    const closingSizeDisplay = closingSize.toFixed(4); // For display
+
+    const handleConfirm = async () => {
+        if (!walletAddress || !selectedPosition) return;
+        setIsSubmitting(true);
+        try {
+            // "Closing" means placing an order in the OPPOSITE direction with reduceOnly: true
+            const side = selectedPosition.side === 'Long' ? 'sell' : 'buy';
+
+            await orderService.placeOrder({
+                user_address: walletAddress,
+                symbol: selectedPosition.symbol,
+                side,
+                order_type: 'market',
+                amount_usd: selectedPosition.sizeUsd * (percentage / 100),
+                leverage: parseFloat(selectedPosition.leverage.replace('x', '')),
+                reduce_only: true
+            });
+
+            toast.success('Position closed');
+            closeMarketCloseModal();
+            await refreshAll(walletAddress);
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to close position');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className={styles.overlay} onClick={handleBackdropClick}>
@@ -64,7 +99,7 @@ export const MarketCloseModal: React.FC = () => {
                             <input
                                 type="text"
                                 className={styles.numberInput}
-                                value={closingSize.replace('.', ',')}
+                                value={closingSizeDisplay.replace('.', ',')}
                                 readOnly
                             />
                             <span className={styles.assetName}>{assetSymbol}</span>
@@ -127,8 +162,12 @@ export const MarketCloseModal: React.FC = () => {
                     </div>
 
                     {/* Action Button */}
-                    <button className={`${styles.confirmButton} ${!isFormValid ? styles.disabledButton : ''}`} onClick={closeMarketCloseModal}>
-                        Market Close
+                    <button
+                        className={`${styles.confirmButton} ${isSubmitting ? styles.disabledButton : ''}`}
+                        onClick={handleConfirm}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? 'Closing...' : 'Market Close'}
                     </button>
                 </div>
             </div>

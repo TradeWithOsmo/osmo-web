@@ -3,10 +3,13 @@ import { Navbar } from './components';
 import { AppRouter } from './router';
 import { useGlobalMarketStream } from './hooks/useGlobalMarketStream';
 import { useTokenListStore } from './store/useTokenListStore';
-import { DepositModal, ReversePositionModal, MarketCloseModal, TPSLModal, CloseAllModal, LimitCloseModal, FaucetModal } from './components/Modals';
+import { DepositModal, ReversePositionModal, MarketCloseModal, TPSLModal, CloseAllModal, LimitCloseModal, SessionKeyModal, FaucetModal } from './components/Modals';
+import { useWallet } from './hooks/useWallet';
 
 function App() {
   const [currentRoute, setCurrentRoute] = useState(window.location.pathname === '/' ? '/trade' : window.location.pathname);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const { authenticated, walletAddress } = useWallet();
 
   // Enable global real-time market data stream
   useGlobalMarketStream();
@@ -23,6 +26,19 @@ function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [fetchTokenList]);
+
+  // Check for session key
+  React.useEffect(() => {
+    if (authenticated && walletAddress) {
+      const key = localStorage.getItem('osmo_session_key');
+      const expires = localStorage.getItem('osmo_session_expires');
+
+      // If no key or expired, show modal
+      if (!key || (expires && new Date(expires) < new Date())) {
+        setShowSessionModal(true);
+      }
+    }
+  }, [authenticated, walletAddress]);
 
   const navItems = [
     { label: 'Trade', href: '/trade', isActive: currentRoute === '/trade' },
@@ -57,6 +73,11 @@ function App() {
       <CloseAllModal />
       <LimitCloseModal />
       <FaucetModal />
+
+      <SessionKeyModal
+        isOpen={showSessionModal}
+        onClose={() => setShowSessionModal(false)}
+      />
     </div>
   );
 }

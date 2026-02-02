@@ -23,7 +23,19 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     fetchMarkets: async () => {
         set({ isLoading: true, error: null });
         try {
-            const markets = await marketService.getMarkets();
+            const marketsRaw = await marketService.getMarkets();
+
+            // Deduplicate: Last one wins or just keep first.
+            // Using Map to ensure unique source:symbol
+            const uniqueMap = new Map<string, MarketData>();
+            marketsRaw.forEach(m => {
+                const key = `${m.source || 'hyperliquid'}:${m.symbol}`;
+                if (!uniqueMap.has(key)) {
+                    uniqueMap.set(key, m);
+                }
+            });
+
+            const markets = Array.from(uniqueMap.values());
             set({ markets, isLoading: false });
 
             // Set default market if none selected
@@ -78,6 +90,8 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                         volume24h: priceData.volume_24h !== undefined ? priceData.volume_24h : market.volume24h,
                         high24h: priceData.high_24h !== undefined ? priceData.high_24h : market.high24h,
                         low24h: priceData.low_24h !== undefined ? priceData.low_24h : market.low24h,
+                        maxLeverage: priceData.maxLeverage !== undefined ? priceData.maxLeverage : market.maxLeverage,
+                        category: priceData.category || market.category,
                     };
                 }
                 return market;
@@ -95,6 +109,8 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                     volume24h: p.volume_24h !== undefined ? p.volume_24h : updatedSelected.volume24h,
                     high24h: p.high_24h !== undefined ? p.high_24h : updatedSelected.high24h,
                     low24h: p.low_24h !== undefined ? p.low_24h : updatedSelected.low24h,
+                    maxLeverage: p.maxLeverage !== undefined ? p.maxLeverage : updatedSelected.maxLeverage,
+                    category: p.category || updatedSelected.category,
                 };
             }
 

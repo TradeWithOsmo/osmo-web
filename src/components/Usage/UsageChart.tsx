@@ -8,41 +8,28 @@ import {
     ResponsiveContainer
 } from 'recharts';
 
-interface DataPoint {
-    timestamp: string;
-    displayTime: string;
-    value: number;
-}
+
+
+import { useUsageStore } from '../../store/useUsageStore';
+import { useWallet } from '../../hooks/useWallet';
 
 const UsageChart: React.FC = () => {
-    const [timeframe, setTimeframe] = useState('1D');
-    const [chartData, setChartData] = useState<DataPoint[]>([]);
+    const [timeframe, setTimeframe] = useState('30D');
+    const { chartData, fetchChartData } = useUsageStore();
+    const { walletAddress } = useWallet();
 
     useEffect(() => {
-        const data: DataPoint[] = [];
-        const now = new Date();
-        let points = 20;
-        let interval = 60 * 60 * 1000;
-
-        if (timeframe === '7D') { points = 28; interval = 6 * 60 * 60 * 1000; }
-        else if (timeframe === '1M') { points = 30; interval = 24 * 60 * 60 * 1000; }
-        else if (timeframe === 'ALL') { points = 50; interval = 48 * 60 * 60 * 1000; }
-
-        let lastVal = 50 + Math.random() * 20;
-        for (let i = points; i >= 0; i--) {
-            const time = new Date(now.getTime() - i * interval);
-            lastVal += (Math.random() - 0.45) * 10;
-            if (lastVal < 0) lastVal = 0;
-            data.push({
-                timestamp: time.toISOString(),
-                displayTime: timeframe === '1D'
-                    ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : time.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-                value: parseFloat(lastVal.toFixed(2))
-            });
+        if (walletAddress) {
+            fetchChartData(walletAddress, timeframe);
         }
-        setChartData(data);
-    }, [timeframe]);
+    }, [walletAddress, timeframe, fetchChartData]);
+
+    // Format data for chart
+    const formattedData = chartData.map(d => ({
+        ...d,
+        displayTime: new Date(d.date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        value: d.cost // Plotting cost primarily
+    }));
 
     return (
         <div style={{
@@ -88,7 +75,7 @@ const UsageChart: React.FC = () => {
 
             <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 60, right: 4, left: 4, bottom: 5 }}>
+                    <AreaChart data={formattedData} margin={{ top: 60, right: 4, left: 4, bottom: 5 }}>
                         <defs>
                             <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#660035" stopOpacity={0.4} />

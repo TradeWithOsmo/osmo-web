@@ -13,6 +13,7 @@ export interface MarketData {
     volume24h: number; // USD volume
     source: 'hyperliquid' | 'ostium';
     category: string;
+    maxLeverage?: number;
 }
 
 export interface Trade {
@@ -68,6 +69,9 @@ export const marketService = {
 
             if (ostResponse.status === 'fulfilled') {
                 console.log("✅ Ostium response:", ostResponse.value.status, "Markets:", ostResponse.value.data.length);
+                // Create set of existing symbols (from Hyperliquid) to avoid duplicates
+                const existingSymbols = new Set(markets.map(m => m.symbol));
+
                 const ostiumMarkets = ostResponse.value.data.map((item: any) => {
                     return {
                         symbol: item.symbol,
@@ -80,7 +84,7 @@ export const marketService = {
                         source: 'ostium' as const,
                         category: item.category || 'Forex' // Use backend category
                     };
-                });
+                }).filter((m: any) => m.category !== 'Crypto' && !existingSymbols.has(m.symbol));
                 markets = markets.concat(ostiumMarkets);
                 console.log(`📊 Loaded ${ostiumMarkets.length} Ostium markets (Total: ${markets.length})`);
             } else {

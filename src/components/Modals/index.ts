@@ -4,4 +4,6 @@ export * from './MarketCloseModal';
 export * from './TPSLModal';
 export * from './CloseAllModal';
 export * from './LimitCloseModal';
+export * from './SessionKeyModal';
 export * from './FaucetModal';
+
