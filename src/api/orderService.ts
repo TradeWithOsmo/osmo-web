@@ -10,6 +10,9 @@ export interface PlaceOrderParams {
     price?: number;
     stop_price?: number;
     exchange?: string;
+    reduce_only?: boolean;
+    post_only?: boolean;
+    time_in_force?: string; // 'GTC' | 'IOC' | 'FOK'
 }
 
 export interface OrderResult {
@@ -45,12 +48,14 @@ export interface OrderData {
     size: number;
     notional_usd: number;
     price?: number;
+    reduce_only?: boolean;
     stop_price?: number;
     leverage: number;
     status: string;
     filled_size: number;
     avg_fill_price?: number;
     exchange_order_id?: string;
+    confirmed_txn_hash?: string;
     created_at?: string;
     filled_at?: string;
 }
@@ -114,6 +119,21 @@ export const orderService = {
 
         if (!response.ok) {
             throw new Error('Failed to fetch positions');
+        }
+
+        return response.json();
+    },
+
+    async updateTPSL(user_address: string, symbol: string, tp?: string, sl?: string): Promise<any> {
+        const response = await fetch(`${API_URL}/api/orders/positions/tpsl`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_address, symbol, tp, sl })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to update TP/SL');
         }
 
         return response.json();

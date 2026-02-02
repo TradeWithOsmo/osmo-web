@@ -4,20 +4,21 @@ import { orderService } from '../../api/orderService';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { useMarketStore } from '../../store/useMarketStore';
 import { useWallet } from '../../hooks';
+import { useUIStore } from '../../store/useUIStore';
 import toast from 'react-hot-toast';
 
 
 const OrderForm: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'Limit' | 'Market' | 'Stop Limit'>('Limit');
+    const [activeTab, setActiveTab] = useState<'Limit' | 'Market' | 'Stop Limit'>('Market');
     const [side, setSide] = useState<'buy' | 'sell'>('buy');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Get current market and stores
     const selectedMarket = useMarketStore((state) => state.selectedMarket);
-    const refreshAll = usePortfolioStore((state) => state.refreshAll);
+    const { refreshAll, summary, updateTPSL } = usePortfolioStore(); // Destructure summary and updateTPSL
+    const { openDepositModal } = useUIStore();
 
     // Get wallet from Privy
-    const { authenticated, walletAddress } = useWallet();
+    const { authenticated, walletAddress, handleConnect } = useWallet();
 
     // Inputs
     const [price, setPrice] = useState('');
@@ -53,7 +54,71 @@ const OrderForm: React.FC = () => {
     const [slValue, setSlValue] = useState('');
     const [slPrice, setSlPrice] = useState('');
 
-    const [receiptOpen, setReceiptOpen] = useState(false);
+    const [receiptOpen, setReceiptOpen] = useState(true);
+
+    // Dynamic Price Helpers
+    const handleQuickPrice = (type: string) => {
+        if (!selectedMarket?.price) return;
+
+        const currentPrice = selectedMarket.price;
+        let targetPrice = currentPrice;
+
+        switch (type) {
+            case 'Fill':
+            case 'Mid':
+            case 'Bid':
+                targetPrice = currentPrice;
+                break;
+            case '1%':
+                targetPrice = side === 'buy' ? currentPrice * 0.99 : currentPrice * 1.01;
+                break;
+            case '5%':
+                targetPrice = side === 'buy' ? currentPrice * 0.95 : currentPrice * 1.05;
+                break;
+        }
+
+        // Format to correct precision (using simplest approach for now)
+        const formatted = targetPrice < 10 && targetPrice > 0.0001
+            ? targetPrice.toFixed(4)
+            : targetPrice.toFixed(2);
+
+        // If in Stop Limit mode, we might want to set Stop Price if it's focused, 
+        // but broadly these helpers usually target the Limit Price.
+        // For simplicity, we set the main Price field.
+        setPrice(formatted);
+
+        // If Stop Limit and Price is empty, maybe set Stop Price too? 
+        // User asked "set price", assuming Limit Price.
+    };
+
+    // Amount Toggle Logic
+    const handleAmountSwitch = () => {
+        const nextIsUSD = !isAmountUSD;
+        setIsAmountUSD(nextIsUSD);
+
+        if (!amount || parseFloat(amount) === 0 || !selectedMarket?.price) return;
+
+        const currentVal = parseFloat(amount);
+        const price = selectedMarket.price;
+        let converted = 0;
+
+        if (nextIsUSD) {
+            // Token -> USD (Value = TokenCount * Price)
+            converted = currentVal * price;
+        } else {
+            // USD -> Token (TokenCount = Value / Price)
+            converted = currentVal / price;
+        }
+
+        // Format
+        // If converting to USD, standard 2 decimals usually fine.
+        // If converting to Token, might need more precision.
+        const formatted = nextIsUSD
+            ? converted.toFixed(2)
+            : (converted < 1 ? converted.toFixed(6) : converted.toFixed(4));
+
+        setAmount(formatted);
+    };
 
     // Handle order submission
     const handleSubmit = async () => {
@@ -76,24 +141,50 @@ const OrderForm: React.FC = () => {
         setIsSubmitting(true);
 
         try {
+            const tifMap: Record<string, string> = {
+                'Immediate Or Cancel': 'IOC',
+                'Good Til Date': 'GTC',
+                'Post-Only': 'GTC'
+            };
+
             const result = await orderService.placeOrder({
-                user_address: walletAddress, // Real wallet address from Privy!
+                user_address: walletAddress || '', // Ensure string
                 symbol: selectedMarket.symbol,
                 side,
                 order_type: orderType,
                 amount_usd: parseFloat(amount),
                 leverage,
                 price: price ? parseFloat(price) : undefined,
-                stop_price: stopPrice ? parseFloat(stopPrice) : undefined
+                stop_price: stopPrice ? parseFloat(stopPrice) : undefined,
+                reduce_only: reduceOnly,
+                post_only: postOnly,
+                time_in_force: tifMap[timeInForce] || 'GTC'
             });
 
             if (result.success) {
                 toast.success(`Order placed successfully! ID: ${result.order_id}`);
 
+                // Handle TP/SL if enabled
+                if (tpslEnabled) {
+                    const finalTP = tpPrice || (tpValue ? `${tpValue}${tpUnit}` : undefined);
+                    const finalSL = slPrice || (slValue ? `${slValue}${slUnit}` : undefined);
+
+                    if (finalTP || finalSL) {
+                        // We use the market symbol as the position ID for local storage
+                        // Pass wallet/user address (guaranteed by earlier check)
+                        await updateTPSL(walletAddress || '', selectedMarket.symbol, finalTP, finalSL);
+                        toast.success('TP/SL set locally and synced to backend');
+                    }
+                }
+
                 // Clear form
                 setAmount('');
                 setPrice('');
                 setStopPrice('');
+                setTpValue('');
+                setTpPrice('');
+                setSlValue('');
+                setSlPrice('');
 
                 // Refresh portfolio data with real wallet address
                 await refreshAll(walletAddress);
@@ -103,6 +194,24 @@ const OrderForm: React.FC = () => {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    // Reset Form
+    const handleReset = () => {
+        setAmount('');
+        setPrice('');
+        setStopPrice('');
+        // Default leverage: 20x or Max Leverage if lower
+        const defaultLev = 1;
+        const maxLev = selectedMarket?.maxLeverage || 50;
+        setLeverage(Math.min(defaultLev, maxLev));
+        // Reset TP/SL inputs if needed
+        setTpValue('');
+        setTpPrice('');
+        setSlValue('');
+        setSlPrice('');
+        // Maybe reset advanced toggles? User said "clear inputs or back to default".
+        // Keeping it simple for now.
     };
 
     return (
@@ -130,16 +239,16 @@ const OrderForm: React.FC = () => {
                     {/* 3. Tabs */}
                     <div className={styles.tabs}>
                         <button
-                            className={`${styles.tab} ${activeTab === 'Limit' ? styles.active : ''}`}
-                            onClick={() => setActiveTab('Limit')}
-                        >
-                            Limit
-                        </button>
-                        <button
                             className={`${styles.tab} ${activeTab === 'Market' ? styles.active : ''}`}
                             onClick={() => setActiveTab('Market')}
                         >
                             Market
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'Limit' ? styles.active : ''}`}
+                            onClick={() => setActiveTab('Limit')}
+                        >
+                            Limit
                         </button>
                         <div style={{ position: 'relative', flex: 1, display: 'flex' }}>
                             <button
@@ -183,7 +292,6 @@ const OrderForm: React.FC = () => {
                         <div className={styles.inputWrapper}>
                             <div className={styles.inputLabelRow}>
                                 <span>Stop Price</span>
-                                <span>0.00</span>
                             </div>
                             <div className={styles.inputRow}>
                                 <input
@@ -202,7 +310,6 @@ const OrderForm: React.FC = () => {
                             <div className={styles.inputWrapper}>
                                 <div className={styles.inputLabelRow}>
                                     <span>Limit Price</span>
-                                    <span>0.00</span>
                                 </div>
                                 <div className={styles.inputRow}>
                                     <input
@@ -215,11 +322,15 @@ const OrderForm: React.FC = () => {
                             </div>
                             {/* Helper Pills - Only show for Limit Price context? Or keep for both? usually for Limit Price setting */}
                             <div className={styles.pillsRow} style={{ padding: 0, marginBottom: 0 }}>
-                                <div className={styles.pill}>Fill</div>
-                                <div className={styles.pill}>Mid</div>
-                                <div className={styles.pill}>Bid</div>
-                                <div className={styles.pill}>1% ↓</div>
-                                <div className={styles.pill}>5% ↓</div>
+                                <div className={styles.pill} onClick={() => handleQuickPrice('Fill')}>Fill</div>
+                                <div className={styles.pill} onClick={() => handleQuickPrice('Mid')}>Mid</div>
+                                <div className={styles.pill} onClick={() => handleQuickPrice('Bid')}>Bid</div>
+                                <div className={styles.pill} onClick={() => handleQuickPrice('1%')}>
+                                    {side === 'buy' ? '1% ↓' : '1% ↑'}
+                                </div>
+                                <div className={styles.pill} onClick={() => handleQuickPrice('5%')}>
+                                    {side === 'buy' ? '5% ↓' : '5% ↑'}
+                                </div>
                             </div>
                         </>
                     )}
@@ -230,7 +341,7 @@ const OrderForm: React.FC = () => {
                             <div className={styles.inputLabelRow} style={{ justifyContent: 'flex-start', gap: '8px', alignItems: 'center' }}>
                                 <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', cursor: 'help' }}>Amount</span>
                                 <span className={styles.badges} style={{ fontSize: '11px', padding: '2px 6px' }}>
-                                    {isAmountUSD ? 'USD' : 'ETH'}
+                                    {isAmountUSD ? 'USD' : (selectedMarket?.symbol?.split('-')[0] || 'Token')}
                                 </span>
                             </div>
                             <input
@@ -243,7 +354,7 @@ const OrderForm: React.FC = () => {
                         </div>
                         <div
                             className={styles.swapButton}
-                            onClick={() => setIsAmountUSD(!isAmountUSD)}
+                            onClick={handleAmountSwitch}
                         >
                             <span style={{ fontSize: '18px' }}>⇄</span>
                         </div>
@@ -305,14 +416,14 @@ const OrderForm: React.FC = () => {
                                 {[...Array(5)].map((_, i) => <div key={i} className={styles.dot}></div>)}
                             </div>
                             {/* Fill */}
-                            <div className={styles.sliderFill} style={{ width: `${(leverage / 50) * 100}%` }}></div>
+                            <div className={styles.sliderFill} style={{ width: `${(leverage / (selectedMarket?.maxLeverage || 50)) * 100}%` }}></div>
                             {/* Thumb */}
-                            <div className={styles.sliderThumb} style={{ left: `${(leverage / 50) * 100}%` }}></div>
+                            <div className={styles.sliderThumb} style={{ left: `${(leverage / (selectedMarket?.maxLeverage || 50)) * 100}%` }}></div>
                             {/* Input Range */}
                             <input
                                 type="range"
                                 min="1"
-                                max="50"
+                                max={selectedMarket?.maxLeverage || 50}
                                 step="1"
                                 value={leverage}
                                 onChange={(e) => setLeverage(Number(e.target.value))}
@@ -322,7 +433,7 @@ const OrderForm: React.FC = () => {
                                 }}
                             />
                         </div>
-                        <span style={{ fontSize: '12px', color: '#A77590' }}>50×</span>
+                        <span style={{ fontSize: '12px', color: '#A77590' }}>{selectedMarket?.maxLeverage || 50}×</span>
                     </div>
                 </div>
 
@@ -669,7 +780,7 @@ const OrderForm: React.FC = () => {
             {/* 8. Summary & Action redone */}
             <div className={styles.summaryContainer}>
                 <div className={styles.summaryControlsRow}>
-                    <button className={styles.textBtnRed}>Clear</button>
+                    <button className={styles.textBtnRed} onClick={handleReset}>Clear</button>
                     <div className={styles.vDivider}></div>
                     <button
                         className={`${styles.receiptToggleBtn} ${receiptOpen ? styles.active : ''}`}
@@ -698,42 +809,117 @@ const OrderForm: React.FC = () => {
                     <div className={styles.receiptDetails}>
                         <div className={styles.summaryRow}>
                             <span className={styles.summaryLabelDotted}>Expected Price</span>
-                            <span className={styles.summaryValue}>$897.1</span>
+                            <span className={styles.summaryValue}>
+                                {(!authenticated || (summary?.account_value || 0) <= 0)
+                                    ? '—'
+                                    : `$${(price ? parseFloat(price) : (selectedMarket?.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
+                                }
+                            </span>
                         </div>
                         <div className={styles.summaryRow}>
-                            <span className={styles.summaryLabelDotted}>Liquidation Price</span>
-                            <span className={styles.summaryValue}>—</span>
+                            <span className={styles.summaryLabelDotted}>Liquidation Price (Est)</span>
+                            <span className={styles.summaryValue}>
+                                {(() => {
+                                    if (!authenticated || (summary?.account_value || 0) <= 0) return '—';
+                                    const entryPrice = price ? parseFloat(price) : (selectedMarket?.price || 0);
+                                    if (!entryPrice) return '—';
+                                    // Simple estimation: Long = Entry * (1 - 1/Lev), Short = Entry * (1 + 1/Lev)
+                                    // Note: Real liq price depends on MMR. Using 1/Lev is a generic approximation for bankruptcy price.
+                                    const liqPrice = side === 'buy'
+                                        ? entryPrice * (1 - 1 / leverage)
+                                        : entryPrice * (1 + 1 / leverage);
+                                    return `$${liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+                                })()}
+                            </span>
                         </div>
                         <div className={styles.summaryRow}>
                             <span className={styles.summaryLabelDotted}>Position Margin</span>
                             <span className={styles.summaryValue}>
-                                <span style={{ color: '#A77590' }}>— ➝ </span> $0.00
+                                {(authenticated && (summary?.account_value || 0) > 0) && (
+                                    <span style={{ color: '#A77590' }}>
+                                        {marginMode} {leverage}x ➝
+                                    </span>
+                                )}
+                                {(() => {
+                                    if (!authenticated || (summary?.account_value || 0) <= 0) return ' —';
+                                    const val = parseFloat(amount || '0');
+                                    const executePrice = price ? parseFloat(price) : (selectedMarket?.price || 0);
+                                    // If isAmountUSD is true, amount IS the value.
+                                    // If false, amount is units, so Value = amount * price.
+                                    const notional = isAmountUSD ? val : val * executePrice;
+                                    const margin = notional / leverage;
+                                    return `$${margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                })()}
                             </span>
                         </div>
                         <div className={styles.summaryRow}>
-                            <span className={styles.summaryLabelDotted}>Fee</span>
-                            <span className={styles.summaryValue}>$0.00</span>
+                            <span className={styles.summaryLabelDotted}>Fee (Est)</span>
+                            <span className={styles.summaryValue}>
+                                {(() => {
+                                    if (!authenticated || (summary?.account_value || 0) <= 0) return '—';
+                                    const val = parseFloat(amount || '0');
+                                    const executePrice = price ? parseFloat(price) : (selectedMarket?.price || 0);
+                                    const notional = isAmountUSD ? val : val * executePrice;
+                                    // Est taker fee 0.025% = 0.00025
+                                    const fee = notional * 0.00025;
+                                    return `$${fee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+                                })()}
+                            </span>
                         </div>
                         <div className={styles.summaryRow}>
                             <span className={styles.summaryLabelDotted} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 Rewards <span style={{ fontSize: '10px', background: '#3A2530', padding: '0 4px', borderRadius: '4px' }}>x</span>
                                 <span style={{ fontSize: '10px', color: '#5D5FEF', background: 'rgba(93, 95, 239, 0.1)', padding: '0 4px', borderRadius: '4px' }}>New</span>
                             </span>
-                            <span className={styles.summaryValue}>0.0000</span>
+                            <span className={styles.summaryValue}>
+                                {(() => {
+                                    if (!authenticated || (summary?.account_value || 0) <= 0) return '—';
+                                    // Dummy points calc: 1 point per $100 volume?
+                                    const val = parseFloat(amount || '0');
+                                    const executePrice = price ? parseFloat(price) : (selectedMarket?.price || 0);
+                                    const notional = isAmountUSD ? val : val * executePrice;
+                                    const points = notional / 100;
+                                    return points.toFixed(4);
+                                })()}
+                            </span>
                         </div>
                     </div>
                 )}
 
                 <button
                     className={styles.mainActionBtn}
-                    onClick={handleSubmit}
-                    disabled={isSubmitting || !amount || parseFloat(amount) <= 0}
+                    onClick={() => {
+                        if (!authenticated) {
+                            handleConnect();
+                        } else if ((summary?.account_value || 0) <= 0) {
+                            openDepositModal('deposit');
+                        } else {
+                            handleSubmit();
+                        }
+                    }}
+                    disabled={authenticated && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)}
                     style={{
-                        opacity: (isSubmitting || !amount || parseFloat(amount) <= 0) ? 0.5 : 1,
-                        cursor: (isSubmitting || !amount || parseFloat(amount) <= 0) ? 'not-allowed' : 'pointer'
+                        opacity: (authenticated && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)) ? 0.5 : 1,
+                        cursor: (authenticated && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)) ? 'not-allowed' : 'pointer'
                     }}
                 >
-                    {isSubmitting ? (
+                    {!authenticated ? (
+                        <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            Connect Wallet
+                        </>
+                    ) : (summary?.account_value || 0) <= 0 ? (
+                        <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                <path d="M12 2v20"></path>
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                            Deposit
+                        </>
+                    ) : isSubmitting ? (
                         <>
                             <svg className={styles.spinner} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '6px', animation: 'spin 1s linear infinite' }}>
                                 <circle cx="12" cy="12" r="10"></circle>

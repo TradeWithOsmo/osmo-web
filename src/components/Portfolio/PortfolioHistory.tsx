@@ -6,27 +6,44 @@ import OrderHistoryTable from '../Positions/OrderHistoryTable';
 import type { TradeHistoryData } from '../Positions/TradeHistoryRow';
 import type { OrderHistoryData as APIOrderHistoryData } from '../Positions/OrderHistoryRow';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
-// import { useWallet } from '../../hooks';
-// import type { OrderData } from '../../api/orderService';
+import { useWallet } from '../../hooks';
+import type { OrderData } from '../../api/orderService';
 
 // Mapper to convert store OrderData to UI OrderHistoryData
-/*
 const mapOrderToHistoryUI = (order: OrderData): APIOrderHistoryData => {
-    ...
+    return {
+        id: order.id,
+        time: order.created_at ? new Date(order.created_at).toLocaleString() : 'Just now',
+        type: (order.order_type.charAt(0).toUpperCase() + order.order_type.slice(1).replace('_', ' ')) as any,
+        symbol: order.symbol,
+        direction: order.side.toLowerCase() === 'buy' ? 'Long' : 'Short',
+        size: order.size,
+        originalSize: order.size,
+        orderValue: order.notional_usd,
+        price: order.price || 0,
+        reduceOnly: order.reduce_only || false,
+        triggerConditions: order.stop_price ? `>= ${order.stop_price}` : 'N/A',
+        tp: '--',
+        sl: '--',
+        status: (order.status ? (order.status.charAt(0).toUpperCase() + order.status.slice(1)) : 'Unknown') as any
+    };
 };
-*/
 
 const PortfolioHistory: React.FC = () => {
     const [subTab, setSubTab] = useState<'Trades' | 'Orders'>('Orders'); // Default to Orders as we have real data for it
-    // const { fetchOrders } = usePortfolioStore();
-    // const { walletAddress, authenticated } = useWallet();
+    const { orderHistory, fetchOrders, isLoading } = usePortfolioStore();
+    const { walletAddress, authenticated } = useWallet();
 
     useEffect(() => {
-        // DISCONNECTED FROM BACKEND
-    }, []);
+        if (authenticated && walletAddress && subTab === 'Orders') {
+            fetchOrders(walletAddress, 'history');
+            const interval = setInterval(() => {
+                fetchOrders(walletAddress, 'history');
+            }, 5000);
+            return () => clearInterval(interval);
+        }
+    }, [subTab, authenticated, walletAddress]);
 
-    const authenticated = true; // Always true for demo
-    const walletAddress = "0xDemo...1234"; // Always true for demo
 
     // Sort/Filter State
     const [sortBy, setSortBy] = useState<string>('time');
@@ -60,70 +77,34 @@ const PortfolioHistory: React.FC = () => {
 
     const filteredData = React.useMemo(() => {
         if (subTab === 'Trades') {
-            // Mock Trade History
-            const mockTrades: TradeHistoryData[] = [
-                {
-                    id: '1',
-                    time: '30/12/2025 - 16.04.04',
-                    symbol: 'SOL',
-                    direction: 'Open Long',
-                    price: 124.60,
-                    size: 5.19,
-                    sizeAsset: 'SOL',
-                    tradeValue: 646.66,
-                    tradeValueAsset: 'USDC',
-                    fee: 0.29,
-                    feeAsset: 'USDC',
-                    closedPnl: -0.29,
-                    closedPnlAsset: 'USDC'
-                }
-            ];
-            return mockTrades;
+            // Temporary: Map 'Filled' orders to Trade History since backend doesn't have separate Trades endpoint yet
+            return orderHistory
+                .filter(o => o.status === 'filled' || o.status === 'Filled') // Case-insensitive check
+                .map(o => ({
+                    id: o.confirmed_txn_hash || o.id, // Use txn hash if available, else order ID
+                    time: o.created_at ? new Date(o.created_at).toLocaleString() : 'Just now',
+                    symbol: o.symbol,
+                    direction: o.side.toLowerCase() === 'buy' ? 'Long' : 'Short',
+                    price: o.avg_fill_price || o.price || 0,
+                    size: o.filled_size || o.size,
+                    sizeAsset: o.symbol.split('-')[0],
+                    tradeValue: (o.filled_size || o.size) * (o.avg_fill_price || o.price || 0),
+                    tradeValueAsset: 'USD',
+                    fee: 0, // Not yet tracked
+                    feeAsset: 'USD',
+                    closedPnl: 0, // PnL not yet tracked on order level
+                    closedPnlAsset: 'USD'
+                } as TradeHistoryData));
         } else {
-            // Mock Order History
-            const mockHistory: APIOrderHistoryData[] = [
-                {
-                    id: '1',
-                    time: '29/12/2025 - 14.20.10',
-                    type: 'Market',
-                    symbol: 'ETH',
-                    direction: 'Short',
-                    size: 2.5,
-                    originalSize: 2.5,
-                    orderValue: 6200.50,
-                    price: 2480.20,
-                    reduceOnly: true,
-                    triggerConditions: 'N/A',
-                    tp: '--',
-                    sl: '--',
-                    status: 'Filled'
-                },
-                {
-                    id: '2',
-                    time: '29/12/2025 - 10.15.00',
-                    type: 'Limit',
-                    symbol: 'BTC',
-                    direction: 'Long',
-                    size: 0.1,
-                    originalSize: 0.1,
-                    orderValue: 4500.00,
-                    price: 45000.00,
-                    reduceOnly: false,
-                    triggerConditions: 'N/A',
-                    tp: '--',
-                    sl: '--',
-                    status: 'Cancelled'
-                }
-            ];
-
-            let result = [...mockHistory];
+            // Real Order History
+            let result = orderHistory.map(mapOrderToHistoryUI);
             // Filter
             if (filterBy === 'filled') result = result.filter(o => o.status === 'Filled');
             if (filterBy === 'cancelled') result = result.filter(o => o.status === 'Cancelled');
 
             return result;
         }
-    }, [subTab, filterBy, sortBy]);
+    }, [subTab, filterBy, sortBy, orderHistory]);
 
     // Pagination Logic (Now filteredData is defined)
     const totalItems = filteredData.length;
@@ -331,7 +312,9 @@ const PortfolioHistory: React.FC = () => {
                     </div>
                 </div>
 
-                {subTab === 'Trades' ? (
+                {isLoading && subTab === 'Orders' ? (
+                    <div style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>Loading history...</div>
+                ) : subTab === 'Trades' ? (
                     <TradeHistoryTable trades={paginatedData as unknown as TradeHistoryData[]} footerContent={renderFooter()} />
                 ) : (
                     <OrderHistoryTable orders={paginatedData as unknown as APIOrderHistoryData[]} footerContent={renderFooter()} />

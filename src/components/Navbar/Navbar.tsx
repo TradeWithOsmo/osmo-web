@@ -155,204 +155,212 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Navigation Items - Desktop */}
         {navItems.length > 0 && (
           <div className={`${styles.navMenu} ${isMobileMenuOpen ? styles.mobileOpen : ''}`}>
-            {navItems.map((item, index) => (
-              <React.Fragment key={item.href}>
-                {item.label === 'Trade' ? (
-                  <>
-                    {/* Desktop: Dropdown with icon */}
-                    <div className={`${styles.dropdown} ${styles.desktopOnly}`}>
+            {navItems.map((item, index) => {
+              const isRestricted = (item.label === 'Portfolio' || item.label === 'Usage') && !authenticated;
+
+              return (
+                <React.Fragment key={item.href}>
+                  {item.label === 'Trade' ? (
+                    <>
+                      {/* Desktop: Dropdown with icon */}
+                      <div className={`${styles.dropdown} ${styles.desktopOnly}`}>
+                        <button
+                          className={`${styles.navItem} ${styles.dropdownToggle} ${item.isActive ? styles.active : ''}`}
+                          onClick={toggleTradeDropdown}
+                          title={item.label}
+                        >
+                          <img src={currentTradeIcon} alt="Trade Mode" className={styles['trade-mode-icon']} />
+                          <svg
+                            width="10"
+                            height="6"
+                            viewBox="0 0 10 6"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            className={`${styles.navArrow} ${isTradeDropdownOpen ? styles.rotate : ''}`}
+                          >
+                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                        {isTradeDropdownOpen && (
+                          <div className={styles.dropdownMenu}>
+                            <button
+                              className={styles.dropdownItem}
+                              onClick={() => {
+                                selectTradeMode('trade')
+                                onNavClick?.('/trade')
+                                closeMobileMenu()
+                              }}
+                            >
+                              <img src={tradeIcon} alt="Trade" className={styles['trade-mode-icon']} />
+                            </button>
+                            <button
+                              className={styles.dropdownItem}
+                              onClick={() => {
+                                selectTradeMode('autos')
+                                onNavClick?.('/autos')
+                                closeMobileMenu()
+                              }}
+                            >
+                              <img src={autosIcon} alt="Autos" className={styles['trade-mode-icon']} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {/* Mobile: Two separate items */}
+                      <>
+                        <a
+                          href="/trade"
+                          className={`${styles.navItem} ${styles.mobileOnly}`}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            onNavClick?.('/trade')
+                            closeMobileMenu()
+                          }}
+                          title="Trade"
+                        >
+                          <span>Trade</span>
+                        </a>
+                        <a
+                          href="/autos"
+                          className={`${styles.navItem} ${styles.mobileOnly}`}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            onNavClick?.('/autos')
+                            closeMobileMenu()
+                          }}
+                          title="Autonomus"
+                        >
+                          <span>Autonomus</span>
+                        </a>
+                      </>
+                    </>
+                  ) : item.label === 'Portfolio' ? (
+                    <>
+                      {/* Mobile: Dropdown */}
                       <button
-                        className={`${styles.navItem} ${styles.dropdownToggle} ${item.isActive ? styles.active : ''}`}
-                        onClick={toggleTradeDropdown}
-                        title={item.label}
+                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly} ${isRestricted ? styles.disabled : ''}`}
+                        onClick={() => !isRestricted && togglePortfolioDropdown()}
+                        style={{ justifyContent: 'space-between', width: '100%' }}
+                        disabled={isRestricted}
                       >
-                        <img src={currentTradeIcon} alt="Trade Mode" className={styles['trade-mode-icon']} />
+                        <span>{item.label}</span>
                         <svg
                           width="10"
                           height="6"
                           viewBox="0 0 10 6"
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
-                          className={`${styles.navArrow} ${isTradeDropdownOpen ? styles.rotate : ''}`}
+                          className={`${styles.navArrow} ${isPortfolioDropdownOpen ? styles.rotate : ''}`}
                         >
                           <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
-                      {isTradeDropdownOpen && (
-                        <div className={styles.dropdownMenu}>
-                          <button
-                            className={styles.dropdownItem}
-                            onClick={() => {
-                              selectTradeMode('trade')
-                              onNavClick?.('/trade')
-                              closeMobileMenu()
-                            }}
-                          >
-                            <img src={tradeIcon} alt="Trade" className={styles['trade-mode-icon']} />
-                          </button>
-                          <button
-                            className={styles.dropdownItem}
-                            onClick={() => {
-                              selectTradeMode('autos')
-                              onNavClick?.('/autos')
-                              closeMobileMenu()
-                            }}
-                          >
-                            <img src={autosIcon} alt="Autos" className={styles['trade-mode-icon']} />
-                          </button>
+                      {isPortfolioDropdownOpen && (
+                        <div className={`${styles.mobileSubMenu} ${styles.mobileOnly}`}>
+                          {['Overview', 'Positions', 'Orders', 'History', 'Fees'].map(subItem => (
+                            <a
+                              key={subItem}
+                              href={`/portfolio?tab=${subItem}`}
+                              className={styles.mobileSubMenuItem}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                onNavClick?.(`/portfolio?tab=${subItem}`)
+                                closeMobileMenu()
+                              }}
+                            >
+                              {subItem}
+                            </a>
+                          ))}
                         </div>
                       )}
-                    </div>
-                    {/* Mobile: Two separate items */}
-                    <>
+
+                      {/* Desktop: Simple Link */}
                       <a
-                        href="/trade"
-                        className={`${styles.navItem} ${styles.mobileOnly}`}
+                        href={item.href}
+                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly} ${isRestricted ? styles.disabled : ''}`}
                         onClick={(e) => {
                           e.preventDefault()
-                          onNavClick?.('/trade')
-                          closeMobileMenu()
+                          if (isRestricted) return;
+                          onNavClick?.(item.href)
                         }}
-                        title="Trade"
+                        title={item.label}
                       >
-                        <span>Trade</span>
-                      </a>
-                      <a
-                        href="/autos"
-                        className={`${styles.navItem} ${styles.mobileOnly}`}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          onNavClick?.('/autos')
-                          closeMobileMenu()
-                        }}
-                        title="Autonomus"
-                      >
-                        <span>Autonomus</span>
+                        <span>{item.label}</span>
                       </a>
                     </>
-                  </>
-                ) : item.label === 'Portfolio' ? (
-                  <>
-                    {/* Mobile: Dropdown */}
-                    <button
-                      className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly}`}
-                      onClick={() => togglePortfolioDropdown()}
-                      style={{ justifyContent: 'space-between', width: '100%' }}
-                    >
-                      <span>{item.label}</span>
-                      <svg
-                        width="10"
-                        height="6"
-                        viewBox="0 0 10 6"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        className={`${styles.navArrow} ${isPortfolioDropdownOpen ? styles.rotate : ''}`}
+                  ) : item.label === 'Usage' ? (
+                    <>
+                      {/* Mobile: Dropdown */}
+                      <button
+                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly} ${isRestricted ? styles.disabled : ''}`}
+                        onClick={() => !isRestricted && toggleUsageDropdown()}
+                        style={{ justifyContent: 'space-between', width: '100%' }}
+                        disabled={isRestricted}
                       >
-                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                    {isPortfolioDropdownOpen && (
-                      <div className={`${styles.mobileSubMenu} ${styles.mobileOnly}`}>
-                        {['Overview', 'Positions', 'Orders', 'History', 'Fees'].map(subItem => (
-                          <a
-                            key={subItem}
-                            href={`/portfolio?tab=${subItem}`}
-                            className={styles.mobileSubMenuItem}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              onNavClick?.(`/portfolio?tab=${subItem}`)
-                              closeMobileMenu()
-                            }}
-                          >
-                            {subItem}
-                          </a>
-                        ))}
-                      </div>
-                    )}
+                        <span>{item.label}</span>
+                        <svg
+                          width="10"
+                          height="6"
+                          viewBox="0 0 10 6"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          className={`${styles.navArrow} ${isUsageDropdownOpen ? styles.rotate : ''}`}
+                        >
+                          <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      {isUsageDropdownOpen && (
+                        <div className={`${styles.mobileSubMenu} ${styles.mobileOnly}`}>
+                          {['Overview', 'Usage', 'Model Fee'].map(subItem => (
+                            <a
+                              key={subItem}
+                              href={`/usage?tab=${subItem}`}
+                              className={styles.mobileSubMenuItem}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                onNavClick?.(`/usage?tab=${subItem}`)
+                                closeMobileMenu()
+                              }}
+                            >
+                              {subItem}
+                            </a>
+                          ))}
+                        </div>
+                      )}
 
-                    {/* Desktop: Simple Link */}
+                      {/* Desktop: Simple Link */}
+                      <a
+                        href={item.href}
+                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly} ${isRestricted ? styles.disabled : ''}`}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (isRestricted) return;
+                          onNavClick?.(item.href)
+                        }}
+                        title={item.label}
+                      >
+                        <span>{item.label}</span>
+                      </a>
+                    </>
+                  ) : (
+
                     <a
                       href={item.href}
-                      className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly}`}
+                      className={`${styles.navItem} ${item.isActive ? styles.active : ''}`}
                       onClick={(e) => {
                         e.preventDefault()
                         onNavClick?.(item.href)
+                        closeMobileMenu()
                       }}
                       title={item.label}
                     >
                       <span>{item.label}</span>
                     </a>
-                  </>
-                ) : item.label === 'Usage' ? (
-                  <>
-                    {/* Mobile: Dropdown */}
-                    <button
-                      className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly}`}
-                      onClick={() => toggleUsageDropdown()}
-                      style={{ justifyContent: 'space-between', width: '100%' }}
-                    >
-                      <span>{item.label}</span>
-                      <svg
-                        width="10"
-                        height="6"
-                        viewBox="0 0 10 6"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        className={`${styles.navArrow} ${isUsageDropdownOpen ? styles.rotate : ''}`}
-                      >
-                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                    {isUsageDropdownOpen && (
-                      <div className={`${styles.mobileSubMenu} ${styles.mobileOnly}`}>
-                        {['Overview', 'Usage', 'Model Fee'].map(subItem => (
-                          <a
-                            key={subItem}
-                            href={`/usage?tab=${subItem}`}
-                            className={styles.mobileSubMenuItem}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              onNavClick?.(`/usage?tab=${subItem}`)
-                              closeMobileMenu()
-                            }}
-                          >
-                            {subItem}
-                          </a>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Desktop: Simple Link */}
-                    <a
-                      href={item.href}
-                      className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly}`}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        onNavClick?.(item.href)
-                      }}
-                      title={item.label}
-                    >
-                      <span>{item.label}</span>
-                    </a>
-                  </>
-                ) : (
-
-                  <a
-                    href={item.href}
-                    className={`${styles.navItem} ${item.isActive ? styles.active : ''}`}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      onNavClick?.(item.href)
-                      closeMobileMenu()
-                    }}
-                    title={item.label}
-                  >
-                    <span>{item.label}</span>
-                  </a>
-                )}
-                {index < navItems.length - 1 && <div className={styles.divider} />}
-              </React.Fragment>
-            ))}
+                  )}
+                  {index < navItems.length - 1 && <div className={styles.divider} />}
+                </React.Fragment>
+              )
+            })}
 
             {/* Mobile Action Footer */}
             <div className={`${styles.mobileActionFooter} ${styles.mobileOnly}`}>

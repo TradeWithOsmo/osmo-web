@@ -6,6 +6,8 @@ import type { PositionData } from '../Positions/PositionRow';
 import OrdersTable from '../Positions/OrdersTable';
 import type { OrderData } from '../Positions/OrderRow';
 import { useUIStore } from '../../store/useUIStore';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useWallet } from '../../hooks/useWallet';
 
 // Map API data to UI format (Keep for future use)
 /*
@@ -22,36 +24,46 @@ const PortfolioPositions: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'Positions' | 'Orders'>('Positions');
 
     // Get data from store
-    // const { positions, openOrders, fetchPositions, fetchOrders } = usePortfolioStore();
+    const { positions, openOrders, fetchPositions, fetchOrders, isLoading, error } = usePortfolioStore();
     const { openCloseAllModal } = useUIStore();
 
     // Get wallet from Privy
-    // const { authenticated, walletAddress } = useWallet();
-    const authenticated = true;
-    const walletAddress = "0xDemo...1234";
+    const { authenticated, walletAddress } = useWallet();
 
     // Fetch data on mount and tab change
     useEffect(() => {
-        // Disconnected from backend for demo purposes
-        /*
         if (!authenticated || !walletAddress) return;
 
-        if (activeTab === 'Positions') {
-            fetchPositions(walletAddress);
-        } else {
-            fetchOrders(walletAddress, 'pending'); 
-        }
-        */
-    }, [activeTab, authenticated, walletAddress]);
+        // Poll every 5 seconds or fetch once
+        const fetchData = () => {
+            if (activeTab === 'Positions') {
+                fetchPositions(walletAddress);
+            } else {
+                fetchOrders(walletAddress, 'pending');
+            }
+        };
 
-    // Sort/Filter
+        fetchData();
+        const interval = setInterval(fetchData, 3000); // Poll every 3 seconds for faster updates
+        return () => clearInterval(interval);
+    }, [activeTab, authenticated, walletAddress]); // Removed fetchReferences to avoid re-triggering
+
+    // Error Toast
+    useEffect(() => {
+        if (error) {
+            // toast.error(error); // Optional: prevent spamming toasts on poll
+            console.error(error);
+        }
+    }, [error]);
+
+    // Sort/Filter State
     const [sortBy, setSortBy] = React.useState<string>('default');
     const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('desc');
     const [filterBy, setFilterBy] = React.useState<string>('all');
     const [isSortOpen, setIsSortOpen] = React.useState(false);
     const [isFilterOpen, setIsFilterOpen] = React.useState(false);
 
-    // Pagination / View Mode
+    // Pagination / View Mode State
     const [viewMode, setViewMode] = useState<'preview' | 'full'>('preview');
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -85,67 +97,70 @@ const PortfolioPositions: React.FC = () => {
         }
     };
 
+    // Data Mappers
+    const mapAPIPositionToUI = (apiPos: any): PositionData => {
+        const isLong = apiPos.side.toLowerCase() === 'long';
+        return {
+            id: apiPos.id,
+            symbol: apiPos.symbol,
+            pair: apiPos.symbol, // backend usually returns pair like SOL-USD
+            side: isLong ? 'Long' : 'Short',
+            size: apiPos.size,
+            sizeUsd: apiPos.size * apiPos.mark_price, // Calculate approximate USD value
+            leverage: `${apiPos.leverage}x`,
+            entryPrice: apiPos.entry_price,
+            markPrice: apiPos.mark_price || apiPos.entry_price, // Fallback
+            liquidationPrice: apiPos.liquidation_price,
+            unrealizedPnl: apiPos.unrealized_pnl,
+            unrealizedPnlPercent: (apiPos.unrealized_pnl / (apiPos.margin_used || 1)) * 100, // ROI calc
+            margin: apiPos.margin_used || 0,
+            funding: 0, // Not provided by API yet
+            tp: apiPos.tp || '--',
+            sl: apiPos.sl || '--'
+        };
+    };
+
+    const mapAPIOrderToUI = (apiOrder: any): OrderData => {
+        return {
+            id: apiOrder.id,
+            time: apiOrder.created_at ? new Date(apiOrder.created_at).toLocaleString() : 'Just now',
+            type: (apiOrder.order_type.charAt(0).toUpperCase() + apiOrder.order_type.slice(1).replace('_', ' ')) as any,
+            symbol: apiOrder.symbol,
+            direction: apiOrder.side.toLowerCase() === 'buy' ? 'Long' : 'Short',
+            size: apiOrder.size,
+            originalSize: apiOrder.size, // Assuming partial fills logic handled elsewhere or same
+            orderValue: apiOrder.notional_usd,
+            price: apiOrder.price || 0,
+            reduceOnly: false, // API doesn't return this yet
+            triggerConditions: apiOrder.stop_price ? `>= ${apiOrder.stop_price}` : 'N/A', // Simple logic
+            tp: '--', // Backend TODO: Return TP/SL for orders
+            sl: '--'
+        };
+    };
+
     const filteredData = React.useMemo(() => {
         if (activeTab === 'Positions') {
-            // DISCONNECTED FROM BACKEND - Using Mock Data
-            const mockPositions: PositionData[] = [
-                {
-                    id: '3',
-                    symbol: 'SOL',
-                    pair: 'SOL-USD',
-                    side: 'Long',
-                    size: 37.35,
-                    sizeUsd: 4926.84,
-                    leverage: '20x',
-                    entryPrice: 131.91,
-                    markPrice: 115.34,
-                    liquidationPrice: 95.20,
-                    unrealizedPnl: -618.89,
-                    unrealizedPnlPercent: -12.54,
-                    margin: 246.34,
-                    funding: -2.45,
-                    tp: '--',
-                    sl: '--'
-                }
-            ];
+            let result = positions.map(mapAPIPositionToUI);
 
-            let result = [...mockPositions];
             // Sort
             if (sortBy === 'value') {
-                result.sort((a, b) => sortDirection === 'asc' ? a.sizeUsd - b.sizeUsd : b.sizeUsd - a.sizeUsd);
+                result.sort((a: PositionData, b: PositionData) => sortDirection === 'asc' ? a.sizeUsd - b.sizeUsd : b.sizeUsd - a.sizeUsd);
             } else if (sortBy === 'coin') {
-                result.sort((a, b) => sortDirection === 'asc' ? a.symbol.localeCompare(b.symbol) : b.symbol.localeCompare(a.symbol) || 0);
+                result.sort((a: PositionData, b: PositionData) => sortDirection === 'asc' ? a.symbol.localeCompare(b.symbol) : b.symbol.localeCompare(a.symbol) || 0);
             }
             // Filter
-            if (filterBy === 'long') result = result.filter(p => p.side === 'Long');
-            if (filterBy === 'short') result = result.filter(p => p.side === 'Short');
+            if (filterBy === 'long') result = result.filter((p: PositionData) => p.side === 'Long');
+            if (filterBy === 'short') result = result.filter((p: PositionData) => p.side === 'Short');
             return result;
         } else {
-            // Orders Mock Data
-            const mockOrders: OrderData[] = [
-                {
-                    id: '1',
-                    time: '30/12/2025 - 16.04.22',
-                    type: 'Limit',
-                    symbol: 'SOL',
-                    direction: 'Long',
-                    size: 9.85,
-                    originalSize: 9.85,
-                    orderValue: 1222.78,
-                    price: 124.14,
-                    reduceOnly: false,
-                    triggerConditions: 'N/A',
-                    tp: '--',
-                    sl: '--'
-                }
-            ];
-            let result = [...mockOrders];
+            let result = openOrders.map(mapAPIOrderToUI);
+
             if (sortBy === 'orderValue') {
-                result.sort((a, b) => sortDirection === 'asc' ? a.orderValue - b.orderValue : b.orderValue - a.orderValue);
+                result.sort((a: OrderData, b: OrderData) => sortDirection === 'asc' ? a.orderValue - b.orderValue : b.orderValue - a.orderValue);
             }
             return result;
         }
-    }, [activeTab, sortBy, sortDirection, filterBy]);
+    }, [activeTab, sortBy, sortDirection, filterBy, positions, openOrders]);
 
 
     // Logic: If items <= 5, just show them. If > 5, show preview with View All button
@@ -427,7 +442,13 @@ const PortfolioPositions: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {displayedData.length > 0 ? (
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan={11} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                                            Loading positions...
+                                        </td>
+                                    </tr>
+                                ) : displayedData.length > 0 ? (
                                     (displayedData as PositionData[]).map(pos => (
                                         <PositionRow key={pos.id} position={pos} />
                                     ))

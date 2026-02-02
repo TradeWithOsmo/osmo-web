@@ -7,14 +7,7 @@ import deepseekLogo from '../../assets/Model logos/DeepSeek.png';
 import openaiLogo from '../../assets/Model logos/OpenAI.svg';
 import googleLogo from '../../assets/Model logos/GoogleGemini.svg';
 
-const USAGE_HISTORY_DATA = [
-    { id: 1, timestamp: '2024-05-20 14:30', logo: openaiLogo, model: 'GPT-4o', tokens: '1,250', cost: '$0.0075', speed: '45 ms/t', finish: 'Complete' },
-    { id: 2, timestamp: '2024-05-20 14:28', logo: anthropicLogo, model: 'Claude 3.5 Sonnet', tokens: '890', cost: '$0.0027', speed: '38 ms/t', finish: 'Complete' },
-    { id: 3, timestamp: '2024-05-20 14:15', logo: deepseekLogo, model: 'DeepSeek V3', tokens: '3,400', cost: '$0.0005', speed: '12 ms/t', finish: 'Complete' },
-    { id: 4, timestamp: '2024-05-20 13:50', logo: googleLogo, model: 'Gemini 1.5 Pro', tokens: '5,600', cost: '$0.0196', speed: '55 ms/t', finish: 'Complete' },
-    { id: 5, timestamp: '2024-05-20 13:45', logo: openaiLogo, model: 'GPT-4 Turbo', tokens: '150', cost: '$0.0015', speed: '48 ms/t', finish: 'Error' },
-    { id: 6, timestamp: '2024-05-20 12:30', logo: anthropicLogo, model: 'Claude 3 Opus', tokens: '4,200', cost: '$0.0630', speed: '85 ms/t', finish: 'Complete' },
-];
+
 
 const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -26,7 +19,18 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
                 <td className={panelStyles.td} style={{ color: '#A77590' }}>{item.timestamp}</td>
                 <td className={panelStyles.td}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img src={item.logo} alt={item.model} style={{ width: '18px', height: '18px', borderRadius: '4px' }} />
+                        {/* Dynamic Logo Logic */}
+                        <img
+                            src={
+                                item.model.toLowerCase().includes('gpt') ? openaiLogo :
+                                    item.model.toLowerCase().includes('claude') ? anthropicLogo :
+                                        item.model.toLowerCase().includes('gemini') ? googleLogo :
+                                            item.model.toLowerCase().includes('deepseek') ? deepseekLogo :
+                                                openaiLogo // Default
+                            }
+                            alt={item.model}
+                            style={{ width: '18px', height: '18px', borderRadius: '4px' }}
+                        />
                         <span>{item.model}</span>
                     </div>
                 </td>
@@ -54,7 +58,17 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
                             <div className={panelStyles.mobileHeaderContent} style={{ gridTemplateColumns: '1fr 1fr' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <img src={item.logo} alt={item.model} style={{ width: '16px', height: '16px' }} />
+                                        <img
+                                            src={
+                                                item.model.toLowerCase().includes('gpt') ? openaiLogo :
+                                                    item.model.toLowerCase().includes('claude') ? anthropicLogo :
+                                                        item.model.toLowerCase().includes('gemini') ? googleLogo :
+                                                            item.model.toLowerCase().includes('deepseek') ? deepseekLogo :
+                                                                openaiLogo // Default
+                                            }
+                                            alt={item.model}
+                                            style={{ width: '16px', height: '16px' }}
+                                        />
                                         <span style={{ color: '#FFE1F2', fontSize: '14px', fontWeight: 600 }}>{item.model}</span>
                                     </div>
                                     <span style={{ color: '#A77590', fontSize: '11px' }}>{item.timestamp}</span>
@@ -89,18 +103,33 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
     );
 };
 
+import { useWallet } from '../../hooks/useWallet';
+import { useUsageStore } from '../../store/useUsageStore';
+import { useEffect } from 'react';
+
+// ... (imports remain)
+
 const UsageHistoryTable: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
 
+    const { walletAddress } = useWallet();
+    const { history, fetchHistory } = useUsageStore();
+
+    useEffect(() => {
+        if (walletAddress) {
+            fetchHistory(walletAddress);
+        }
+    }, [walletAddress, fetchHistory]);
+
     const toggleRowsDropdown = () => setIsRowsDropdownOpen(!isRowsDropdownOpen);
 
-    const totalItems = USAGE_HISTORY_DATA.length;
+    const totalItems = history.length;
     const totalPages = Math.ceil(totalItems / rowsPerPage);
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
-    const displayedData = USAGE_HISTORY_DATA.slice(startIndex, endIndex);
+    const displayedData = history.slice(startIndex, endIndex);
 
     const goToPage = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -132,9 +161,17 @@ const UsageHistoryTable: React.FC = () => {
                                     <UsageHistoryRow key={item.id} item={item} />
                                 ))
                             ) : (
-                                <tr>
-                                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
-                                        No usage history found
+                                <tr style={{ height: '300px' }}>
+                                    <td colSpan={6} style={{ textAlign: 'center', pointerEvents: 'none' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: 0.5 }}>
+                                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5" stroke="#FFE1F2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                <span style={{ color: '#FFE1F2', fontSize: '16px', fontWeight: 500 }}>No Usage History</span>
+                                                <span style={{ color: '#A77590', fontSize: '13px' }}>Your AI agent interactions will appear here</span>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             )}

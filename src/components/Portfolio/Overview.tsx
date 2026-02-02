@@ -4,21 +4,21 @@ import PortfolioPositions from './PortfolioPositions';
 import PortfolioChart from './PortfolioChart';
 
 
-const Overview: React.FC = () => {
-    // DISCONNECTED FROM BACKEND
-    // MOCK SUMMARY DATA
-    const mockSummary = {
-        account_value: 12540.50,
-        free_collateral: 8412.20,
-        total_margin_used: 4128.30,
-        margin_usage: 32,
-        leverage: 2.5
-    };
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useWallet } from '../../hooks/useWallet';
 
-    const summary = mockSummary; // Overwrite store summary with mock
-    const hasTradingHistory = true; // Always true for demo
-    const authenticated = true; // Always true for demo
-    const walletAddress = "0xDemo...1234"; // Always true for demo
+const Overview: React.FC = () => {
+    const { summary, isLoading } = usePortfolioStore();
+    const { authenticated, walletAddress } = useWallet();
+
+    // Derive explicit values from summary or use defaults
+    const accountValue = summary?.account_value ?? 0;
+    const freeCollateral = summary?.free_collateral ?? 0;
+    const positionMargin = summary?.total_margin_used ?? 0;
+    const marginUsage = summary?.margin_usage ?? 0;
+    const leverage = summary?.leverage ?? 0;
+
+    const hasTradingHistory = !!summary; // Basic check
 
     const formatVal = (val: number | undefined, prefix = '$', suffix = '') => {
         // If not authenticated → show "-"
@@ -53,21 +53,21 @@ const Overview: React.FC = () => {
             <div style={{ marginBottom: '24px' }}>
                 <div className={styles.sectionTitle}>Portfolio Value</div>
                 <div className={styles.balanceValue} style={{ fontSize: '32px', marginTop: '8px' }}>
-                    {formatVal(summary?.account_value)}
+                    {isLoading ? <span style={{ fontSize: '24px', opacity: 0.5 }}>Loading...</span> : formatVal(accountValue)}
                 </div>
 
                 <div className={styles.legendContainer}>
                     <div className={styles.legendItem}>
                         <div className={styles.colorDot} style={{ backgroundColor: '#8B8B9B' }}></div>
                         <div className={styles.legendText}>
-                            <div className={styles.legendValue}>{formatVal(summary?.free_collateral)}</div>
+                            <div className={styles.legendValue}>{formatVal(freeCollateral)}</div>
                             <div className={styles.legendLabel}>Free Collateral</div>
                         </div>
                     </div>
                     <div className={styles.legendItem}>
                         <div className={styles.colorDot} style={{ backgroundColor: '#F2C94C' }}></div>
                         <div className={styles.legendText}>
-                            <div className={styles.legendValue}>{formatVal(summary?.total_margin_used)}</div>
+                            <div className={styles.legendValue}>{formatVal(positionMargin)}</div>
                             <div className={styles.legendLabel}>Position Margin</div>
                         </div>
                     </div>
@@ -82,9 +82,9 @@ const Overview: React.FC = () => {
                         <div className={styles.cardTitle}>Trading Account</div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div className={styles.balanceValue}>{formatVal(summary?.account_value)}</div>
+                            <div className={styles.balanceValue}>{formatVal(accountValue)}</div>
                             <div style={{ color: '#A77590', fontSize: '12px' }}>
-                                Buying Power: {formatVal(summary ? summary.account_value * 10 : undefined)}
+                                Buying Power: {formatVal(accountValue * 10)}
                             </div>
                         </div>
                     </div>
@@ -92,11 +92,11 @@ const Overview: React.FC = () => {
                     <div className={styles.tradingAccountBottom}>
                         <div className={styles.bottomStatBox}>
                             <span className={styles.cardTitle}>Margin Usage</span>
-                            <span className={styles.statVal}>{formatPercent(summary?.margin_usage)}</span>
+                            <span className={styles.statVal}>{formatPercent(marginUsage)}</span>
                         </div>
                         <div className={styles.bottomStatBox}>
                             <span className={styles.cardTitle}>Leverage</span>
-                            <span className={styles.statVal}>{formatLeverage(summary?.leverage)}</span>
+                            <span className={styles.statVal}>{formatLeverage(leverage)}</span>
                         </div>
                     </div>
                 </div>

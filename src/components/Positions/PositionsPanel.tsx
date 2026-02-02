@@ -38,98 +38,7 @@ const SortIcon = ({ active, direction }: { active: boolean; direction: 'asc' | '
     );
 };
 
-// Mock Data
-const MOCK_POSITIONS: PositionData[] = [
-    {
-        id: '3',
-        symbol: 'SOL',
-        pair: 'SOL-USD',
-        side: 'Long',
-        size: 37.35,
-        sizeUsd: 4926.84,
-        leverage: '20x',
-        entryPrice: 131.91,
-        markPrice: 115.34,
-        liquidationPrice: 95.20,
-        unrealizedPnl: -618.89,
-        unrealizedPnlPercent: -12.54,
-        margin: 246.34,
-        funding: -2.45,
-        tp: '--',
-        sl: '--'
-    }
-];
-
-const MOCK_ORDERS: OrderData[] = [
-    {
-        id: '1',
-        time: '30/12/2025 - 16.04.22',
-        type: 'Limit',
-        symbol: 'SOL',
-        direction: 'Long',
-        size: 9.85,
-        originalSize: 9.85,
-        orderValue: 1222.78,
-        price: 124.14,
-        reduceOnly: false,
-        triggerConditions: 'N/A',
-        tp: '--',
-        sl: '--'
-    }
-];
-
-const MOCK_TRADE_HISTORY: TradeHistoryData[] = [
-    {
-        id: '1',
-        time: '30/12/2025 - 16.04.04',
-        symbol: 'SOL',
-        direction: 'Open Long',
-        price: 124.60,
-        size: 5.19,
-        sizeAsset: 'SOL',
-        tradeValue: 646.66,
-        tradeValueAsset: 'USDC',
-        fee: 0.29,
-        feeAsset: 'USDC',
-        closedPnl: -0.29,
-        closedPnlAsset: 'USDC'
-    }
-];
-
-const MOCK_ORDER_HISTORY: OrderHistoryData[] = [
-    {
-        id: '1',
-        time: '29/12/2025 - 14.20.10',
-        type: 'Market',
-        symbol: 'ETH',
-        direction: 'Short',
-        size: 2.5,
-        originalSize: 2.5,
-        orderValue: 6200.50,
-        price: 2480.20,
-        reduceOnly: true,
-        triggerConditions: 'N/A',
-        tp: '--',
-        sl: '--',
-        status: 'Filled'
-    },
-    {
-        id: '2',
-        time: '29/12/2025 - 10.15.00',
-        type: 'Limit',
-        symbol: 'BTC',
-        direction: 'Long',
-        size: 0.1,
-        originalSize: 0.1,
-        orderValue: 4500.00,
-        price: 45000.00,
-        reduceOnly: false,
-        triggerConditions: 'N/A',
-        tp: '--',
-        sl: '--',
-        status: 'Cancelled'
-    }
-];
+// Mock data removed in favor of real store data
 
 type TabType = 'Positions' | 'Orders' | 'Trade History' | 'Order History';
 
@@ -138,10 +47,28 @@ interface PositionsPanelProps {
     onToggle?: () => void;
 }
 
+import { useWallet } from '../../hooks/useWallet';
+
 const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpanded, onToggle }) => {
     const { openCloseAllModal } = useUIStore();
-    const { positions } = usePortfolioStore();
+    const { positions, openOrders, orderHistory, fetchPositions, fetchOrders, isLoading, error } = usePortfolioStore();
+    const { authenticated, walletAddress } = useWallet();
     const [activeTab, setActiveTab] = useState<TabType>('Positions');
+
+    // Fetch Data
+    React.useEffect(() => {
+        if (!authenticated || !walletAddress) return;
+
+        const fetchData = () => {
+            fetchPositions(walletAddress);
+            fetchOrders(walletAddress, 'pending');
+            fetchOrders(walletAddress, 'history');
+        };
+
+        fetchData();
+        const interval = setInterval(fetchData, 3000); // 3s polling
+        return () => clearInterval(interval);
+    }, [authenticated, walletAddress]);
     // Local state fallback if not controlled
     const [localExpanded, setLocalExpanded] = useState(true);
 
@@ -157,7 +84,7 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
 
     // Derived counts
     const positionsCount = positions.length;
-    const ordersCount = MOCK_ORDERS.length;
+    const ordersCount = openOrders.length;
 
     return (
         <div className={`${styles.panelContainer} ${isExpanded ? styles.expanded : styles.collapsed}`}>
@@ -237,6 +164,8 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                                     e.stopPropagation();
                                                     openCloseAllModal();
                                                 }}
+                                                disabled={positions.length === 0}
+                                                style={{ opacity: positions.length === 0 ? 0.5 : 1, cursor: positions.length === 0 ? 'not-allowed' : 'pointer' }}
                                             >
                                                 Close All
                                             </button>
@@ -245,41 +174,106 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {positions.map(pos => (
-                                        <PositionRow key={pos.id} position={{
-                                            id: pos.id,
-                                            symbol: pos.symbol,
-                                            pair: pos.symbol,
-                                            side: pos.side === 'long' ? 'Long' : 'Short',
-                                            size: pos.size,
-                                            sizeUsd: pos.size * (pos.mark_price || 0),
-                                            leverage: `${pos.leverage}x`,
-                                            entryPrice: pos.entry_price,
-                                            markPrice: pos.mark_price || 0,
-                                            liquidationPrice: pos.liquidation_price || null,
-                                            unrealizedPnl: pos.unrealized_pnl,
-                                            unrealizedPnlPercent: (pos.unrealized_pnl / (pos.size * pos.entry_price / pos.leverage)) * 100,
-                                            margin: pos.margin_used || 0,
-                                            funding: 0,
-                                            tp: pos.tp,
-                                            sl: pos.sl
-                                        }} />
-                                    ))}
+                                    {isLoading && positions.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={11} style={{ textAlign: 'center', padding: '40px 0', color: '#A77590' }}>
+                                                Loading positions...
+                                            </td>
+                                        </tr>
+                                    ) : error ? (
+                                        <tr>
+                                            <td colSpan={11} style={{ textAlign: 'center', padding: '40px 0' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{ color: '#FF4560', fontSize: '14px' }}>⚠ Failed to load positions</span>
+                                                    <span style={{ color: '#A77590', fontSize: '12px' }}>{error}</span>
+                                                    <button
+                                                        onClick={() => fetchPositions(walletAddress!)}
+                                                        style={{ marginTop: '8px', padding: '4px 12px', background: '#3A2530', border: '1px solid #5D4050', borderRadius: '4px', cursor: 'pointer', color: '#FFE1F2' }}
+                                                    >
+                                                        Retry
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : positions.length > 0 ? (
+                                        positions.map(pos => (
+                                            <PositionRow key={pos.id} position={{
+                                                id: pos.id,
+                                                symbol: pos.symbol,
+                                                pair: pos.symbol,
+                                                side: pos.side === 'long' ? 'Long' : 'Short',
+                                                size: pos.size,
+                                                sizeUsd: pos.size * (pos.mark_price || 0),
+                                                leverage: `${pos.leverage}x`,
+                                                entryPrice: pos.entry_price,
+                                                markPrice: pos.mark_price || 0,
+                                                liquidationPrice: pos.liquidation_price || null,
+                                                unrealizedPnl: pos.unrealized_pnl,
+                                                unrealizedPnlPercent: (pos.unrealized_pnl / (pos.size * pos.entry_price / pos.leverage)) * 100,
+                                                margin: pos.margin_used || 0,
+                                                funding: 0,
+                                                tp: pos.tp,
+                                                sl: pos.sl
+                                            }} />
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={11} style={{ textAlign: 'center', padding: '40px 0' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#5D4050" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                                                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                                                    </svg>
+                                                    <span style={{ color: '#A77590', fontSize: '14px' }}>No open positions</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
                     )}
 
                     {activeTab === 'Orders' && (
-                        <OrdersTable orders={MOCK_ORDERS} />
+                        <OrdersTable orders={openOrders.map(o => ({
+                            id: o.id,
+                            time: o.created_at ? new Date(o.created_at).toLocaleString() : 'Just now',
+                            type: (o.order_type.charAt(0).toUpperCase() + o.order_type.slice(1).replace('_', ' ')) as any,
+                            symbol: o.symbol,
+                            direction: o.side.toLowerCase() === 'buy' ? 'Long' : 'Short',
+                            size: o.size,
+                            originalSize: o.size,
+                            orderValue: o.notional_usd,
+                            price: o.price || 0,
+                            reduceOnly: o.reduce_only || false,
+                            triggerConditions: o.stop_price ? `>= ${o.stop_price}` : 'N/A',
+                            tp: '--',
+                            sl: '--'
+                        }))} />
                     )}
 
                     {activeTab === 'Trade History' && (
-                        <TradeHistoryTable trades={MOCK_TRADE_HISTORY} />
+                        <TradeHistoryTable trades={[]} /> // Empty for now
                     )}
 
                     {activeTab === 'Order History' && (
-                        <OrderHistoryTable orders={MOCK_ORDER_HISTORY} />
+                        <OrderHistoryTable orders={orderHistory.map(o => ({
+                            id: o.id,
+                            time: o.created_at ? new Date(o.created_at).toLocaleString() : 'Just now',
+                            type: (o.order_type.charAt(0).toUpperCase() + o.order_type.slice(1).replace('_', ' ')) as any,
+                            symbol: o.symbol,
+                            direction: o.side.toLowerCase() === 'buy' ? 'Long' : 'Short',
+                            size: o.size,
+                            originalSize: o.size,
+                            orderValue: o.notional_usd,
+                            price: o.price || 0,
+                            reduceOnly: o.reduce_only || false,
+                            triggerConditions: o.stop_price ? `>= ${o.stop_price}` : 'N/A',
+                            tp: '--', // Backend TODO
+                            sl: '--', // Backend TODO
+                            status: (o.status ? (o.status.charAt(0).toUpperCase() + o.status.slice(1)) : 'Unknown') as any
+                        }))} />
                     )}
                 </div>
             )

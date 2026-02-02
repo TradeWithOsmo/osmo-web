@@ -2,9 +2,17 @@ import React, { useState } from 'react';
 import styles from './CloseAllModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
 
+import { useWallet } from '../../hooks/useWallet';
+import { orderService } from '../../api/orderService';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import toast from 'react-hot-toast';
+
 export const CloseAllModal: React.FC = () => {
     const { isCloseAllModalOpen, closeCloseAllModal } = useUIStore();
+    const { positions, refreshAll } = usePortfolioStore();
+    const { walletAddress } = useWallet();
     const [closeMode, setCloseMode] = useState<'market' | 'limit'>('limit');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Prevent background scrolling
     React.useEffect(() => {
@@ -23,6 +31,48 @@ export const CloseAllModal: React.FC = () => {
     };
 
     const isFormValid = true;
+
+    const handleConfirm = async () => {
+        if (!walletAddress || positions.length === 0) return;
+        setIsSubmitting(true);
+        const toastId = toast.loading('Closing all positions...');
+
+        try {
+            // Loop through all positions and close them
+            // Note: In a real system, a "Batch Cancel/Close" endpoint is better to avoid nonce issues or partial fails.
+            // For now, we do parallel requests.
+
+            const promises = positions.map(pos => {
+                const side = pos.side === 'long' ? 'sell' : 'buy';
+                // If Limit Close, we use mark price (mid) as requested by UI text "Limit Close at Mid Price"
+                // Ideally we get the real mid price. For now using mark_price from position data.
+                const price = closeMode === 'limit' ? (pos.mark_price || 0) : undefined;
+                const orderType = closeMode === 'limit' ? 'limit' : 'market';
+
+                return orderService.placeOrder({
+                    user_address: walletAddress,
+                    symbol: pos.symbol,
+                    side,
+                    order_type: orderType,
+                    price,
+                    amount_usd: pos.size * (pos.mark_price || 0), // Estimate USD size
+                    leverage: pos.leverage, // pos.leverage is number in store
+                    reduce_only: true
+                });
+            });
+
+            await Promise.all(promises);
+
+            toast.success('All positions closed', { id: toastId });
+            closeCloseAllModal();
+            await refreshAll(walletAddress);
+        } catch (error: any) {
+            console.error(error);
+            toast.error('Failed to close some positions', { id: toastId });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className={styles.overlay} onClick={handleBackdropClick}>
@@ -58,8 +108,12 @@ export const CloseAllModal: React.FC = () => {
                         </div>
                     </div>
 
-                    <button className={`${styles.confirmButton} ${!isFormValid ? styles.disabledButton : ''}`} disabled={!isFormValid} onClick={closeCloseAllModal}>
-                        {closeMode === 'limit' ? 'Confirm Limit Close at Mid' : 'Confirm Market Close'}
+                    <button
+                        className={`${styles.confirmButton} ${!isFormValid || isSubmitting ? styles.disabledButton : ''}`}
+                        disabled={!isFormValid || isSubmitting}
+                        onClick={handleConfirm}
+                    >
+                        {isSubmitting ? 'Closing...' : (closeMode === 'limit' ? 'Confirm Limit Close at Mid' : 'Confirm Market Close')}
                     </button>
                 </div>
             </div>

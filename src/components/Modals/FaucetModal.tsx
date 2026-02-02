@@ -2,15 +2,21 @@ import React, { useState, useEffect } from 'react';
 import styles from './DepositModal.module.css'; // Reusing DepositModal styles for consistency
 import { useUIStore } from '../../store/useUIStore';
 import usdcArbIcon from '../../assets/deposited chain/USDCARB.png';
+import { useWallet } from '../../hooks/useWallet';
+import { onchainService } from '../../api/onchainService';
+import toast from 'react-hot-toast';
 
 export const FaucetModal: React.FC = () => {
     const { isFaucetModalOpen, closeFaucetModal } = useUIStore();
-    const [amount, setAmount] = useState('');
+    const { authenticated, walletAddress } = useWallet();
+    const [amount, setAmount] = useState('1000');
+    const [isClaiming, setIsClaiming] = useState(false);
 
     useEffect(() => {
         if (isFaucetModalOpen) {
             document.body.style.overflow = 'hidden';
             setAmount('1000'); // Default amount
+            setIsClaiming(false);
         } else {
             document.body.style.overflow = '';
         }
@@ -85,13 +91,29 @@ export const FaucetModal: React.FC = () => {
                     {/* Action Button */}
                     <button
                         className={styles.actionButton}
-                        style={{ marginTop: '32px' }}
-                        onClick={() => {
-                            // Logic to claim would go here
-                            closeFaucetModal();
+                        style={{ marginTop: '32px', opacity: isClaiming || !authenticated ? 0.7 : 1 }}
+                        disabled={isClaiming}
+                        onClick={async () => {
+                            if (!authenticated || !walletAddress) {
+                                toast.error('Please connect your wallet first');
+                                return;
+                            }
+
+                            setIsClaiming(true);
+                            try {
+                                const result = await onchainService.claimFaucet(walletAddress);
+                                if (result.success || result.tx_hash) {
+                                    toast.success('Successfully claimed 1,000 USDC!');
+                                    closeFaucetModal();
+                                }
+                            } catch (error: any) {
+                                toast.error(error.message || 'Failed to claim faucet');
+                            } finally {
+                                setIsClaiming(false);
+                            }
                         }}
                     >
-                        Drip Tokens
+                        {isClaiming ? 'Dripping Tokens...' : !authenticated ? 'Connect Wallet' : 'Drip Tokens'}
                     </button>
                 </div>
             </div>
