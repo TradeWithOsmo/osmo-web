@@ -144,6 +144,8 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
                 ...ws, isExpanded: true, sessions: [newPosition, ...ws.sessions]
             } : ws));
         }
+
+        onSessionChange(newPosition.id);
     };
 
     const handleDelete = (type: 'workspace' | 'session', id: string, parentId?: string) => {

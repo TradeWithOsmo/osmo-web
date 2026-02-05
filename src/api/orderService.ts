@@ -13,6 +13,7 @@ export interface PlaceOrderParams {
     reduce_only?: boolean;
     post_only?: boolean;
     time_in_force?: string; // 'GTC' | 'IOC' | 'FOK'
+    trigger_condition?: 'ABOVE' | 'BELOW';
 }
 
 export interface OrderResult {
@@ -31,6 +32,7 @@ export interface PositionData {
     entry_price: number;
     mark_price?: number;
     unrealized_pnl: number;
+    unrealized_pnl_percent: number;
     liquidation_price?: number | null;
     leverage: number;
     margin_used?: number;
@@ -70,6 +72,7 @@ export interface AccountSummary {
 
 export const orderService = {
     async placeOrder(params: PlaceOrderParams): Promise<OrderResult> {
+        // console.warn('Deprecation Warning: ...'); // Re-enabled for Simulation
         const response = await fetch(`${API_URL}/api/orders/place`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -102,8 +105,12 @@ export const orderService = {
         const url = new URL(`${API_URL}/api/orders/history`);
         url.searchParams.append('user_address', user_address);
         if (status) url.searchParams.append('status', status);
+        // Cache busting
+        url.searchParams.append('_t', Date.now().toString());
 
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), {
+            cache: 'no-store'
+        });
 
         if (!response.ok) {
             throw new Error('Failed to fetch orders');
@@ -113,9 +120,13 @@ export const orderService = {
     },
 
     async getPositions(user_address: string): Promise<{ success: boolean, positions: PositionData[], summary: AccountSummary }> {
-        const response = await fetch(
-            `${API_URL}/api/orders/positions?user_address=${user_address}`
-        );
+        const url = new URL(`${API_URL}/api/orders/positions`);
+        url.searchParams.append('user_address', user_address);
+        url.searchParams.append('_t', Date.now().toString());
+
+        const response = await fetch(url.toString(), {
+            cache: 'no-store'
+        });
 
         if (!response.ok) {
             throw new Error('Failed to fetch positions');
@@ -136,6 +147,62 @@ export const orderService = {
             throw new Error(error.detail || 'Failed to update TP/SL');
         }
 
+        return response.json();
+    },
+
+    async reportOnchainOrder(params: {
+        user_address: string;
+        symbol: string;
+        side: 'buy' | 'sell';
+        order_type: 'market' | 'limit' | 'stop_limit';
+        amount_usd: number;
+        leverage: number;
+        tx_hash: string;
+        price?: number;
+        stop_price?: number;
+        exchange?: string;
+    }): Promise<any> {
+        const response = await fetch(`${API_URL}/api/orders/report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to report order');
+        }
+
+        return response.json();
+    },
+
+    // --- Trade Actions ---
+    async closePosition(user_address: string, symbol: string, price?: number, size_pct: number = 1.0): Promise<any> {
+        const response = await fetch(`${API_URL}/api/orders/close`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_address, symbol, price, size_pct })
+        });
+        if (!response.ok) throw new Error('Failed to close position');
+        return response.json();
+    },
+
+    async closeAllPositions(user_address: string): Promise<any> {
+        const response = await fetch(`${API_URL}/api/orders/close/all?user_address=${user_address}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) throw new Error('Failed to close all positions');
+        return response.json();
+    },
+
+    async reversePosition(user_address: string, symbol: string): Promise<any> {
+        const response = await fetch(`${API_URL}/api/orders/reverse`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_address, symbol })
+        });
+        if (!response.ok) throw new Error('Failed to reverse position');
         return response.json();
     }
 };

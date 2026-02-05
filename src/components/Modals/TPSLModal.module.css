@@ -223,31 +223,46 @@
 .sliderProgress {
     position: absolute;
     height: 4px;
-    background-color: #660035;
+    background: linear-gradient(90deg, #FF0080 0%, #FF4560 100%);
+    box-shadow: 0 0 8px rgba(255, 0, 128, 0.4);
     border-radius: 2px;
 }
 
 .sliderDot {
     position: absolute;
-    width: 4px;
-    height: 4px;
-    background-color: #5D4050;
+    width: 6px;
+    height: 6px;
+    background-color: #3A2530;
     border-radius: 50%;
     transform: translate(-50%, -50%);
     top: 50%;
+    z-index: 1;
+    transition: all 0.2s;
+}
+
+.sliderDot:hover {
+    background-color: #FF0080;
+    transform: translate(-50%, -50%) scale(1.5);
+    box-shadow: 0 0 8px rgba(255, 0, 128, 0.6);
 }
 
 .sliderThumb {
     position: absolute;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #660035;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #FF0080;
     border-radius: 50%;
-    background-color: #12000A;
+    background-color: #FFFFFF;
+    box-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
     transform: translate(-50%, -50%);
     top: 50%;
-    cursor: pointer;
     z-index: 2;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.sliderThumb:active {
+    transform: translate(-50%, -50%) scale(1.2);
 }
 
 .amountBox {

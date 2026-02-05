@@ -324,11 +324,11 @@
 .graphSection {
     flex: 1;
     position: relative;
-    background: linear-gradient(rgba(18, 0, 10, 0.85), rgba(18, 0, 10, 0.85)), url("../../assets/Dots pettern.png");
-    background-size: 60px;
-    /* Make pattern smaller/neater if needed */
+    background-image: linear-gradient(rgba(18, 0, 10, 0.7), rgba(18, 0, 10, 0.7)), url("../../assets/Dots pettern.png");
+    background-size: 80px;
     background-position: center;
     background-color: #12000A;
+    background-repeat: repeat;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -573,4 +573,11 @@
     color: #FFE1F2;
     border-bottom-color: transparent;
     /* Remove active border */
+}
+
+.feesLayout {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    max-width: 1300px;
 }

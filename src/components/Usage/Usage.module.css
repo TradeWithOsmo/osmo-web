@@ -325,11 +325,12 @@
     padding-top: 23px;
     flex: 1;
     position: relative;
-    background: linear-gradient(rgba(18, 0, 10, 0.85), rgba(18, 0, 10, 0.85)), url("../../assets/Dots pettern.png");
-    background-size: 60px;
+    background-image: linear-gradient(rgba(18, 0, 10, 0.7), rgba(18, 0, 10, 0.7)), url("../../assets/Dots pettern.png");
+    background-size: 80px;
     background-position: 0 0;
     /* Default position */
     background-color: #15050C;
+    background-repeat: repeat;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -17,7 +17,7 @@ interface AutosProps {
 
 const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol = 'BTC/USDT', chartState, onRestoreChartState }) => {
     const [activeSessionId, setActiveSessionId] = useState<string>('new-chat-1');
-    const [isMinimized, setIsMinimized] = useState(false); // Default open on desktop
+    const [isMinimized, setIsMinimized] = useState(true); // Default closed
 
     useEffect(() => {
         const handleResize = () => {
@@ -633,9 +633,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
 
     const handleSessionChange = (sessionId: string) => {
         setActiveSessionId(sessionId);
-        if (!compact && (window.innerWidth <= 768 || forceMobileMode)) {
-            setIsMinimized(true);
-        }
+        setIsMinimized(true);
     };
 
     return (

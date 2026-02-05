@@ -3,11 +3,13 @@ import styles from './Portfolio.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import TradeHistoryTable from '../Positions/TradeHistoryTable';
 import OrderHistoryTable from '../Positions/OrderHistoryTable';
+import FundingHistoryTable from '../Positions/FundingHistoryTable';
 import type { TradeHistoryData } from '../Positions/TradeHistoryRow';
 import type { OrderHistoryData as APIOrderHistoryData } from '../Positions/OrderHistoryRow';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { useWallet } from '../../hooks';
 import type { OrderData } from '../../api/orderService';
+import type { FundingHistoryData } from '../../api/portfolioService';
 
 // Mapper to convert store OrderData to UI OrderHistoryData
 const mapOrderToHistoryUI = (order: OrderData): APIOrderHistoryData => {
@@ -30,16 +32,30 @@ const mapOrderToHistoryUI = (order: OrderData): APIOrderHistoryData => {
 };
 
 const PortfolioHistory: React.FC = () => {
-    const [subTab, setSubTab] = useState<'Trades' | 'Orders'>('Orders'); // Default to Orders as we have real data for it
-    const { orderHistory, fetchOrders, isLoading } = usePortfolioStore();
+    // Debug log to verify HMR update
+    useEffect(() => { console.log("PortfolioHistory mounted - Tabs version"); }, []);
+
+    const [subTab, setSubTab] = useState<'Trades' | 'Orders' | 'Deposits' | 'Withdrawals'>('Trades');
+    const { orderHistory, fetchOrders, tradeHistory, fetchTradeHistory, fundingHistory, fetchFundingHistory, isLoading } = usePortfolioStore();
     const { walletAddress, authenticated } = useWallet();
 
     useEffect(() => {
-        if (authenticated && walletAddress && subTab === 'Orders') {
+        if (!authenticated || !walletAddress) return;
+
+        if (subTab === 'Orders' || subTab === 'Trades') {
+            if (subTab === 'Trades') fetchTradeHistory(walletAddress);
             fetchOrders(walletAddress, 'history');
             const interval = setInterval(() => {
+                if (subTab === 'Trades') fetchTradeHistory(walletAddress);
                 fetchOrders(walletAddress, 'history');
             }, 5000);
+            return () => clearInterval(interval);
+        } else if (subTab === 'Deposits' || subTab === 'Withdrawals') {
+            console.log('Fetching Funding History for', subTab);
+            fetchFundingHistory(walletAddress);
+            const interval = setInterval(() => {
+                fetchFundingHistory(walletAddress);
+            }, 10000);
             return () => clearInterval(interval);
         }
     }, [subTab, authenticated, walletAddress]);
@@ -77,25 +93,20 @@ const PortfolioHistory: React.FC = () => {
 
     const filteredData = React.useMemo(() => {
         if (subTab === 'Trades') {
-            // Temporary: Map 'Filled' orders to Trade History since backend doesn't have separate Trades endpoint yet
-            return orderHistory
-                .filter(o => o.status === 'filled' || o.status === 'Filled') // Case-insensitive check
-                .map(o => ({
-                    id: o.confirmed_txn_hash || o.id, // Use txn hash if available, else order ID
-                    time: o.created_at ? new Date(o.created_at).toLocaleString() : 'Just now',
-                    symbol: o.symbol,
-                    direction: o.side.toLowerCase() === 'buy' ? 'Long' : 'Short',
-                    price: o.avg_fill_price || o.price || 0,
-                    size: o.filled_size || o.size,
-                    sizeAsset: o.symbol.split('-')[0],
-                    tradeValue: (o.filled_size || o.size) * (o.avg_fill_price || o.price || 0),
-                    tradeValueAsset: 'USD',
-                    fee: 0, // Not yet tracked
-                    feeAsset: 'USD',
-                    closedPnl: 0, // PnL not yet tracked on order level
-                    closedPnlAsset: 'USD'
-                } as TradeHistoryData));
-        } else {
+            let result = [...tradeHistory];
+            // Filter
+            if (filterBy === 'long') result = result.filter(t => t.direction.toLowerCase().includes('long') || t.direction.toLowerCase().includes('buy'));
+            if (filterBy === 'short') result = result.filter(t => t.direction.toLowerCase().includes('short') || t.direction.toLowerCase().includes('sell'));
+            if (filterBy === 'win') result = result.filter(t => t.closedPnl > 0);
+            if (filterBy === 'loss') result = result.filter(t => t.closedPnl < 0);
+
+            // Sort
+            if (sortBy === 'pnl') result.sort((a, b) => b.closedPnl - a.closedPnl);
+            if (sortBy === 'size') result.sort((a, b) => b.size - a.size);
+            if (sortBy === 'time') result.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+            return result;
+        } else if (subTab === 'Orders') {
             // Real Order History
             let result = orderHistory.map(mapOrderToHistoryUI);
             // Filter
@@ -103,8 +114,12 @@ const PortfolioHistory: React.FC = () => {
             if (filterBy === 'cancelled') result = result.filter(o => o.status === 'Cancelled');
 
             return result;
+        } else if (subTab === 'Deposits' || subTab === 'Withdrawals') {
+            const targetType = subTab === 'Deposits' ? 'Deposit' : 'Withdraw';
+            return fundingHistory.filter(item => item.type === targetType);
         }
-    }, [subTab, filterBy, sortBy, orderHistory]);
+        return [];
+    }, [subTab, filterBy, sortBy, orderHistory, fundingHistory]);
 
     // Pagination Logic (Now filteredData is defined)
     const totalItems = filteredData.length;
@@ -248,6 +263,18 @@ const PortfolioHistory: React.FC = () => {
                     >
                         Orders
                     </button>
+                    <button
+                        className={`${styles.tabButton} ${subTab === 'Deposits' ? styles.activeTab : ''}`}
+                        onClick={() => setSubTab('Deposits')}
+                    >
+                        Deposits
+                    </button>
+                    <button
+                        className={`${styles.tabButton} ${subTab === 'Withdrawals' ? styles.activeTab : ''}`}
+                        onClick={() => setSubTab('Withdrawals')}
+                    >
+                        Withdrawals
+                    </button>
                 </div>
                 <div className={panelStyles.controlsContainer} style={{ padding: '16px', borderBottom: '1px solid #3A2530', marginBottom: 0 }}>
                     <div className={panelStyles.controlsLeft}>
@@ -281,43 +308,47 @@ const PortfolioHistory: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Filter Dropdown */}
-                        <div className={panelStyles.dropdownContainer}>
-                            <button
-                                className={`${panelStyles.dropdownButton} ${isFilterOpen ? panelStyles.active : ''}`}
-                                onClick={toggleFilter}
-                            >
-                                Filter <span style={{ color: '#FFE1F2' }}>{filterBy === 'all' ? 'All' : filterBy.charAt(0).toUpperCase() + filterBy.slice(1)}</span>
-                                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transition: 'transform 0.2s', marginLeft: '6px', transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                            </button>
-                            {isFilterOpen && (
-                                <div className={panelStyles.dropdownMenu}>
-                                    {(subTab === 'Trades'
-                                        ? ['all', 'long', 'short', 'win', 'loss']
-                                        : ['all', 'filled', 'cancelled']
-                                    ).map((filter) => (
-                                        <button
-                                            key={filter}
-                                            className={`${panelStyles.dropdownItem} ${filterBy === filter ? panelStyles.selected : ''}`}
-                                            onClick={() => { setFilterBy(filter); setIsFilterOpen(false); }}
-                                        >
-                                            {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        {/* Filter Dropdown - Only visible for Trades and Orders for now */}
+                        {(subTab === 'Trades' || subTab === 'Orders') && (
+                            <div className={panelStyles.dropdownContainer}>
+                                <button
+                                    className={`${panelStyles.dropdownButton} ${isFilterOpen ? panelStyles.active : ''}`}
+                                    onClick={toggleFilter}
+                                >
+                                    Filter <span style={{ color: '#FFE1F2' }}>{filterBy === 'all' ? 'All' : filterBy.charAt(0).toUpperCase() + filterBy.slice(1)}</span>
+                                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transition: 'transform 0.2s', marginLeft: '6px', transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </button>
+                                {isFilterOpen && (
+                                    <div className={panelStyles.dropdownMenu}>
+                                        {(subTab === 'Trades'
+                                            ? ['all', 'long', 'short', 'win', 'loss']
+                                            : ['all', 'filled', 'cancelled']
+                                        ).map((filter) => (
+                                            <button
+                                                key={filter}
+                                                className={`${panelStyles.dropdownItem} ${filterBy === filter ? panelStyles.selected : ''}`}
+                                                onClick={() => { setFilterBy(filter); setIsFilterOpen(false); }}
+                                            >
+                                                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {isLoading && subTab === 'Orders' ? (
+                {isLoading && paginatedData.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>Loading history...</div>
                 ) : subTab === 'Trades' ? (
                     <TradeHistoryTable trades={paginatedData as unknown as TradeHistoryData[]} footerContent={renderFooter()} />
-                ) : (
+                ) : subTab === 'Orders' ? (
                     <OrderHistoryTable orders={paginatedData as unknown as APIOrderHistoryData[]} footerContent={renderFooter()} />
+                ) : (
+                    <FundingHistoryTable data={paginatedData as unknown as FundingHistoryData[]} footerContent={renderFooter()} />
                 )}
             </div>
         </div>

@@ -9,7 +9,7 @@ export const useWallet = () => {
   const { wallets } = useWallets()
 
   const walletAddress = wallets[0]?.address
-  
+
   const truncatedAddress = useMemo(() => {
     if (!walletAddress) return null
     return `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
@@ -52,5 +52,6 @@ export const useWallet = () => {
     handleConnect,
     handleDisconnect,
     handleCopyAddress,
+    wallets, // Expose wallets to get provider
   }
 }

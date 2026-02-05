@@ -154,7 +154,7 @@ const Trade: React.FC = () => {
                             {/* Resizer for Assist Panel */}
                             <Resizer
                                 direction="horizontal"
-                                onResize={(delta) => setAssistWidthPx(prev => Math.max(350, Math.min(1200, prev - delta)))}
+                                onResize={(delta) => setAssistWidthPx(prev => Math.max(500, Math.min(1200, prev - delta)))}
                             />
 
                             {/* Right Side: Trading Assist Module */}

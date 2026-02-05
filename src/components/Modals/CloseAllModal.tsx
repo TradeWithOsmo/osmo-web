@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 export const CloseAllModal: React.FC = () => {
     const { isCloseAllModalOpen, closeCloseAllModal } = useUIStore();
     const { positions, refreshAll } = usePortfolioStore();
-    const { walletAddress } = useWallet();
+    const { walletAddress } = useWallet() as any;
     const [closeMode, setCloseMode] = useState<'market' | 'limit'>('limit');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -38,34 +38,20 @@ export const CloseAllModal: React.FC = () => {
         const toastId = toast.loading('Closing all positions...');
 
         try {
-            // Loop through all positions and close them
-            // Note: In a real system, a "Batch Cancel/Close" endpoint is better to avoid nonce issues or partial fails.
-            // For now, we do parallel requests.
-
-            const promises = positions.map(pos => {
-                const side = pos.side === 'long' ? 'sell' : 'buy';
-                // If Limit Close, we use mark price (mid) as requested by UI text "Limit Close at Mid Price"
-                // Ideally we get the real mid price. For now using mark_price from position data.
-                const price = closeMode === 'limit' ? (pos.mark_price || 0) : undefined;
-                const orderType = closeMode === 'limit' ? 'limit' : 'market';
-
-                return orderService.placeOrder({
-                    user_address: walletAddress,
-                    symbol: pos.symbol,
-                    side,
-                    order_type: orderType,
-                    price,
-                    amount_usd: pos.size * (pos.mark_price || 0), // Estimate USD size
-                    leverage: pos.leverage, // pos.leverage is number in store
-                    reduce_only: true
-                });
-            });
-
-            await Promise.all(promises);
+            await orderService.closeAllPositions(
+                walletAddress
+            );
 
             toast.success('All positions closed', { id: toastId });
             closeCloseAllModal();
-            await refreshAll(walletAddress);
+
+            // Immediate Refresh
+            refreshAll(walletAddress);
+
+            // Sequential refreshes
+            setTimeout(() => refreshAll(walletAddress), 500);
+            setTimeout(() => refreshAll(walletAddress), 2000);
+
         } catch (error: any) {
             console.error(error);
             toast.error('Failed to close some positions', { id: toastId });
@@ -91,6 +77,19 @@ export const CloseAllModal: React.FC = () => {
                     <p className={styles.subtitle}>
                         This will close all your positions and cancel their associated TP/SL orders.
                     </p>
+
+                    <div className={styles.positionsList}>
+                        {positions.map((p, idx) => (
+                            <div key={idx} className={styles.positionItem}>
+                                <span className={typeof p.side === 'string' && p.side.toLowerCase() === 'long' ? styles.longText : styles.shortText}>
+                                    {p.side}
+                                </span>
+                                <span className={styles.positionDetail}>
+                                    {p.size.toLocaleString('en-US', { maximumFractionDigits: 8 })} {p.symbol.split('-')[0]}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
 
                     <div className={styles.optionSection}>
                         <div className={styles.optionRow} onClick={() => setCloseMode('market')}>

@@ -5,8 +5,8 @@
     /* Consistent with Portfolio layout */
     background-color: #12000A;
     color: #FFE1F2;
-
     overflow: hidden;
+    position: relative;
 }
 
 /* Sidebar Styling (Reused from Portfolio) */
@@ -27,6 +27,8 @@
 .sidebarMinimized {
     width: 58px;
 }
+
+
 
 .toggleButton {
     position: absolute;
@@ -790,13 +792,55 @@
 /* Fix icon centering in the larger button */
 /* Compact Mode (for Assist/Embedded usage) */
 .compact .sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
     width: 100%;
+    z-index: 100;
+    background-color: #12000A;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.7);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .compact .sidebarMinimized {
     width: 0 !important;
+    transform: translateX(-100%);
+    box-shadow: none;
     border-right: none;
-    overflow: visible;
+}
+
+/* Ensure content takes full space in compact mode since sidebar is now overlay */
+.compact .contentArea {
+    width: 100%;
+    padding: 24px;
+}
+
+.compact .sidebarMinimized .toggleButton {
+    position: absolute;
+    right: -48px;
+    top: 12px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.compact .sidebarMinimized .toggleButton .toggleIcon {
+    opacity: 0.8;
+}
+
+.compact .sidebarMinimized .toggleButton:hover .toggleIcon {
+    opacity: 1;
+}
+
+.compact .contentCentered {
+    align-items: flex-start;
 }
 
 .compact .sidebarMinimized .toggleButton {
