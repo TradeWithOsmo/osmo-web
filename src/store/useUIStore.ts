@@ -50,6 +50,30 @@ interface UIStore {
     isFaucetModalOpen: boolean;
     openFaucetModal: () => void;
     closeFaucetModal: () => void;
+
+    isSessionModalOpen: boolean;
+    openSessionModal: () => void;
+    closeSessionModal: () => void;
+
+    isTradingSetupOpen: boolean;
+    openTradingSetup: () => void;
+    closeTradingSetup: () => void;
+
+    hasSession: boolean;
+    setHasSession: (status: boolean) => void;
+
+    isSessionChecking: boolean;
+    setSessionChecking: (loading: boolean) => void;
+
+    // Order Modal State
+    selectedOrder: any | null;
+    isCancelOrderModalOpen: boolean;
+    openCancelOrderModal: (order: any) => void;
+    closeCancelOrderModal: () => void;
+
+    isCancelAllOrdersModalOpen: boolean;
+    openCancelAllOrdersModal: () => void;
+    closeCancelAllOrdersModal: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -83,4 +107,28 @@ export const useUIStore = create<UIStore>((set) => ({
     isFaucetModalOpen: false,
     openFaucetModal: () => set({ isFaucetModalOpen: true }),
     closeFaucetModal: () => set({ isFaucetModalOpen: false }),
+
+    isSessionModalOpen: false,
+    openSessionModal: () => set({ isSessionModalOpen: true }),
+    closeSessionModal: () => set({ isSessionModalOpen: false }),
+
+    isTradingSetupOpen: false,
+    openTradingSetup: () => set({ isTradingSetupOpen: true }),
+    closeTradingSetup: () => set({ isTradingSetupOpen: false }),
+
+    hasSession: false,
+    setHasSession: (status) => set({ hasSession: status }),
+
+    isSessionChecking: true, // Default true to prevent flash
+    setSessionChecking: (loading) => set({ isSessionChecking: loading }),
+
+    // Order Modals
+    selectedOrder: null,
+    isCancelOrderModalOpen: false,
+    openCancelOrderModal: (order) => set({ isCancelOrderModalOpen: true, selectedOrder: order }),
+    closeCancelOrderModal: () => set({ isCancelOrderModalOpen: false, selectedOrder: null }),
+
+    isCancelAllOrdersModalOpen: false,
+    openCancelAllOrdersModal: () => set({ isCancelAllOrdersModalOpen: true }),
+    closeCancelAllOrdersModal: () => set({ isCancelAllOrdersModalOpen: false }),
 }));

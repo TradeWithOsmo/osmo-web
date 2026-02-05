@@ -5,15 +5,23 @@ import { useUIStore } from '../../store/useUIStore';
 import { useWallet } from '../../hooks/useWallet';
 import { orderService } from '../../api/orderService';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useMarketStore } from '../../store/useMarketStore';
 import toast from 'react-hot-toast';
 
 export const LimitCloseModal: React.FC = () => {
-    const { isLimitCloseModalOpen, closeLimitCloseModal, selectedPosition } = useUIStore();
-    const { refreshAll } = usePortfolioStore();
-    const { walletAddress } = useWallet();
+    const { isLimitCloseModalOpen, closeLimitCloseModal, selectedPosition: uiPosition } = useUIStore();
+    const { positions, refreshAll } = usePortfolioStore();
+    const { getPrice } = useMarketStore();
+    const { walletAddress } = useWallet() as any;
+
+    const selectedPosition = positions.find(p => p.id === uiPosition?.id) || uiPosition;
+
     const [percentage, setPercentage] = useState(100);
+    const [manualSize, setManualSize] = useState('');
     const [limitPrice, setLimitPrice] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const markPrice = getPrice(selectedPosition?.symbol || '') || (selectedPosition as any)?.markPrice || (selectedPosition as any)?.mark_price || 0;
 
     // Prevent background scrolling
     React.useEffect(() => {
@@ -34,30 +42,56 @@ export const LimitCloseModal: React.FC = () => {
     };
 
     const assetSymbol = selectedPosition.symbol.split('-')[0];
-    const closingSize = (selectedPosition.size * (percentage / 100)).toFixed(4);
+
+    // Sync manual size when percentage changes
+    React.useEffect(() => {
+        if (selectedPosition && !isSubmitting) {
+            const size = (selectedPosition.size * (percentage / 100));
+            setManualSize(size.toFixed(selectedPosition.symbol.includes('USD') ? 4 : 8));
+        }
+    }, [percentage, selectedPosition?.size, isSubmitting]);
+
+    const handleManualSizeChange = (val: string) => {
+        setManualSize(val);
+        const num = parseFloat(val);
+        if (selectedPosition && !isNaN(num) && selectedPosition.size > 0) {
+            const pct = Math.min(100, Math.max(0, (num / selectedPosition.size) * 100));
+            setPercentage(pct);
+        }
+    };
+
+    const closingSize = parseFloat(manualSize) || 0;
+
+    const formatSize = (val: number) => {
+        if (!val && val !== 0) return '0.0000';
+        return val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 8 });
+    };
+
     const isFormValid = !!limitPrice;
 
     const handleConfirm = async () => {
         if (!walletAddress || !selectedPosition) return;
         setIsSubmitting(true);
         try {
-            const side = selectedPosition.side === 'Long' ? 'sell' : 'buy';
-
-            await orderService.placeOrder({
-                user_address: walletAddress,
-                symbol: selectedPosition.symbol,
-                side,
-                order_type: 'limit',
-                price: parseFloat(limitPrice),
-                amount_usd: selectedPosition.sizeUsd * (percentage / 100),
-                leverage: parseFloat(selectedPosition.leverage.replace('x', '')),
-                reduce_only: true
-            });
+            await orderService.closePosition(
+                walletAddress,
+                selectedPosition.symbol,
+                parseFloat(limitPrice),
+                percentage / 100
+            );
 
             toast.success('Limit close order placed');
             closeLimitCloseModal();
-            await refreshAll(walletAddress);
+
+            // Immediate Refresh
+            refreshAll(walletAddress);
+
+            // Sequential refreshes
+            setTimeout(() => refreshAll(walletAddress), 500);
+            setTimeout(() => refreshAll(walletAddress), 2000);
+
         } catch (error: any) {
+            console.error('Close failed', error);
             toast.error(error.message || 'Failed to place limit close order');
         } finally {
             setIsSubmitting(false);
@@ -83,18 +117,18 @@ export const LimitCloseModal: React.FC = () => {
                     <div className={styles.row}>
                         <span className={styles.label}>Size</span>
                         <span className={`${styles.value} ${styles.sizeValue}`}>
-                            {selectedPosition.size} {assetSymbol}
+                            {formatSize(selectedPosition.size)} {assetSymbol}
                         </span>
                     </div>
 
                     {/* Price Input */}
                     <div className={styles.inputContainer}>
-                        <span className={styles.inputLabel}>Price</span>
+                        <span className={styles.inputLabel}>Limit Price</span>
                         <div className={styles.inputWrapper}>
                             <input
                                 type="text"
                                 className={styles.numberInput}
-                                placeholder={selectedPosition.markPrice.toString()}
+                                placeholder={markPrice.toString()}
                                 value={limitPrice}
                                 onChange={(e) => setLimitPrice(e.target.value)}
                             />
@@ -102,15 +136,27 @@ export const LimitCloseModal: React.FC = () => {
                         </div>
                     </div>
 
+                    <div className={styles.row}>
+                        <span className={styles.label}>Mark Price</span>
+                        <span className={styles.value}>${markPrice.toLocaleString()}</span>
+                    </div>
+
+                    <div className={styles.row}>
+                        <span className={styles.label}>Close Value</span>
+                        <span className={styles.value}>
+                            ${(closingSize * (parseFloat(limitPrice) || markPrice)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+
                     {/* Size Input Area */}
                     <div className={styles.inputContainer}>
-                        <span className={styles.inputLabel}>Size</span>
+                        <span className={styles.inputLabel}>Amount</span>
                         <div className={styles.inputWrapper}>
                             <input
-                                type="text"
+                                type="number"
                                 className={styles.numberInput}
-                                value={closingSize.replace('.', ',')}
-                                readOnly
+                                value={manualSize}
+                                onChange={(e) => handleManualSizeChange(e.target.value)}
                             />
                             <span className={styles.assetName}>{assetSymbol}</span>
                         </div>

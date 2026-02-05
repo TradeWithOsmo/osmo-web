@@ -1,19 +1,27 @@
 import React, { useState } from 'react';
 import styles from './MarketCloseModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
-
 import { useWallet } from '../../hooks/useWallet';
 import { orderService } from '../../api/orderService';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useMarketStore } from '../../store/useMarketStore';
 import toast from 'react-hot-toast';
 
 export const MarketCloseModal: React.FC = () => {
-    const { isMarketCloseModalOpen, closeMarketCloseModal, selectedPosition } = useUIStore();
-    const { refreshAll } = usePortfolioStore();
+    const { isMarketCloseModalOpen, closeMarketCloseModal, selectedPosition: uiPosition } = useUIStore();
+    const { positions, refreshAll } = usePortfolioStore();
+    const { getPrice } = useMarketStore();
     const { walletAddress } = useWallet();
+
+    const selectedPosition = positions.find(p => p.id === uiPosition?.id) || uiPosition;
+
     const [percentage, setPercentage] = useState(100);
+    const [manualSize, setManualSize] = useState('');
     const [dontShowAgain, setDontShowAgain] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Support both camelCase and snake_case from different store types
+    const markPrice = getPrice(selectedPosition?.symbol || '') || (selectedPosition as any)?.markPrice || (selectedPosition as any)?.mark_price || 0;
 
     // Prevent background scrolling
     React.useEffect(() => {
@@ -34,30 +42,56 @@ export const MarketCloseModal: React.FC = () => {
     };
 
     const assetSymbol = selectedPosition.symbol.split('-')[0];
-    const closingSize = (selectedPosition.size * (percentage / 100)); // Keep as number for logic
-    const closingSizeDisplay = closingSize.toFixed(4); // For display
+
+    // Update manual size when percentage changes
+    React.useEffect(() => {
+        if (selectedPosition && !isSubmitting) {
+            const size = (selectedPosition.size * (percentage / 100));
+            setManualSize(size.toFixed(selectedPosition.symbol.includes('USD') ? 4 : 8));
+        }
+    }, [percentage, selectedPosition?.size, isSubmitting]);
+
+    const handleManualSizeChange = (val: string) => {
+        setManualSize(val);
+        const num = parseFloat(val);
+        if (selectedPosition && !isNaN(num) && selectedPosition.size > 0) {
+            const pct = Math.min(100, Math.max(0, (num / selectedPosition.size) * 100));
+            setPercentage(pct);
+        }
+    };
+
+    const closingSize = parseFloat(manualSize) || 0;
+    const closingUsd = closingSize * markPrice;
+
+    const formatSize = (val: number) => {
+        if (!val && val !== 0) return '0.0000';
+        return val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 8 });
+    };
 
     const handleConfirm = async () => {
         if (!walletAddress || !selectedPosition) return;
         setIsSubmitting(true);
         try {
-            // "Closing" means placing an order in the OPPOSITE direction with reduceOnly: true
-            const side = selectedPosition.side === 'Long' ? 'sell' : 'buy';
+            // Use Backend API for "Simulated/Ledger" Close
+            await orderService.closePosition(
+                walletAddress,
+                selectedPosition.symbol,
+                undefined, // Market Price
+                percentage / 100
+            );
 
-            await orderService.placeOrder({
-                user_address: walletAddress,
-                symbol: selectedPosition.symbol,
-                side,
-                order_type: 'market',
-                amount_usd: selectedPosition.sizeUsd * (percentage / 100),
-                leverage: parseFloat(selectedPosition.leverage.replace('x', '')),
-                reduce_only: true
-            });
-
-            toast.success('Position closed');
+            toast.success('Market close submitted');
             closeMarketCloseModal();
-            await refreshAll(walletAddress);
+
+            // Immediate Refresh
+            refreshAll(walletAddress);
+
+            // Double Refresh for indexer lag
+            setTimeout(() => refreshAll(walletAddress), 500);
+            setTimeout(() => refreshAll(walletAddress), 2000);
+
         } catch (error: any) {
+            console.error('Close failed', error);
             toast.error(error.message || 'Failed to close position');
         } finally {
             setIsSubmitting(false);
@@ -82,30 +116,37 @@ export const MarketCloseModal: React.FC = () => {
                     <div className={styles.row}>
                         <span className={styles.label}>Size</span>
                         <span className={`${styles.value} ${styles.sizeValue}`}>
-                            {selectedPosition.size} {assetSymbol}
+                            {formatSize(selectedPosition.size)} {assetSymbol}
                         </span>
                     </div>
 
                     {/* Price Summary */}
                     <div className={styles.row}>
-                        <span className={styles.label}>Price</span>
-                        <span className={styles.value}>Market</span>
+                        <span className={styles.label}>Mark Price</span>
+                        <span className={styles.value}>
+                            ${markPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+
+                    <div className={styles.row}>
+                        <span className={styles.label}>Close Value</span>
+                        <span className={styles.value}>
+                            ${closingUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
                     </div>
 
                     {/* Input Area */}
                     <div className={styles.inputContainer}>
-                        <span className={styles.inputLabel}>Size</span>
+                        <span className={styles.inputLabel}>Amount</span>
                         <div className={styles.inputWrapper}>
                             <input
-                                type="text"
+                                type="number"
                                 className={styles.numberInput}
-                                value={closingSizeDisplay.replace('.', ',')}
-                                readOnly
+                                value={manualSize}
+                                onChange={(e) => handleManualSizeChange(e.target.value)}
+                                placeholder="0.00"
                             />
                             <span className={styles.assetName}>{assetSymbol}</span>
-                            <svg className={styles.chevron} width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                <path d="M9.5 4.25L6 7.75L2.5 4.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
                         </div>
                     </div>
 

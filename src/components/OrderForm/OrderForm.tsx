@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import styles from './OrderForm.module.css';
-import { orderService } from '../../api/orderService';
+
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { useMarketStore } from '../../store/useMarketStore';
 import { useWallet } from '../../hooks';
 import { useUIStore } from '../../store/useUIStore';
+import { onchainService } from '../../api/onchainService';
+import { orderService } from '../../api/orderService';
 import toast from 'react-hot-toast';
+import { useWalletClient } from 'wagmi';
 
 
 const OrderForm: React.FC = () => {
@@ -14,11 +17,71 @@ const OrderForm: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const selectedMarket = useMarketStore((state) => state.selectedMarket);
-    const { refreshAll, summary, updateTPSL } = usePortfolioStore(); // Destructure summary and updateTPSL
-    const { openDepositModal } = useUIStore();
+    const { refreshAll, summary, updateTPSL } = usePortfolioStore();
+    const { openDepositModal, hasSession, setHasSession, openSessionModal, isTradingSetupOpen, openTradingSetup, isSessionChecking } = useUIStore();
 
     // Get wallet from Privy
-    const { authenticated, walletAddress, handleConnect } = useWallet();
+    const { authenticated, walletAddress, handleConnect, wallets } = useWallet();
+    const { data: walletClient } = useWalletClient();
+
+    // Setup Check
+    const [tradingSetupOk, setTradingSetupOk] = useState(false);
+
+    const checkSetup = React.useCallback(async () => {
+        if (authenticated && walletAddress) {
+            console.log('[OrderForm] Checking trading setup...');
+            try {
+                const status = await onchainService.checkTradingSetup(walletAddress);
+                const allowanceOk = status.allowance > 100_000_000n;
+                const isOk = status.roleGranted && allowanceOk;
+                setTradingSetupOk(isOk);
+                return isOk;
+            } catch (err) {
+                console.error('[OrderForm] Failed to check setup:', err);
+                setTradingSetupOk(false);
+                return false;
+            }
+        }
+        return false;
+    }, [authenticated, walletAddress]);
+
+    React.useEffect(() => {
+        checkSetup();
+    }, [checkSetup]);
+
+    // Force check when modal closes
+    React.useEffect(() => {
+        if (!isTradingSetupOpen) {
+            checkSetup();
+        }
+    }, [isTradingSetupOpen, checkSetup]);
+
+    // Check Session Validity
+    React.useEffect(() => {
+        const checkSession = () => {
+            const expires = localStorage.getItem('osmo_session_expires');
+            const key = localStorage.getItem('osmo_session_key');
+
+            if (key && expires) {
+                if (new Date(expires) < new Date()) {
+                    console.log('[OrderForm] Session expired locally');
+                    localStorage.removeItem('osmo_session_key');
+                    localStorage.removeItem('osmo_session_address');
+                    localStorage.removeItem('osmo_session_expires');
+                    setHasSession(false);
+                } else {
+                    setHasSession(true);
+                }
+            } else {
+                setHasSession(false);
+            }
+            useUIStore.getState().setSessionChecking(false);
+        };
+
+        checkSession();
+        const interval = setInterval(checkSession, 1000); // Check every second
+        return () => clearInterval(interval);
+    }, [walletAddress, setHasSession]);
 
     // Inputs
     const [price, setPrice] = useState('');
@@ -122,47 +185,155 @@ const OrderForm: React.FC = () => {
 
     // Handle order submission
     const handleSubmit = async () => {
+        console.log('[OrderForm] Submitting order...', {
+            side,
+            amount,
+            price,
+            selectedMarket: selectedMarket?.symbol,
+            authenticated,
+            hasSession
+        });
+
         // Guard: Check wallet connection
         if (!authenticated || !walletAddress) {
+            console.warn('[OrderForm] Not authenticated');
             toast.error('Please connect your wallet first');
             return;
         }
 
+        // Get Wallet for Chain Check
+        const wallet = wallets[0];
+        if (wallet) {
+            const chainId = Number(wallet.chainId);
+            // arbitrumSepolia.id is 421614
+            const targetChainId = 421614;
+
+            if (chainId !== targetChainId) {
+                try {
+                    await wallet.switchChain(targetChainId);
+                } catch (switchError) {
+                    console.error('Failed to switch chain:', switchError);
+                    toast.error('Please switch to Arbitrum Sepolia');
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+        }
+
         if (!selectedMarket || !amount || parseFloat(amount) <= 0) {
+            console.warn('[OrderForm] Invalid market or amount', { selectedMarket: !!selectedMarket, amount });
             toast.error('Please enter a valid amount');
             return;
         }
 
+        if (!walletClient) {
+            console.warn('[OrderForm] No wallet client');
+            toast.error('Wallet not ready');
+            return;
+        }
+
         // Determine order type
-        let orderType: 'market' | 'limit' | 'stop_limit' = 'market';
-        if (activeTab === 'Limit') orderType = 'limit';
-        else if (activeTab === 'Stop Limit') orderType = 'stop_limit';
+        let orderType: 0 | 1 | 2 = 0; // Market
+        if (activeTab === 'Limit') orderType = 1;
+        else if (activeTab === 'Stop Limit') orderType = 2;
 
         setIsSubmitting(true);
 
         try {
-            const tifMap: Record<string, string> = {
-                'Immediate Or Cancel': 'IOC',
-                'Good Til Date': 'GTC',
-                'Post-Only': 'GTC'
-            };
+            // Map side to enum: Buy=0, Sell=1
+            const sideEnum = side === 'buy' ? 0 : 1;
 
-            const result = await orderService.placeOrder({
-                user_address: walletAddress || '', // Ensure string
-                symbol: selectedMarket.symbol,
-                side,
-                order_type: orderType,
-                amount_usd: parseFloat(amount),
-                leverage,
-                price: price ? parseFloat(price) : undefined,
-                stop_price: stopPrice ? parseFloat(stopPrice) : undefined,
-                reduce_only: reduceOnly,
-                post_only: postOnly,
-                time_in_force: tifMap[timeInForce] || 'GTC'
-            });
+            let result;
+            const sessionKey = localStorage.getItem('osmo_session_key');
+
+            // Calculate final USD amount
+            const finalAmountUsd = isAmountUSD
+                ? parseFloat(amount)
+                : parseFloat(amount) * (selectedMarket?.price || 0);
+
+            // 1-Click Trading Logic: If session key exists and authorized
+            // Explicitly check for key existence AND store state.
+            if (sessionKey && hasSession) {
+                console.log('[OrderForm] Calling placeOrder via Session Key...');
+                result = await onchainService.placeOrderWithSession(sessionKey, {
+                    user: walletAddress,
+                    symbol: selectedMarket.symbol,
+                    side: sideEnum,
+                    orderType: orderType,
+                    amountUsd: finalAmountUsd,
+                    leverage: leverage,
+                    // For Market orders, we must pass the current price because the contract 
+                    // has no price pusher and otherwise reverts with "Invalid price".
+                    price: activeTab === 'Market' ? (selectedMarket.price || 0) : (price ? parseFloat(price) : 0),
+                    stopPrice: stopPrice ? parseFloat(stopPrice) : 0
+                });
+            } else {
+                // If we thought we had a session but key is missing, or hasSession is false
+                // But the button enabled submission (race condition), intercept here.
+                if (!hasSession) {
+                    console.warn('[OrderForm] Session missing. User must establish session key to trade in 1-Click mode.');
+                    // Don't auto-open modal to avoid annoyance. Let user click the button if they want.
+                    toast.error('Session Key required for 1-Click Trading. Please establish connection.');
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                if (!walletClient) {
+                    toast.error('Wallet not ready and no session active');
+                    setIsSubmitting(false);
+                    return;
+                }
+                console.log('[OrderForm] Calling placeOrder via API (Simulation Mode)...');
+
+                // Using Backend API instead of On-Chain Contract directly
+
+
+                const res = await orderService.placeOrder({
+                    user_address: walletAddress,
+                    symbol: selectedMarket.symbol,
+                    side: side,
+                    order_type: activeTab.toLowerCase() as any,
+                    amount_usd: finalAmountUsd,
+                    leverage: leverage,
+                    price: price ? parseFloat(price) : undefined,
+                    stop_price: stopPrice ? parseFloat(stopPrice) : undefined,
+                    exchange: 'simulation'
+                });
+
+                result = {
+                    success: res.success,
+                    tx_hash: res.order_id // Use ID as hash for tracking
+                };
+            }
 
             if (result.success) {
-                toast.success(`Order placed successfully! ID: ${result.order_id}`);
+                toast.success(`Order placed successfully! Tx: ${result.tx_hash?.slice(0, 10)}...`);
+
+                // Immediate Refresh
+                refreshAll(walletAddress);
+
+                // Report to backend for immediate tracking (shadow position)
+                if (result.tx_hash) {
+                    // Non-blocking report
+                    orderService.reportOnchainOrder({
+                        user_address: walletAddress,
+                        symbol: selectedMarket.symbol,
+                        side: side,
+                        order_type: activeTab.toLowerCase() as any,
+                        amount_usd: finalAmountUsd,
+                        leverage: leverage,
+                        tx_hash: result.tx_hash,
+                        price: price ? parseFloat(price) : (selectedMarket?.price || undefined),
+                        stop_price: stopPrice ? parseFloat(stopPrice) : undefined
+                    }).catch(err => {
+                        console.error('[OrderForm] Failed to report order to backend:', err);
+                    });
+                }
+
+                // Sequential refreshes to handle indexing/commit lag
+                [500, 2000, 5000].forEach(ms => {
+                    setTimeout(() => refreshAll(walletAddress), ms);
+                });
 
                 // Handle TP/SL if enabled
                 if (tpslEnabled) {
@@ -170,27 +341,41 @@ const OrderForm: React.FC = () => {
                     const finalSL = slPrice || (slValue ? `${slValue}${slUnit}` : undefined);
 
                     if (finalTP || finalSL) {
-                        // We use the market symbol as the position ID for local storage
-                        // Pass wallet/user address (guaranteed by earlier check)
-                        await updateTPSL(walletAddress || '', selectedMarket.symbol, finalTP, finalSL);
-                        toast.success('TP/SL set locally and synced to backend');
+                        try {
+                            await updateTPSL(walletAddress, selectedMarket.symbol, finalTP, finalSL);
+                            toast.success('TP/SL preferences updated');
+                        } catch (e) {
+                            console.error('Failed to set TP/SL', e);
+                        }
                     }
                 }
 
                 // Clear form
                 setAmount('');
-                setPrice('');
-                setStopPrice('');
-                setTpValue('');
-                setTpPrice('');
-                setSlValue('');
-                setSlPrice('');
-
-                // Refresh portfolio data with real wallet address
-                await refreshAll(walletAddress);
             }
         } catch (error: any) {
-            toast.error(error.message || 'Failed to place order');
+            console.error('Order placement failed:', error);
+            const msg = error.message || '';
+
+            // Auto-handle session expiry/invalid
+            if (
+                msg.includes('Unauthorized') ||
+                msg.includes('SessionInactive') ||
+                msg.includes('ExecutionFailed')
+            ) {
+                toast.error('Session invalid. Please reconnect.');
+                localStorage.removeItem('osmo_session_key');
+                localStorage.removeItem('osmo_session_address');
+                localStorage.removeItem('osmo_session_expires');
+
+                // Force immediate state update via store
+                useUIStore.getState().setHasSession(false);
+                useUIStore.getState().setSessionChecking(false);
+
+                // setTimeout(() => openSessionModal(), 100); // Disable auto-reopen
+            } else {
+                toast.error(msg || 'Failed to place order');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -886,21 +1071,26 @@ const OrderForm: React.FC = () => {
                     </div>
                 )}
 
+
                 <button
                     className={styles.mainActionBtn}
                     onClick={() => {
                         if (!authenticated) {
                             handleConnect();
+                        } else if (!hasSession) {
+                            openSessionModal();
+                        } else if (!tradingSetupOk) {
+                            openTradingSetup();
                         } else if ((summary?.account_value || 0) <= 0) {
                             openDepositModal('deposit');
                         } else {
                             handleSubmit();
                         }
                     }}
-                    disabled={authenticated && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)}
+                    disabled={authenticated && !isSessionChecking && hasSession && tradingSetupOk && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)}
                     style={{
-                        opacity: (authenticated && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)) ? 0.5 : 1,
-                        cursor: (authenticated && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)) ? 'not-allowed' : 'pointer'
+                        opacity: (authenticated && !isSessionChecking && hasSession && tradingSetupOk && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)) ? 0.5 : 1,
+                        cursor: (authenticated && !isSessionChecking && hasSession && tradingSetupOk && (summary?.account_value || 0) > 0 && (isSubmitting || !amount || parseFloat(amount) <= 0)) ? 'not-allowed' : 'pointer'
                     }}
                 >
                     {!authenticated ? (
@@ -911,11 +1101,26 @@ const OrderForm: React.FC = () => {
                             </svg>
                             Connect Wallet
                         </>
+                    ) : !hasSession ? (
+                        <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            Establish Connection
+                        </>
+                    ) : !tradingSetupOk ? (
+                        <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                            Grant Access
+                        </>
                     ) : (summary?.account_value || 0) <= 0 ? (
                         <>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
-                                <path d="M12 2v20"></path>
-                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                             </svg>
                             Deposit
                         </>

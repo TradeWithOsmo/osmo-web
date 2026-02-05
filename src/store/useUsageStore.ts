@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { usageService, type UsageStats, type UsageLogItem, type ChartDataPoint } from '../api/usageService';
+import { onchainService } from '../api/onchainService';
 
 interface UsageState {
     stats: UsageStats;
@@ -28,8 +29,18 @@ export const useUsageStore = create<UsageState>((set) => ({
     fetchStats: async (address: string) => {
         set({ isLoading: true, error: null });
         try {
-            const data = await usageService.getStats(address);
-            set({ stats: data, isLoading: false });
+            const [backendData, onchainBalances] = await Promise.all([
+                usageService.getStats(address),
+                onchainService.getVaultBalances(address).catch(() => null)
+            ]);
+
+            set({
+                stats: {
+                    ...backendData,
+                    credit_balance: onchainBalances ? onchainBalances.ai : backendData.credit_balance
+                },
+                isLoading: false
+            });
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
         }

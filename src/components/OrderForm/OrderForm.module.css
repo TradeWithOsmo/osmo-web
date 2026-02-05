@@ -818,3 +818,13 @@
     border-color: #A77590;
     background-color: #3A2530;
 }
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+    transform-origin: center;
+}

@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { useMarketStore } from '../store/useMarketStore';
+import { usePortfolioStore } from '../store/usePortfolioStore';
 
-const WS_URL = 'ws://localhost:8000/ws/hyperliquid/ALL';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const WS_URL = API_URL.replace('http', 'ws') + '/ws/hyperliquid/ALL';
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 30000; // 30 seconds
-const MAX_RETRIES = 10; // Keep trying for ~5 minutes total
+const MAX_RETRIES = Infinity; // Never give up, keep trying to reconnect
 
 export const useGlobalMarketStream = () => {
     const { updatePrices } = useMarketStore();
+    const { updateMarkPrices } = usePortfolioStore();
     const wsRef = useRef<WebSocket | null>(null);
     const retryCountRef = useRef(0);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -16,9 +19,11 @@ export const useGlobalMarketStream = () => {
 
     // Use a ref for updatePrices to avoid effect re-runs if it changes reference
     const updatePricesRef = useRef(updatePrices);
+    const updateMarkPricesRef = useRef(updateMarkPrices);
     useEffect(() => {
         updatePricesRef.current = updatePrices;
-    }, [updatePrices]);
+        updateMarkPricesRef.current = updateMarkPrices;
+    }, [updatePrices, updateMarkPrices]);
 
     useEffect(() => {
         shouldConnectRef.current = true;
@@ -49,11 +54,25 @@ export const useGlobalMarketStream = () => {
                 }, 30000);
             };
 
+            // Throttle Buffer
+            let throttleBuffer: Record<string, any> = {};
+            let lastFlush = 0;
+            const FLUSH_INTERVAL = 200; // ms
+
             ws.onmessage = (event) => {
                 try {
                     const message = JSON.parse(event.data);
                     if (message.type === 'price_update' && message.data) {
-                        updatePricesRef.current(message.data);
+                        // Merge into buffer
+                        Object.assign(throttleBuffer, message.data);
+
+                        const now = Date.now();
+                        if (now - lastFlush > FLUSH_INTERVAL) {
+                            updatePricesRef.current(throttleBuffer);
+                            updateMarkPricesRef.current(throttleBuffer);
+                            throttleBuffer = {};
+                            lastFlush = now;
+                        }
                     }
                 } catch (e) {
                     // Silent fail for parsing to reduce noise

@@ -6,4 +6,7 @@ export * from './CloseAllModal';
 export * from './LimitCloseModal';
 export * from './SessionKeyModal';
 export * from './FaucetModal';
+export * from './TradingSetupModal';
+export * from './CancelOrderModal';
+export * from './CancelAllOrdersModal';
 

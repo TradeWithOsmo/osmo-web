@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 // Base URL for the backend API
-const API_URL = 'http://localhost:8000/api';
+// Keep `VITE_API_URL` as the origin (e.g. http://localhost:8000) and append `/api` here.
+const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = `${API_ORIGIN}/api`;
 
 export interface MarketData {
     symbol: string;
@@ -42,8 +44,8 @@ export const marketService = {
             console.log("🔍 Fetching markets from:", `${API_URL}/connectors/hyperliquid/prices`, `${API_URL}/connectors/ostium/prices`);
 
             const [hlResponse, ostResponse] = await Promise.allSettled([
-                axios.get(`${API_URL}/connectors/hyperliquid/prices`, { timeout: 10000 }),
-                axios.get(`${API_URL}/connectors/ostium/prices`, { timeout: 10000 })
+                axios.get(`${API_URL}/connectors/hyperliquid/prices`, { timeout: 30000 }),
+                axios.get(`${API_URL}/connectors/ostium/prices`, { timeout: 30000 })
             ]);
 
             let markets: MarketData[] = [];

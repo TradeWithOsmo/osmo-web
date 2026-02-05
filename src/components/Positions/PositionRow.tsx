@@ -114,10 +114,6 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
                     <span>${formatUsd(position.margin)} <span style={{ color: '#A77590', fontSize: '11px' }}>(Cross)</span></span>
                 </td>
 
-                {/* Funding */}
-                <td className={styles.td}>
-                    <span style={{ color: position.funding >= 0 ? '#00E396' : '#FF4560' }}>${formatUsd(Math.abs(position.funding))}</span>
-                </td>
 
                 {/* Close All */}
                 <td className={styles.td}>
@@ -207,10 +203,6 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
                                 <div className={styles.mobileDetailRow}>
                                     <span className={styles.mobileLabel}>Margin</span>
                                     <span className={styles.mobileValue}>${formatUsd(position.margin)} (Cross)</span>
-                                </div>
-                                <div className={styles.mobileDetailRow}>
-                                    <span className={styles.mobileLabel}>Funding</span>
-                                    <span className={`${styles.mobileValue} ${position.funding >= 0 ? styles.positive : styles.negative}`}>${formatUsd(position.funding)}</span>
                                 </div>
                                 <div className={styles.mobileDetailRow}>
                                     <span className={styles.mobileLabel}>TP/SL</span>

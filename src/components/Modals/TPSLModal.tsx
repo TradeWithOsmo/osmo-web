@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import styles from './TPSLModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useMarketStore } from '../../store/useMarketStore';
 import { usePrivy } from '@privy-io/react-auth';
 
 export const TPSLModal: React.FC = () => {
-    const { isTPSLModalOpen, closeTPSLModal, selectedPosition } = useUIStore();
-    const { updateTPSL } = usePortfolioStore();
+    const { isTPSLModalOpen, closeTPSLModal, selectedPosition: uiPosition } = useUIStore();
+    const { positions, updateTPSL } = usePortfolioStore();
+    const { getPrice } = useMarketStore();
     const { user } = usePrivy();
     const walletAddress = user?.wallet?.address;
+
+    const selectedPosition = positions.find(p => p.id === uiPosition?.id) || uiPosition;
     const [tpPrice, setTpPrice] = useState('');
     const [tpGain, setTpGain] = useState('');
     const [slPrice, setSlPrice] = useState('');
@@ -68,7 +72,26 @@ export const TPSLModal: React.FC = () => {
     };
 
     const assetSymbol = selectedPosition.symbol.split('-')[0];
-    const amountToApply = (selectedPosition.size * (percentage / 100)).toFixed(4);
+    const markPrice = getPrice(selectedPosition?.symbol || '') || (selectedPosition as any)?.markPrice || (selectedPosition as any)?.mark_price || 0;
+
+    const [manualAmount, setManualAmount] = useState('');
+
+    React.useEffect(() => {
+        if (selectedPosition) {
+            const amt = (selectedPosition.size * (percentage / 100));
+            setManualAmount(amt.toFixed(selectedPosition.symbol.includes('USD') ? 4 : 8));
+        }
+    }, [percentage, selectedPosition?.size]);
+
+    const handleManualAmountChange = (val: string) => {
+        setManualAmount(val);
+        const num = parseFloat(val);
+        if (selectedPosition && !isNaN(num) && selectedPosition.size > 0) {
+            const pct = Math.min(100, Math.max(0, (num / selectedPosition.size) * 100));
+            setPercentage(pct);
+        }
+    };
+
     const isFormValid = !!(tpPrice || tpGain || slPrice || slLoss || configAmount);
 
     return (
@@ -99,11 +122,11 @@ export const TPSLModal: React.FC = () => {
                     </div>
                     <div className={styles.infoRow}>
                         <span className={styles.label}>Entry Price</span>
-                        <span className={styles.value}>{selectedPosition.entryPrice.toLocaleString()}</span>
+                        <span className={styles.value}>{(selectedPosition as any).entry_price || (selectedPosition as any).entryPrice || 0}</span>
                     </div>
                     <div className={styles.infoRow}>
                         <span className={styles.label}>Mark Price</span>
-                        <span className={styles.value}>{selectedPosition.markPrice.toLocaleString()}</span>
+                        <span className={styles.value}>{markPrice.toLocaleString()}</span>
                     </div>
 
                     {/* TP Row */}
@@ -201,7 +224,11 @@ export const TPSLModal: React.FC = () => {
                                     <div className={styles.sliderThumb} style={{ left: `${percentage}%` }} />
                                 </div>
                                 <div className={styles.amountBox}>
-                                    <input type="text" value={amountToApply.replace('.', ',')} readOnly />
+                                    <input
+                                        type="number"
+                                        value={manualAmount}
+                                        onChange={(e) => handleManualAmountChange(e.target.value)}
+                                    />
                                     <span className={styles.assetLabel}>{assetSymbol}</span>
                                 </div>
                             </div>

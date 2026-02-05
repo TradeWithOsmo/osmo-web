@@ -656,3 +656,25 @@
         width: 100%;
     }
 }
+
+.refreshBtn {
+    background: none;
+    border: none;
+    color: #A77590;
+    cursor: pointer;
+    padding: 8px;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.refreshBtn:hover {
+    color: #FFE1F2;
+    transform: rotate(30deg);
+}
+
+.refreshBtn:active {
+    transform: rotate(180deg);
+}

@@ -2,25 +2,56 @@ import React, { useState, useEffect } from 'react';
 import styles from './DepositModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
 import { useWallet } from '../../hooks/useWallet';
-import { onchainService } from '../../api/onchainService';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useBalance } from 'wagmi';
+
+import { onchainService, CONTRACTS } from '../../api/onchainService'; // Updated import
 import usdcArbIcon from '../../assets/deposited chain/USDCARB.png';
 import toast from 'react-hot-toast';
+import { createWalletClient, custom, formatUnits, isAddress } from 'viem';
+import { arbitrumSepolia } from 'viem/chains';
 
 export const DepositModal: React.FC = () => {
     const { isDepositModalOpen, closeDepositModal, modalMode } = useUIStore();
-    const { walletAddress } = useWallet();
-    const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
+    const { walletAddress, wallets } = useWallet();
+
+    // Internal tab state (Deposit/Withdraw in normal mode, Refill/Unrefill in refill mode)
+    const [subTab, setSubTab] = useState<'in' | 'out'>('in');
+
     const [amount, setAmount] = useState('');
+    const [recipient, setRecipient] = useState('');
     const [vaultBalance, setVaultBalance] = useState<number>(0);
+    const [availableBalance, setAvailableBalance] = useState<number>(0);
     const [aiBalance, setAiBalance] = useState<number>(0);
     const [loading, setLoading] = useState(false);
     const [processing, setProcessing] = useState(false);
 
-    // Prevent background scrolling when modal is open
+    // Reset subTab when modal mode changes or opens
     useEffect(() => {
         if (isDepositModalOpen) {
+            setSubTab('in');
+            setAmount('');
+            setRecipient('');
+        }
+    }, [isDepositModalOpen, modalMode]);
+
+    // Fetch USDC Balance via Wagmi
+    const { data: usdcBalanceData } = useBalance({
+        address: walletAddress as `0x${string}`,
+        token: CONTRACTS.USDC as `0x${string}`,
+        query: {
+            enabled: !!walletAddress && isDepositModalOpen,
+            refetchInterval: 10000 // Slowed down to 10s
+        }
+    });
+
+    const walletUSDCBalance = usdcBalanceData ? Number(formatUnits(usdcBalanceData.value, usdcBalanceData.decimals)) : 0;
+
+    // Fetch Vault balances
+    useEffect(() => {
+        if (isDepositModalOpen && walletAddress) {
             document.body.style.overflow = 'hidden';
-            if (walletAddress) fetchBalances();
+            fetchBalances();
         } else {
             document.body.style.overflow = '';
         }
@@ -35,6 +66,7 @@ export const DepositModal: React.FC = () => {
         try {
             const balances = await onchainService.getVaultBalances(walletAddress);
             setVaultBalance(balances.trading);
+            setAvailableBalance(balances.available);
             setAiBalance(balances.ai);
         } catch (error) {
             console.error('Failed to fetch balances:', error);
@@ -45,38 +77,94 @@ export const DepositModal: React.FC = () => {
 
     if (!isDepositModalOpen) return null;
 
-    const isFormValid = !!amount && parseFloat(amount) > 0;
+    // Derived logic
+    const isRefill = modalMode === 'refill';
 
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            closeDepositModal();
-        }
-    };
+    const maxAllowed = isRefill
+        ? (subTab === 'in' ? availableBalance : aiBalance)
+        : (subTab === 'in' ? walletUSDCBalance : availableBalance);
+
+    const isRecipientValid = !recipient || isAddress(recipient);
+    const isAmountValid = !!amount && parseFloat(amount) > 0 && parseFloat(amount) <= (maxAllowed + 0.000001); // Float tolerance
+    const isFormValid = isAmountValid && isRecipientValid;
 
     const handleAction = async () => {
         if (!walletAddress || !isFormValid) return;
 
-        setProcessing(true);
-        const amountUSDC = parseFloat(amount) * 1_000_000; // 6 decimals
+        const wallet = wallets[0];
+        if (!wallet) {
+            toast.error('No wallet connected');
+            return;
+        }
 
+        setProcessing(true);
         try {
-            if (modalMode === 'refill') {
-                // Refill AI Vault (Trading Vault -> AI Vault)
-                await onchainService.refillAIVault(walletAddress, amountUSDC);
-                toast.success('AI Vault refilled successfully');
-            } else if (activeTab === 'deposit') {
-                // Deposit (Wallet -> Trading Vault)
-                await onchainService.depositToVault(walletAddress, amountUSDC);
-                toast.success('Deposit successful');
+            const provider = await wallet.getEthereumProvider();
+            const walletClient = createWalletClient({
+                account: walletAddress as `0x${string}`,
+                chain: arbitrumSepolia,
+                transport: custom(provider)
+            });
+
+            const amountVal = parseFloat(amount);
+
+            if (isRefill) {
+                if (subTab === 'in') {
+                    // Refill (Trading -> AI)
+                    const withdrawResult = await onchainService.withdrawFromVault(walletClient, walletAddress, amountVal);
+                    await toast.promise(onchainService.waitForTransaction(withdrawResult.tx_hash), {
+                        loading: 'Withdrawing from Trading Vault...',
+                        success: 'Withdrawal confirmed! Depositing to AI Vault...',
+                        error: 'Withdrawal failed'
+                    });
+
+                    const depositResult = await onchainService.depositToAIVault(walletClient, walletAddress, amountVal);
+                    await toast.promise(onchainService.waitForTransaction(depositResult.tx_hash), {
+                        loading: 'Depositing to AI Vault...',
+                        success: 'Refill successful!',
+                        error: 'AI Deposit failed'
+                    });
+                } else {
+                    // Unrefill (AI -> Trading)
+                    const withdrawResult = await onchainService.withdrawFromAIVault(walletClient, walletAddress, amountVal);
+                    await toast.promise(onchainService.waitForTransaction(withdrawResult.tx_hash), {
+                        loading: 'Withdrawing from AI Vault...',
+                        success: 'Withdrawal confirmed! Depositing to Trading Vault...',
+                        error: 'Withdrawal failed'
+                    });
+
+                    const depositResult = await onchainService.depositToVault(walletClient, walletAddress, amountVal);
+                    await toast.promise(onchainService.waitForTransaction(depositResult.tx_hash), {
+                        loading: 'Depositing to Trading Vault...',
+                        success: 'Unrefill successful!',
+                        error: 'Trading Deposit failed'
+                    });
+                }
             } else {
-                // Withdraw (Trading Vault -> Wallet)
-                await onchainService.withdrawFromVault(walletAddress, amountUSDC);
-                toast.success('Withdrawal successful');
+                if (subTab === 'in') {
+                    // Deposit (Wallet -> Trading)
+                    await onchainService.depositToVault(walletClient, walletAddress, amountVal);
+                    toast.success('Deposit successful');
+                } else {
+                    // Withdraw (Trading -> Wallet)
+                    const withdrawResult = await onchainService.withdrawFromVault(walletClient, walletAddress, amountVal);
+                    await toast.promise(onchainService.waitForTransaction(withdrawResult.tx_hash), {
+                        loading: 'Withdrawing...',
+                        success: 'Withdrawal confirmed!',
+                        error: 'Withdrawal failed'
+                    });
+
+                    if (recipient && isAddress(recipient)) {
+                        await toast.promise(onchainService.transferUSDC(walletClient, recipient, amountVal), {
+                            loading: 'Transferring to Recipient...',
+                            success: 'Transfer successful!',
+                            error: 'Transfer failed'
+                        });
+                    }
+                }
             }
 
-            // Refresh balances and close
-            await fetchBalances();
-            setAmount('');
+            if (walletAddress) await usePortfolioStore.getState().refreshAll(walletAddress);
             closeDepositModal();
         } catch (error: any) {
             console.error(error);
@@ -86,30 +174,18 @@ export const DepositModal: React.FC = () => {
         }
     };
 
-    // Determine max balance based on mode
-    const getMaxBalance = () => {
-        if (modalMode === 'refill') return vaultBalance; // Refill comes FROM trading vault
-        if (activeTab === 'withdraw') return vaultBalance; // Withdraw FROM trading vault
-        // For deposit, we ideally check wallet USDC balance. 
-        // For now, we leave it user input or max of infinity (placeholder)
-        return 0; // Or fetch wallet balance if available
-    };
-
     const handleMaxClick = () => {
-        const max = getMaxBalance();
-        if (max > 0) {
-            // Display as USD (2 decimals)
-            setAmount((max / 1_000_000).toString());
+        if (maxAllowed > 0) {
+            setAmount(maxAllowed.toString());
         }
     };
 
     return (
-        <div className={styles.overlay} onClick={handleBackdropClick}>
+        <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && closeDepositModal()}>
             <div className={styles.modal}>
-                {/* Header */}
                 <div className={styles.header}>
                     <h2 className={styles.title}>
-                        {modalMode === 'refill' ? 'Refill Credits' : (activeTab === 'deposit' ? 'Deposit' : 'Withdraw')}
+                        {isRefill ? (subTab === 'in' ? 'Refill Credits' : 'Unrefill Credits') : (subTab === 'in' ? 'Deposit' : 'Withdraw')}
                     </h2>
                     <button className={styles.closeButton} onClick={closeDepositModal}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -119,40 +195,31 @@ export const DepositModal: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className={styles.content}>
-                    {/* Tabs (Only for Deposit/Withdraw mode) */}
-                    {modalMode === 'deposit' && (
-                        <div className={styles.tabs}>
-                            <button
-                                className={`${styles.tab} ${activeTab === 'deposit' ? styles.activeTab : ''}`}
-                                onClick={() => setActiveTab('deposit')}
-                            >
-                                Deposit
-                            </button>
-                            <button
-                                className={`${styles.tab} ${activeTab === 'withdraw' ? styles.activeTab : ''}`}
-                                onClick={() => setActiveTab('withdraw')}
-                            >
-                                Withdraw
-                            </button>
-                        </div>
-                    )}
+                    <div className={styles.tabs}>
+                        <button
+                            className={`${styles.tab} ${subTab === 'in' ? styles.activeTab : ''}`}
+                            onClick={() => setSubTab('in')}
+                        >
+                            {isRefill ? 'Refill' : 'Deposit'}
+                        </button>
+                        <button
+                            className={`${styles.tab} ${subTab === 'out' ? styles.activeTab : ''}`}
+                            onClick={() => setSubTab('out')}
+                        >
+                            {isRefill ? 'Unrefill' : 'Withdraw'}
+                        </button>
+                    </div>
 
-                    {/* Amount Input */}
                     <div className={styles.amountContainer}>
                         <div className={styles.amountHeader}>
                             <span>Amount</span>
                             <div className={styles.balanceLabel}>
-                                {loading ? (
-                                    <span>Loading...</span>
-                                ) : (
+                                {loading ? <span>Loading...</span> : (
                                     <span>
-                                        {modalMode === 'refill'
-                                            ? `${(vaultBalance / 1_000_000).toLocaleString()} available`
-                                            : activeTab === 'withdraw'
-                                                ? `${(vaultBalance / 1_000_000).toLocaleString()} available`
-                                                : 'Wallet Balance' // Placeholder until wallet balance fetch is ready
+                                        {isRefill
+                                            ? `${(subTab === 'in' ? availableBalance : aiBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} available`
+                                            : `${(subTab === 'in' ? walletUSDCBalance : availableBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} available`
                                         }
                                     </span>
                                 )}
@@ -175,51 +242,51 @@ export const DepositModal: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Info Rows */}
-                    {modalMode === 'refill' ? (
-                        <div className={styles.infoRow}>
-                            <span className={styles.infoLabel}>Refill Method</span>
-                            <span className={styles.infoValue}>
-                                <span style={{ color: '#8b9bb4' }}>Trading Vault</span> → <span style={{ color: '#fff' }}>AI Vault</span>
-                            </span>
-                        </div>
-                    ) : (
-                        <div className={styles.infoRow}>
-                            <span className={styles.infoLabel}>
-                                {activeTab === 'deposit' ? 'Deposit method' : 'Withdraw method'}
-                            </span>
-                            <span className={styles.infoValue}>
-                                {parseFloat(amount) > 0 ? (
-                                    <div className={styles.instantContainer}>
-                                        <span className={styles.instantLabel}>
-                                            Instant
-                                        </span>
-                                        <span className={styles.freeBadge}>Free</span>
-                                    </div>
-                                ) : (
-                                    '-'
-                                )}
-                            </span>
+                    {subTab === 'out' && !isRefill && (
+                        <div className={styles.recipientContainer} style={{ marginTop: '16px' }}>
+                            <div className={styles.amountHeader} style={{ marginBottom: '8px' }}>
+                                <span>Withdraw to (Optional)</span>
+                            </div>
+                            <input
+                                type="text"
+                                className={styles.amountInput}
+                                style={{ fontSize: '16px', padding: '12px', width: '100%', background: '#1A1D25', border: '1px solid #333', borderRadius: '8px' }}
+                                placeholder="Wallet Address (0x...)"
+                                value={recipient}
+                                onChange={(e) => setRecipient(e.target.value)}
+                            />
                         </div>
                     )}
 
                     <div className={styles.infoRow}>
                         <span className={styles.infoLabel}>
-                            {modalMode === 'refill' ? 'Current AI Credits' : 'Vault Balance'}
+                            {isRefill ? (subTab === 'in' ? 'Refill Method' : 'Unrefill Method') : (subTab === 'in' ? 'Deposit method' : 'Withdraw method')}
                         </span>
                         <span className={styles.infoValue}>
-                            ${((modalMode === 'refill' ? aiBalance : vaultBalance) / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {isRefill ? (
+                                subTab === 'in'
+                                    ? <><span style={{ color: '#A77590' }}>Vault</span> → <span style={{ color: '#00E396' }}>AI</span></>
+                                    : <><span style={{ color: '#A77590' }}>AI</span> → <span style={{ color: '#00E396' }}>Vault</span></>
+                            ) : 'Instant'}
                         </span>
                     </div>
 
-                    {/* Action Button */}
+                    <div className={styles.infoRow}>
+                        <span className={styles.infoLabel}>
+                            {isRefill ? 'Current AI Credits' : 'Vault Balance'}
+                        </span>
+                        <span className={styles.infoValue}>
+                            ${(isRefill ? aiBalance : vaultBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                    </div>
+
                     <button
                         className={`${styles.actionButton} ${!isFormValid || processing ? styles.disabledButton : ''}`}
                         disabled={!isFormValid || processing}
                         onClick={handleAction}
                     >
                         {processing ? 'Processing...' : (
-                            modalMode === 'refill' ? 'Refill Credits' : (activeTab === 'deposit' ? 'Deposit funds' : 'Withdraw funds')
+                            isRefill ? (subTab === 'in' ? 'Refill Credits' : 'Unrefill Credits') : (subTab === 'in' ? 'Deposit funds' : 'Withdraw funds')
                         )}
                     </button>
                 </div>
@@ -227,3 +294,4 @@ export const DepositModal: React.FC = () => {
         </div>
     );
 };
+

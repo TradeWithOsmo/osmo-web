@@ -53,7 +53,7 @@ const Overview: React.FC = () => {
             <div style={{ marginBottom: '24px' }}>
                 <div className={styles.sectionTitle}>Portfolio Value</div>
                 <div className={styles.balanceValue} style={{ fontSize: '32px', marginTop: '8px' }}>
-                    {isLoading ? <span style={{ fontSize: '24px', opacity: 0.5 }}>Loading...</span> : formatVal(accountValue)}
+                    {isLoading && accountValue === 0 ? <span style={{ fontSize: '24px', opacity: 0.5 }}>Loading...</span> : formatVal(accountValue)}
                 </div>
 
                 <div className={styles.legendContainer}>

@@ -296,12 +296,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {/* Header Removed */}
 
             {/* Center Content */}
-            <div className={styles.centerContent} style={{ justifyContent: messages.length > 0 ? 'flex-start' : 'center' }}>
+            <div className={styles.centerContent}>
 
                 {/* Greeting - Only show if no messages */}
                 {messages.length === 0 && (
                     <div className={styles.greetingContainer}>
-                        <h1 className={styles.greetingText}>What can I do for you?</h1>
+                        <img
+                            src="/src/assets/Icons/Osmo-Logos.png"
+                            alt="Osmo"
+                            className={styles.centerLogo}
+                        />
                     </div>
                 )}
 

@@ -17,6 +17,16 @@ export interface PortfolioMetrics {
 
 export type PortfolioTimeframe = '1d' | '7d' | '30d' | 'all';
 
+export interface FundingHistoryData {
+    id: string;
+    type: 'Deposit' | 'Withdraw';
+    asset: string;
+    amount: number;
+    txHash: string;
+    status: 'Completed' | 'Pending' | 'Failed';
+    timestamp: string;
+}
+
 export const portfolioService = {
     async getPortfolioHistory(
         userAddress: string,
@@ -65,5 +75,47 @@ export const portfolioService = {
         }
 
         return response.json();
+    },
+
+    // Funding History
+    async getFundingHistory(userAddress: string, type?: 'Deposit' | 'Withdraw'): Promise<{ data: FundingHistoryData[] }> {
+        const params = new URLSearchParams();
+        if (type) params.append('type', type);
+
+        try {
+            const response = await fetch(
+                `${API_URL}/api/portfolio/${userAddress}/funding?${params.toString()}`
+            );
+
+            if (!response.ok) {
+                console.warn("Failed to fetch funding history");
+                return { data: [] };
+            }
+
+            return response.json();
+        } catch (error) {
+            console.error("Error fetching funding history:", error);
+            // Return empty array on error to prevent UI crash
+            return { data: [] };
+        }
+    },
+
+    // Trade History
+    async getTradeHistory(userAddress: string): Promise<{ data: any[] }> {
+        try {
+            const response = await fetch(
+                `${API_URL}/api/portfolio/${userAddress}/trades`
+            );
+
+            if (!response.ok) {
+                console.warn("Failed to fetch trade history");
+                return { data: [] };
+            }
+
+            return response.json();
+        } catch (error) {
+            console.error("Error fetching trade history:", error);
+            return { data: [] };
+        }
     }
 };

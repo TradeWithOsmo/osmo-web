@@ -44,5 +44,17 @@ export const usageService = {
             params: { timeframe }
         });
         return response.data;
+    },
+
+    getModels: async (): Promise<any[]> => {
+        const response = await axios.get(`${API_URL}/api/usage/models`);
+        return response.data;
+    },
+
+    getLastUsedModels: async (userAddress: string, timeframe = 'all'): Promise<any[]> => {
+        const response = await axios.get(`${API_URL}/api/usage/last-used/${userAddress}`, {
+            params: { timeframe }
+        });
+        return response.data;
     }
 };

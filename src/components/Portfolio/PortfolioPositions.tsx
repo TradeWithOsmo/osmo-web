@@ -36,9 +36,8 @@ const PortfolioPositions: React.FC = () => {
 
         // Poll every 5 seconds or fetch once
         const fetchData = () => {
-            if (activeTab === 'Positions') {
-                fetchPositions(walletAddress);
-            } else {
+            fetchPositions(walletAddress); // Always fetch positions for counts
+            if (activeTab === 'Orders') {
                 fetchOrders(walletAddress, 'pending');
             }
         };
@@ -99,14 +98,14 @@ const PortfolioPositions: React.FC = () => {
 
     // Data Mappers
     const mapAPIPositionToUI = (apiPos: any): PositionData => {
-        const isLong = apiPos.side.toLowerCase() === 'long';
+        const isLong = apiPos.side.toLowerCase() === 'long' || apiPos.side.toLowerCase() === 'buy';
         return {
             id: apiPos.id,
             symbol: apiPos.symbol,
             pair: apiPos.symbol, // backend usually returns pair like SOL-USD
             side: isLong ? 'Long' : 'Short',
             size: apiPos.size,
-            sizeUsd: apiPos.size * apiPos.mark_price, // Calculate approximate USD value
+            sizeUsd: apiPos.position_value || (apiPos.size * (apiPos.mark_price || apiPos.entry_price)), // Use backend value if avail
             leverage: `${apiPos.leverage}x`,
             entryPrice: apiPos.entry_price,
             markPrice: apiPos.mark_price || apiPos.entry_price, // Fallback
@@ -151,6 +150,7 @@ const PortfolioPositions: React.FC = () => {
             // Filter
             if (filterBy === 'long') result = result.filter((p: PositionData) => p.side === 'Long');
             if (filterBy === 'short') result = result.filter((p: PositionData) => p.side === 'Short');
+
             return result;
         } else {
             let result = openOrders.map(mapAPIOrderToUI);
@@ -436,15 +436,14 @@ const PortfolioPositions: React.FC = () => {
                                     <th className={panelStyles.th}>PNL (ROE %)</th>
                                     <th className={panelStyles.th}>Liq. Price</th>
                                     <th className={panelStyles.th}>Margin</th>
-                                    <th className={panelStyles.th}>Funding</th>
                                     <th className={panelStyles.th}>Close All</th>
                                     <th className={panelStyles.th} style={{ textAlign: 'right' }}>TP/SL</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {isLoading ? (
+                                {isLoading && positions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={11} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                                        <td colSpan={10} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
                                             Loading positions...
                                         </td>
                                     </tr>
@@ -454,7 +453,7 @@ const PortfolioPositions: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={11} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                                        <td colSpan={10} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
                                             No open positions
                                         </td>
                                     </tr>

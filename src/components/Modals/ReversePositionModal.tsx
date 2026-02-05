@@ -2,9 +2,24 @@ import React, { useState } from 'react';
 import styles from './ReversePositionModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
 
+import { useWallet } from '../../hooks/useWallet';
+import { orderService } from '../../api/orderService';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useMarketStore } from '../../store/useMarketStore';
+import toast from 'react-hot-toast';
+
 export const ReversePositionModal: React.FC = () => {
-    const { isReverseModalOpen, closeReverseModal, selectedPosition } = useUIStore();
+    const { isReverseModalOpen, closeReverseModal, selectedPosition: uiPosition } = useUIStore();
+    const { positions, refreshAll } = usePortfolioStore();
+    const { getPrice } = useMarketStore();
+    const { walletAddress } = useWallet() as any;
+
+    const selectedPosition = positions.find(p => p.id === uiPosition?.id) || uiPosition;
+
     const [dontShowAgain, setDontShowAgain] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const markPrice = getPrice(selectedPosition?.symbol || '') || (selectedPosition as any)?.markPrice || (selectedPosition as any)?.mark_price || 0;
 
     // Lock scroll
     React.useEffect(() => {
@@ -18,29 +33,55 @@ export const ReversePositionModal: React.FC = () => {
 
     if (!isReverseModalOpen || !selectedPosition) return null;
 
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) closeModal();
-    };
-
     const closeModal = () => {
         setDontShowAgain(false);
         closeReverseModal();
     };
 
-    const isCurrentLong = selectedPosition.side === 'Long';
-    // If current is Long, we are reversing to Short. Button = "Sell / Short" (Red)
-    // If current is Short, we are reversing to Long. Button = "Buy / Long" (Green)
+    const handleBackdropClick = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) closeModal();
+    };
 
+    // Helper
+    const formatSize = (val: number) => {
+        if (!val && val !== 0) return '0.0000';
+        return val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 8 });
+    };
+
+
+    const isCurrentLong = selectedPosition.side.toLowerCase() === 'long';
     const targetSide = isCurrentLong ? 'Short' : 'Long';
     const buttonClass = isCurrentLong ? styles.confirmShort : styles.confirmLong;
     const buttonText = isCurrentLong ? 'Sell / Short' : 'Buy / Long';
 
-    // Mock calculations or data from position
-    // "Est. Liquidation Price": Just using mock logic or current + margin for demo?
-    // User screenshot shows specific numbers. We'll use available data.
-    // Liq price changes when reversing.
-    const estLiqPrice = isCurrentLong ? (selectedPosition.markPrice * 1.1) : (selectedPosition.markPrice * 0.9);
-    const isFormValid = true;
+    const estLiqPrice = isCurrentLong ? (markPrice * 1.08) : (markPrice * 0.92);
+
+    const handleConfirm = async () => {
+        if (!walletAddress || !selectedPosition) return;
+        setIsSubmitting(true);
+        try {
+            await orderService.reversePosition(
+                walletAddress,
+                selectedPosition.symbol
+            );
+
+            toast.success('Reverse position submitted');
+            closeReverseModal();
+
+            // Immediate Refresh
+            refreshAll(walletAddress);
+
+            // Sequential refreshes to ensure we catch the indexer
+            setTimeout(() => refreshAll(walletAddress), 500);
+            setTimeout(() => refreshAll(walletAddress), 2000);
+
+        } catch (error: any) {
+            console.error('Reverse failed', error);
+            toast.error(error.message || 'Failed to reverse position');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className={styles.overlay} onClick={handleBackdropClick}>
@@ -74,7 +115,7 @@ export const ReversePositionModal: React.FC = () => {
                     <div className={styles.row}>
                         <span className={styles.label}>Size</span>
                         <span className={styles.value}>
-                            {selectedPosition.size} {selectedPosition.symbol.split('-')[0]}
+                            {formatSize(selectedPosition.size)} {selectedPosition.symbol.split('-')[0]}
                         </span>
                     </div>
 
@@ -101,8 +142,12 @@ export const ReversePositionModal: React.FC = () => {
                     </div>
 
                     {/* Button */}
-                    <button className={`${styles.confirmButton} ${buttonClass} ${!isFormValid ? styles.disabledButton : ''}`} disabled={!isFormValid}>
-                        {buttonText}
+                    <button
+                        className={`${styles.confirmButton} ${buttonClass} ${isSubmitting ? styles.disabledButton : ''}`}
+                        disabled={isSubmitting}
+                        onClick={handleConfirm}
+                    >
+                        {isSubmitting ? 'Submitting...' : buttonText}
                     </button>
                 </div>
             </div>

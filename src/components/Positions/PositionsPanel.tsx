@@ -2,15 +2,12 @@ import React, { useState } from 'react';
 import styles from './PositionsPanel.module.css';
 import portfolioStyles from '../Portfolio/Portfolio.module.css'; // Import Navbar styles
 import { useUIStore } from '../../store/useUIStore';
-import { usePortfolioStore } from '../../store/usePortfolioStore';
 import PositionRow from './PositionRow';
-import type { PositionData } from './PositionRow';
-import type { OrderData } from './OrderRow';
 import OrdersTable from './OrdersTable';
 import TradeHistoryTable from './TradeHistoryTable';
-import type { TradeHistoryData } from './TradeHistoryRow';
 import OrderHistoryTable from './OrderHistoryTable';
-import type { OrderHistoryData } from './OrderHistoryRow';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useMarketStore } from '../../store/useMarketStore';
 import arrowDownIcon from '../../assets/Icons/Arrow/Arrow-down-Bullet.png';
 
 // Sort Icon Component (same as Leaderboard)
@@ -51,24 +48,59 @@ import { useWallet } from '../../hooks/useWallet';
 
 const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpanded, onToggle }) => {
     const { openCloseAllModal } = useUIStore();
-    const { positions, openOrders, orderHistory, fetchPositions, fetchOrders, isLoading, error } = usePortfolioStore();
+    const {
+        positions,
+        openOrders,
+        orderHistory,
+        tradeHistory,
+        fetchPositions,
+        fetchOrders,
+        fetchTradeHistory,
+        refreshAll,
+        connectRealtime,
+        disconnectRealtime,
+        isLoading,
+        error
+    } = usePortfolioStore();
+    const { getPrice } = useMarketStore();
     const { authenticated, walletAddress } = useWallet();
     const [activeTab, setActiveTab] = useState<TabType>('Positions');
 
-    // Fetch Data
+    // 1. Connection Lifecycle (Only on wallet/auth change)
+    React.useEffect(() => {
+        if (!authenticated || !walletAddress) {
+            disconnectRealtime();
+            // Optional: clearStore(); if we want to wipe UI on logout
+            return;
+        }
+
+        console.log("🔄 PositionsPanel: Initializing data & realtime for", walletAddress);
+        fetchPositions(walletAddress);
+        fetchOrders(walletAddress, 'pending').catch(() => { });
+        fetchOrders(walletAddress, 'history').catch(() => { });
+        fetchTradeHistory(walletAddress).catch(() => { });
+        connectRealtime(walletAddress);
+
+        return () => {
+            disconnectRealtime();
+        };
+    }, [authenticated, walletAddress, connectRealtime, disconnectRealtime]); // Removed activeTab
+
+    // 2. Background Polling (Fallback for syncing)
     React.useEffect(() => {
         if (!authenticated || !walletAddress) return;
 
-        const fetchData = () => {
+        const pollInterval = setInterval(() => {
             fetchPositions(walletAddress);
-            fetchOrders(walletAddress, 'pending');
-            fetchOrders(walletAddress, 'history');
-        };
+            // Only poll pending orders if visible
+            if (activeTab === 'Orders' || activeTab === 'Positions') {
+                fetchOrders(walletAddress, 'pending').catch(() => { });
+            }
+        }, 15000); // 15s is enough for fallback
 
-        fetchData();
-        const interval = setInterval(fetchData, 3000); // 3s polling
-        return () => clearInterval(interval);
-    }, [authenticated, walletAddress]);
+        return () => clearInterval(pollInterval);
+    }, [authenticated, walletAddress, activeTab, fetchPositions, fetchOrders]);
+
     // Local state fallback if not controlled
     const [localExpanded, setLocalExpanded] = useState(true);
 
@@ -115,7 +147,19 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                     Order History
                 </button>
 
-                <div className={styles.filler} style={{ flex: 1, borderBottom: '1px solid #3A2530' }} />
+                <div className={styles.filler} style={{ flex: 1, borderBottom: '1px solid #3A2530', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                    <button
+                        onClick={() => walletAddress && refreshAll(walletAddress)}
+                        className={styles.refreshBtn}
+                        title="Refresh Data"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M1 20v-6h6"></path>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                </div>
 
                 <div
                     className={styles.arrowToggle}
@@ -156,7 +200,6 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                         <th className={styles.th}>PNL (ROE %)</th>
                                         <th className={styles.th}>Liq. Price</th>
                                         <th className={styles.th}>Margin</th>
-                                        <th className={styles.th}>Funding</th>
                                         <th className={styles.th}>
                                             <button
                                                 className={styles.closeAllHeaderBtn}
@@ -176,13 +219,13 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                 <tbody>
                                     {isLoading && positions.length === 0 ? (
                                         <tr>
-                                            <td colSpan={11} style={{ textAlign: 'center', padding: '40px 0', color: '#A77590' }}>
+                                            <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: '#A77590' }}>
                                                 Loading positions...
                                             </td>
                                         </tr>
                                     ) : error ? (
                                         <tr>
-                                            <td colSpan={11} style={{ textAlign: 'center', padding: '40px 0' }}>
+                                            <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                                                     <span style={{ color: '#FF4560', fontSize: '14px' }}>⚠ Failed to load positions</span>
                                                     <span style={{ color: '#A77590', fontSize: '12px' }}>{error}</span>
@@ -196,29 +239,32 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                             </td>
                                         </tr>
                                     ) : positions.length > 0 ? (
-                                        positions.map(pos => (
-                                            <PositionRow key={pos.id} position={{
-                                                id: pos.id,
-                                                symbol: pos.symbol,
-                                                pair: pos.symbol,
-                                                side: pos.side === 'long' ? 'Long' : 'Short',
-                                                size: pos.size,
-                                                sizeUsd: pos.size * (pos.mark_price || 0),
-                                                leverage: `${pos.leverage}x`,
-                                                entryPrice: pos.entry_price,
-                                                markPrice: pos.mark_price || 0,
-                                                liquidationPrice: pos.liquidation_price || null,
-                                                unrealizedPnl: pos.unrealized_pnl,
-                                                unrealizedPnlPercent: (pos.unrealized_pnl / (pos.size * pos.entry_price / pos.leverage)) * 100,
-                                                margin: pos.margin_used || 0,
-                                                funding: 0,
-                                                tp: pos.tp,
-                                                sl: pos.sl
-                                            }} />
-                                        ))
+                                        positions.map((pos: any) => {
+                                            const marketPrice = getPrice(pos.symbol) || pos.mark_price || pos.entry_price || 0;
+                                            return (
+                                                <PositionRow key={pos.id} position={{
+                                                    id: pos.id,
+                                                    symbol: pos.symbol,
+                                                    pair: pos.symbol,
+                                                    side: pos.side === 'long' ? 'Long' : 'Short',
+                                                    size: pos.size,
+                                                    sizeUsd: pos.size * marketPrice,
+                                                    leverage: `${pos.leverage}x`,
+                                                    entryPrice: pos.entry_price,
+                                                    markPrice: marketPrice,
+                                                    liquidationPrice: pos.liquidation_price || null,
+                                                    unrealizedPnl: pos.unrealized_pnl,
+                                                    unrealizedPnlPercent: pos.unrealized_pnl_percent || 0,
+                                                    margin: pos.margin_used || 0,
+                                                    funding: 0,
+                                                    tp: pos.tp,
+                                                    sl: pos.sl
+                                                }} />
+                                            );
+                                        })
                                     ) : (
                                         <tr>
-                                            <td colSpan={11} style={{ textAlign: 'center', padding: '40px 0' }}>
+                                            <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                                                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#5D4050" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                                         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -236,7 +282,7 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                     )}
 
                     {activeTab === 'Orders' && (
-                        <OrdersTable orders={openOrders.map(o => ({
+                        <OrdersTable orders={openOrders.map((o: any) => ({
                             id: o.id,
                             time: o.created_at ? new Date(o.created_at).toLocaleString() : 'Just now',
                             type: (o.order_type.charAt(0).toUpperCase() + o.order_type.slice(1).replace('_', ' ')) as any,
@@ -254,11 +300,14 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                     )}
 
                     {activeTab === 'Trade History' && (
-                        <TradeHistoryTable trades={[]} /> // Empty for now
+                        <TradeHistoryTable trades={tradeHistory.map(t => ({
+                            ...t,
+                            time: t.time ? new Date(t.time).toLocaleString() : 'Just now'
+                        }))} />
                     )}
 
                     {activeTab === 'Order History' && (
-                        <OrderHistoryTable orders={orderHistory.map(o => ({
+                        <OrderHistoryTable orders={orderHistory.map((o: any) => ({
                             id: o.id,
                             time: o.created_at ? new Date(o.created_at).toLocaleString() : 'Just now',
                             type: (o.order_type.charAt(0).toUpperCase() + o.order_type.slice(1).replace('_', ' ')) as any,

@@ -12,6 +12,7 @@ interface MarketState {
     setMarket: (symbol: string) => void;
     updateMarketData: (symbol: string, data: Partial<MarketData>) => void; // For real-time updates
     updatePrices: (prices: Record<string, any>) => void; // Bulk price updates
+    getPrice: (symbol: string) => number; // Helper to get latest price
 }
 
 export const useMarketStore = create<MarketState>((set, get) => ({
@@ -119,5 +120,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                 selectedMarket: updatedSelected
             };
         });
+    },
+
+    getPrice: (symbol: string) => {
+        const market = get().markets.find(m => m.symbol === symbol);
+        return market?.price || 0;
     }
 }));

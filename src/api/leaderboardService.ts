@@ -12,6 +12,8 @@ export interface TraderLeaderboardEntry {
     pnl: number;
     roi: number;
     volume: number;
+    tradeCount: number;
+    winRate: number;
     agentModel?: string | null;
 }
 
@@ -23,6 +25,8 @@ export interface AgentLeaderboardEntry {
     pnl: number;
     roi: number;
     volume: number;
+    tradeCount: number;
+    winRate: number;
 }
 
 export interface LeaderboardResponse<T> {
