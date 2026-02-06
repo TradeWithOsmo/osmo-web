@@ -81,7 +81,6 @@ export const CancelOrderModal: React.FC = () => {
                         className={styles.confirmButton}
                         onClick={handleConfirm}
                         disabled={isSubmitting}
-                        style={{ background: '#FF4560' }}
                     >
                         {isSubmitting ? 'Cancelling...' : 'Confirm Cancel'}
                     </button>

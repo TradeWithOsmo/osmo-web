@@ -3,48 +3,6 @@ import styles from './Usage.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import { usageService } from '../../api/usageService';
 
-// Import logos
-import anthropicLogo from '../../assets/Model logos/Anthropic.svg';
-import deepseekLogo from '../../assets/Model logos/DeepSeek.png';
-import googleLogo from '../../assets/Model logos/GoogleGemini.svg';
-import openaiLogo from '../../assets/Model logos/OpenAI.svg';
-import qwenLogo from '../../assets/Model logos/Qwen.png';
-
-const PROVIDER_LOGOS: Record<string, string> = {
-    'openai': openaiLogo,
-    'anthropic': anthropicLogo,
-    'google': googleLogo,
-    'deepseek': deepseekLogo,
-    'qwen': qwenLogo,
-};
-
-const getLogoForModel = (modelName: string) => {
-    const name = modelName.toLowerCase();
-    if (name.includes('gpt')) return openaiLogo;
-    if (name.includes('claude')) return anthropicLogo;
-    if (name.includes('gemini')) return googleLogo;
-    if (name.includes('deepseek')) return deepseekLogo;
-    if (name.includes('qwen')) return qwenLogo;
-
-    // Check by common provider names
-    for (const [provider, logo] of Object.entries(PROVIDER_LOGOS)) {
-        if (name.includes(provider)) return logo;
-    }
-
-    return openaiLogo; // Default
-};
-
-const getProviderForModel = (modelName: string) => {
-    const name = modelName.toLowerCase();
-    if (name.includes('gpt') || name.includes('openai')) return 'OpenAI';
-    if (name.includes('claude') || name.includes('anthropic')) return 'Anthropic';
-    if (name.includes('gemini') || name.includes('google')) return 'Google DeepMind';
-    if (name.includes('deepseek')) return 'DeepSeek';
-    if (name.includes('llama') || name.includes('meta')) return 'Meta (Llama)';
-    if (name.includes('qwen')) return 'Alibaba Cloud';
-    return 'Other';
-};
-
 const ModelFeeRow: React.FC<{ model: any }> = ({ model }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -52,28 +10,19 @@ const ModelFeeRow: React.FC<{ model: any }> = ({ model }) => {
         <React.Fragment>
             {/* Desktop Row */}
             <tr className={`${panelStyles.row} ${panelStyles.desktopRow}`}>
-                <td className={panelStyles.td} style={{ textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            overflow: 'hidden',
-                            backgroundColor: '#3A2530',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <img src={getLogoForModel(model.name)} alt={model.name} style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
-                        </div>
-                        <span style={{ color: '#FFE1F2' }}>{model.name}</span>
+                <td className={`${panelStyles.td} ${panelStyles.tdFirst}`}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: '#FFE1F2', fontWeight: '500' }}>{model.name}</span>
                     </div>
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'left', color: '#FFE1F2' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#FFE1F2' }}>
                     ${model.input_cost.toFixed(2)}
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'left', color: '#FFE1F2' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#FFE1F2' }}>
                     ${model.output_cost.toFixed(2)}
+                </td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#FFE1F2' }}>
+                    {model.context_length ? `${Math.round(model.context_length / 1000)}k` : 'N/A'}
                 </td>
             </tr>
 
@@ -83,8 +32,7 @@ const ModelFeeRow: React.FC<{ model: any }> = ({ model }) => {
                     <div className={panelStyles.mobileCard}>
                         <div className={panelStyles.mobileHeader} onClick={() => setIsExpanded(!isExpanded)}>
                             <div className={panelStyles.mobileHeaderContent} style={{ gridTemplateColumns: '1fr' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <img src={getLogoForModel(model.name)} alt={model.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFE1F2' }}>{model.name}</span>
                                 </div>
                             </div>
@@ -98,18 +46,17 @@ const ModelFeeRow: React.FC<{ model: any }> = ({ model }) => {
                         {isExpanded && (
                             <div className={panelStyles.mobileDetails}>
                                 <div className={panelStyles.mobileDetailRow}>
-                                    <span className={panelStyles.mobileLabel}>Input ($/1M tokens)</span>
+                                    <span className={panelStyles.mobileLabel}>Input ($/1M)</span>
                                     <span className={panelStyles.mobileValue}>${model.input_cost.toFixed(2)}</span>
                                 </div>
-                                <div className={panelStyles.mobileDetailRow} style={{ borderBottom: 'none' }}>
-                                    <span className={panelStyles.mobileLabel}>Output ($/1M tokens)</span>
+                                <div className={panelStyles.mobileDetailRow}>
+                                    <span className={panelStyles.mobileLabel}>Output ($/1M)</span>
                                     <span className={panelStyles.mobileValue}>${model.output_cost.toFixed(2)}</span>
                                 </div>
-                                {model.description && (
-                                    <div style={{ padding: '8px 0', fontSize: '11px', color: '#A77590', fontStyle: 'italic' }}>
-                                        {model.description.length > 100 ? model.description.substring(0, 100) + '...' : model.description}
-                                    </div>
-                                )}
+                                <div className={panelStyles.mobileDetailRow} style={{ borderBottom: 'none' }}>
+                                    <span className={panelStyles.mobileLabel}>Context</span>
+                                    <span className={panelStyles.mobileValue}>{model.context_length ? `${Math.round(model.context_length / 1000)}k` : 'N/A'}</span>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -121,44 +68,26 @@ const ModelFeeRow: React.FC<{ model: any }> = ({ model }) => {
 
 const LastUsedRow: React.FC<{ item: any }> = ({ item }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const logo = getLogoForModel(item.model);
-    const provider = getProviderForModel(item.model);
 
     return (
         <React.Fragment>
             {/* Desktop Row */}
             <tr className={`${panelStyles.row} ${panelStyles.desktopRow}`}>
-                <td className={panelStyles.td} style={{ textAlign: 'left' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            overflow: 'hidden',
-                            backgroundColor: '#3A2530',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0
-                        }}>
-                            <img src={logo} alt={item.model} style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ color: '#FFE1F2', fontSize: '13px' }}>{item.model}</span>
-                            <span style={{ color: '#A77590', fontSize: '11px' }}>{provider}</span>
-                        </div>
+                <td className={`${panelStyles.td} ${panelStyles.tdFirst}`}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ color: '#FFE1F2', fontSize: '13px', fontWeight: '500' }}>{item.model}</span>
                     </div>
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#FFE1F2' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#FFE1F2' }}>
                     {item.request_count}
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#FFE1F2' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#FFE1F2' }}>
                     {item.total_tokens.toLocaleString()}
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#FFE1F2' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#FFE1F2' }}>
                     ${item.total_cost.toFixed(4)}
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#A77590' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#A77590' }}>
                     {item.last_used}
                 </td>
             </tr>
@@ -169,12 +98,8 @@ const LastUsedRow: React.FC<{ item: any }> = ({ item }) => {
                     <div className={panelStyles.mobileCard}>
                         <div className={panelStyles.mobileHeader} onClick={() => setIsExpanded(!isExpanded)}>
                             <div className={panelStyles.mobileHeaderContent} style={{ gridTemplateColumns: '1fr' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <img src={logo} alt={item.model} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFE1F2' }}>{item.model}</span>
-                                        <span style={{ fontSize: '11px', color: '#A77590' }}>{provider}</span>
-                                    </div>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFE1F2' }}>{item.model}</span>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', color: '#A77590' }}>
@@ -483,17 +408,18 @@ const ModelFee: React.FC = () => {
                             <thead className={panelStyles.th}>
                                 {activeTab === 'fee' ? (
                                     <tr>
-                                        <th className={panelStyles.th} style={{ textAlign: 'left' }}>Model Name</th>
-                                        <th className={panelStyles.th} style={{ textAlign: 'left' }}>Input ($/1M tokens)</th>
-                                        <th className={panelStyles.th} style={{ textAlign: 'left' }}>Output ($/1M tokens)</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thFirst}`}>Model Name</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Input ($/1M)</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Output ($/1M)</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Context</th>
                                     </tr>
                                 ) : (
                                     <tr>
-                                        <th className={panelStyles.th} style={{ textAlign: 'left' }}>Model</th>
-                                        <th className={panelStyles.th} style={{ textAlign: 'right' }}>Requests</th>
-                                        <th className={panelStyles.th} style={{ textAlign: 'right' }}>Total Tokens</th>
-                                        <th className={panelStyles.th} style={{ textAlign: 'right' }}>Total Cost</th>
-                                        <th className={panelStyles.th} style={{ textAlign: 'right' }}>Last Used</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thFirst}`}>Model</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Requests</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Total Tokens</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Total Cost</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Last Used</th>
                                     </tr>
                                 )}
                             </thead>

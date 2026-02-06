@@ -147,9 +147,18 @@ Screenshot has Center Title "Reverse Position". */
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
     margin-top: 12px;
     border: 1px solid #36001E;
+}
+
+.confirmButton:hover:not(:disabled) {
+    background-color: #800042;
+    transform: translateY(-1px);
+}
+
+.confirmButton:active:not(:disabled) {
+    transform: translateY(0);
 }
 
 /* Dynamic Button Colors */
@@ -158,17 +167,9 @@ Screenshot has Center Title "Reverse Position". */
     color: #FFF;
 }
 
-.confirmLong:hover {
-    background-color: #800042;
-}
-
 .confirmShort {
     background-color: #660035;
     color: #FFF;
-}
-
-.confirmShort:hover {
-    background-color: #800042;
 }
 
 .disabledButton {
@@ -176,6 +177,7 @@ Screenshot has Center Title "Reverse Position". */
     border-color: #2D0018 !important;
     color: #5D4050 !important;
     cursor: not-allowed !important;
+    opacity: 1 !important;
 }
 
 @keyframes fadeIn {

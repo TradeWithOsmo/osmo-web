@@ -19,12 +19,12 @@ const FundingHistoryTable: React.FC<FundingHistoryTableProps> = ({ data, footerC
             <table className={styles.table}>
                 <thead>
                     <tr>
-                        <th className={styles.th}>Time</th>
+                        <th className={`${styles.th} ${styles.thFirst}`}>Time</th>
                         <th className={styles.th}>Type</th>
                         <th className={styles.th}>Asset</th>
-                        <th className={styles.th}>Amount</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Amount</th>
                         <th className={styles.th}>Tx Hash</th>
-                        <th className={styles.th} style={{ textAlign: 'right' }}>Status</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Status</th>
                     </tr>
                 </thead>
                 <tbody>

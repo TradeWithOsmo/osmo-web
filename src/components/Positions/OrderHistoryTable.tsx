@@ -44,23 +44,23 @@ const OrderHistoryTable: React.FC<OrderHistoryTableProps> = ({ orders, footerCon
             <table className={styles.table}>
                 <thead>
                     <tr>
-                        <th className={styles.th}>Time</th>
+                        <th className={`${styles.th} ${styles.thFirst}`}>Time</th>
                         <th className={styles.th}>Type</th>
                         <th className={styles.th}>Coin</th>
                         <th className={styles.th}>Direction</th>
-                        <th className={styles.th}>Size</th>
-                        <th className={styles.th}>Original Size</th>
-                        <th className={styles.th} style={{ cursor: 'pointer' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <th className={`${styles.th} ${styles.thRight}`}>Size</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Original Size</th>
+                        <th className={`${styles.th} ${styles.thRight}`} style={{ cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                                 Order Value
                                 <SortIcon active={true} direction={'desc'} />
                             </div>
                         </th>
-                        <th className={styles.th}>Price</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Price</th>
                         <th className={styles.th}>Reduce Only</th>
                         <th className={styles.th}>Trigger Conditions</th>
                         <th className={styles.th}>TP/SL</th>
-                        <th className={styles.th} style={{ textAlign: 'right' }}>Status</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Status</th>
                     </tr>
                 </thead>
                 <tbody>

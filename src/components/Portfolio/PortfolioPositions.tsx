@@ -411,10 +411,10 @@ const PortfolioPositions: React.FC = () => {
                         <table className={panelStyles.table}>
                             <thead>
                                 <tr>
-                                    <th className={panelStyles.th}>Coin</th>
-                                    <th className={panelStyles.th}>Size</th>
-                                    <th className={panelStyles.th} style={{ cursor: 'pointer' }} onClick={() => handleSort('value')}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <th className={`${panelStyles.th} ${panelStyles.thFirst}`}>Coin</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Size</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`} style={{ cursor: 'pointer' }} onClick={() => handleSort('value')}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                                             Position Value
                                             <svg
                                                 width="10"
@@ -431,13 +431,13 @@ const PortfolioPositions: React.FC = () => {
                                             </svg>
                                         </div>
                                     </th>
-                                    <th className={panelStyles.th}>Entry Price</th>
-                                    <th className={panelStyles.th}>Mark Price</th>
-                                    <th className={panelStyles.th}>PNL (ROE %)</th>
-                                    <th className={panelStyles.th}>Liq. Price</th>
-                                    <th className={panelStyles.th}>Margin</th>
-                                    <th className={panelStyles.th}>Close All</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right' }}>TP/SL</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Entry Price</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Mark Price</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>PNL (ROE %)</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Liq. Price</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Margin</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Close All</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>TP/SL</th>
                                 </tr>
                             </thead>
                             <tbody>

@@ -21,14 +21,22 @@ export interface Message {
     content: string;
     thoughts?: (string | ThoughtStep)[];
     isThinking?: boolean;
+    modelId?: string;
     artifact?: {
         type: 'chart' | 'other';
         title: string;
         data?: any;
     };
-    attachments?: File[];
+    attachments?: ChatAttachment[];
     timestamp?: number;
     feedback?: 'like' | 'dislike';
+}
+
+export interface ChatAttachment {
+    name: string;
+    type: string;
+    data: string; // data URL (base64)
+    size?: number;
 }
 
 export interface SearchResult {

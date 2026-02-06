@@ -180,6 +180,11 @@
 
 .sidebarActionButton:hover {
     background-color: #800042;
+    transform: translateY(-1px);
+}
+
+.sidebarActionButton:active {
+    transform: translateY(0);
 }
 
 /* Main Content Area */

@@ -15,7 +15,7 @@ const FundingHistoryRow: React.FC<FundingHistoryRowProps> = ({ data }) => {
 
     return (
         <tr className={styles.row}>
-            <td className={styles.td}>
+            <td className={`${styles.td} ${styles.tdFirst}`}>
                 <span className={styles.timeText}>{new Date(data.timestamp).toLocaleString()}</span>
             </td>
             <td className={styles.td}>
@@ -35,7 +35,7 @@ const FundingHistoryRow: React.FC<FundingHistoryRowProps> = ({ data }) => {
                     <span>{data.asset}</span>
                 </div>
             </td>
-            <td className={styles.td}>
+            <td className={`${styles.td} ${styles.tdRight}`}>
                 {data.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
             </td>
             <td className={styles.td}>
@@ -48,7 +48,7 @@ const FundingHistoryRow: React.FC<FundingHistoryRowProps> = ({ data }) => {
                     {data.txHash.slice(0, 6)}...{data.txHash.slice(-4)}
                 </a>
             </td>
-            <td className={styles.td} style={{ textAlign: 'right' }}>
+            <td className={`${styles.td} ${styles.tdRight}`}>
                 <span style={{ color: statusColor }}>{data.status}</span>
             </td>
         </tr>

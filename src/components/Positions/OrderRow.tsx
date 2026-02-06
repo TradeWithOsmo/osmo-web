@@ -47,19 +47,19 @@ const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
         <>
             {/* Desktop Row */}
             <tr className={`${styles.row} ${styles.desktopRow}`}>
-                <td className={styles.td}><span>{order.time}</span></td>
+                <td className={`${styles.td} ${styles.tdFirst}`}><span>{order.time}</span></td>
                 <td className={styles.td}><span style={{ fontWeight: 500 }}>{order.type}</span></td>
                 <td className={styles.td}><span className={isLong ? styles.positive : styles.negative}>{order.direction}</span></td>
                 <td className={styles.td}><span style={{ fontWeight: 700, color: '#FFFFFF' }}>{order.symbol}</span></td>
-                <td className={styles.td}><span style={{ color: '#FFFFFF' }}>{formatCrypto(order.size)} <span style={{ color: '#A77590', fontSize: '11px' }}>{order.symbol}</span></span></td>
-                <td className={styles.td}><span>${formatUsd(order.price)}</span></td>
-                <td className={styles.td}><span style={{ color: '#FFE1F2' }}>${markPrice > 0 ? formatUsd(markPrice) : '--'}</span></td>
+                <td className={`${styles.td} ${styles.tdRight}`}><span style={{ color: '#FFFFFF' }}>{formatCrypto(order.size)} <span style={{ color: '#A77590', fontSize: '11px' }}>{order.symbol}</span></span></td>
+                <td className={`${styles.td} ${styles.tdRight}`}><span>${formatUsd(order.price)}</span></td>
+                <td className={`${styles.td} ${styles.tdRight}`}><span style={{ color: '#FFE1F2' }}>${markPrice > 0 ? formatUsd(markPrice) : '--'}</span></td>
                 <td className={styles.td}><span>{order.reduceOnly ? 'Yes' : 'No'}</span></td>
                 <td className={styles.td}><span>{order.triggerConditions || '--'}</span></td>
                 <td className={styles.td}><span>--</span></td>
 
                 {/* Cancel (Action) */}
-                <td className={styles.td} style={{ textAlign: 'right' }}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <button
                         className={styles.actionButton}
                         style={{ color: '#FF4560' }}

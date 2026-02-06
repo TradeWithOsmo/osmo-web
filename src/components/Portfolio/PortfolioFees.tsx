@@ -14,7 +14,7 @@ const FeeTierRow: React.FC<{ tier: any }> = ({ tier }) => {
     return (
         <React.Fragment>
             <tr className={`${panelStyles.row} ${panelStyles.desktopRow}`}>
-                <td className={panelStyles.td} style={{ textAlign: 'left' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdFirst}`}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>{tier.tier}</span>
                         {tier.you && (
@@ -29,9 +29,9 @@ const FeeTierRow: React.FC<{ tier: any }> = ({ tier }) => {
                         )}
                     </div>
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right' }}>{tier.volume}</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right' }}>{tier.maker}</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right' }}>{tier.taker}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{tier.volume}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{tier.maker}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{tier.taker}</td>
             </tr>
             <tr className={`${panelStyles.row} ${panelStyles.mobileRow}`}>
                 <td className={panelStyles.td} colSpan={100}>
@@ -66,10 +66,10 @@ const PortfolioFees: React.FC = () => {
                         <table className={panelStyles.table}>
                             <thead className={`${panelStyles.th} ${panelStyles.desktopRow}`}>
                                 <tr>
-                                    <th className={panelStyles.th} style={{ textAlign: 'left' }}>Tier</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right' }}>Volume (30d)</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right' }}>Maker</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right' }}>Taker</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thFirst}`}>Tier</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Volume (30d)</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Maker</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Taker</th>
                                 </tr>
                             </thead>
                             <tbody style={{ borderTop: 'none' }}>
