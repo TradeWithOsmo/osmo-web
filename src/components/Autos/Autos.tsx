@@ -1,11 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
 import styles from './Autos.module.css';
 import AutosSidebar from './AutosSidebar';
 import ChatInterface from './ChatInterface';
-import type { Session, Workspace, Message } from '../../types/autos';
+import type { Session, Workspace, Message, ChatAttachment } from '../../types/autos';
 import TVChartContainer from '../TradingChart';
+import sidebarIcon from '../../assets/Icons/Sidebar.png';
+import plusIcon from '../../assets/Icons/Plus.png';
+import modelIcon from '../../assets/Icons/Model.png';
 import { useMarketStore } from '../../store/useMarketStore';
-import TradeJournal from './TradeJournal';
+import AutosSettings from './AutosSettings';
+import { agentService } from '../../api/agentService';
+import axios from 'axios';
 
 interface AutosProps {
     forceMobileMode?: boolean;
@@ -18,6 +24,8 @@ interface AutosProps {
 const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol = 'BTC/USDT', chartState, onRestoreChartState }) => {
     const [activeSessionId, setActiveSessionId] = useState<string>('new-chat-1');
     const [isMinimized, setIsMinimized] = useState(true); // Default closed
+    const [showSettings, setShowSettings] = useState(false);
+    const { getAccessToken } = usePrivy();
 
     useEffect(() => {
         const handleResize = () => {
@@ -36,6 +44,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
 
     const [chartTabs, setChartTabs] = useState<{ symbol: string; interval: string; indicators: string[] }[]>([]);
     const [activeArtifact, setActiveArtifact] = useState<{ type: 'chart' | 'other', data?: any } | null>(null);
+    const pendingTitleRef = useRef<Record<string, string>>({});
 
     // Sync Active Chart Artifact with Main Chart State
     useEffect(() => {
@@ -156,23 +165,91 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     // But we have our own chartTabs logic.
 
     // Workspace & Session State
-    const [workspaces, setWorkspaces] = useState<Workspace[]>([
-        {
-            id: 'ws-1',
-            name: 'v1-web',
-            isExpanded: true,
-            sessions: [
-                { id: 's-1', title: 'Trading Assistant', type: 'chat' },
-                { id: 's-2', title: 'TradingView Dropdown M...', type: 'chat', isLoading: true },
-                { id: 's-3', title: 'Order Book Header Position...', type: 'chat' }
-            ]
-        }
-    ]);
+    // Workspace & Session State
+    const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
     const [inboxSessions, setInboxSessions] = useState<Session[]>([
-        { id: 'new-chat-1', title: 'New Chat', type: 'chat', isActive: true },
-        { id: 'inbox-1', title: 'Quick Analysis', type: 'chat', isActive: false }
+        { id: 'new-chat-1', title: 'New Chat', type: 'chat', isActive: true }
     ]);
+
+    // 1. Initial Load: Fetch Sessions & Workspaces from Backend
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const token = await getAccessToken();
+                if (!token) return;
+
+                // 1. Fetch Workspaces
+                const wsData = await agentService.getWorkspaces(token);
+
+                // 2. Fetch All Sessions
+                const sessions = await agentService.getSessions(token);
+                const uniqueSessions = Array.from(
+                    new Map((sessions || []).map((s: any) => [s.id, s])).values()
+                );
+
+                if (wsData) {
+                    const formattedWorkspaces: Workspace[] = wsData.map((w: any) => ({
+                        id: w.id,
+                        name: w.name,
+                        isExpanded: w.is_expanded,
+                        sessions: uniqueSessions.filter((s: any) => s.workspace_id === w.id).map((s: any) => ({
+                            id: s.id,
+                            title: s.title,
+                            type: 'chat'
+                        }))
+                    }));
+                    setWorkspaces(formattedWorkspaces);
+                }
+
+                if (uniqueSessions) {
+                    const inboxOnly: Session[] = uniqueSessions.filter((s: any) => !s.workspace_id).map((s: any) => ({
+                        id: s.id,
+                        title: s.title,
+                        type: 'chat'
+                    }));
+                    setInboxSessions(prev => {
+                        const newChat = prev.find(s => s.id === 'new-chat-1');
+                        return newChat ? [newChat, ...inboxOnly] : inboxOnly;
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch data", err);
+            }
+        };
+        fetchData();
+    }, [getAccessToken]);
+
+    // 2. Fetch History when session changes
+    useEffect(() => {
+        const loadHistory = async () => {
+            if (!activeSessionId || activeSessionId.startsWith('new-chat')) return;
+            if (sessionMessages[activeSessionId]) return; // Already loaded
+
+            try {
+                const token = await getAccessToken();
+                if (!token) return;
+
+                const history = await agentService.getHistory(activeSessionId, token);
+                if (history) {
+                    const formattedMessages: Message[] = history.map((m: any, idx: number) => ({
+                        id: `msg-${idx}`,
+                        role: m.role,
+                        content: m.content,
+                        timestamp: Date.now() // API doesn't return timestamp yet in history endpoint, can add later
+                    }));
+
+                    setSessionMessages(prev => ({
+                        ...prev,
+                        [activeSessionId]: formattedMessages
+                    }));
+                }
+            } catch (err) {
+                console.error("Failed to load history", err);
+            }
+        };
+        loadHistory();
+    }, [activeSessionId, getAccessToken]);
 
     // Store messages per session (key = activeSessionId)
     const [sessionMessages, setSessionMessages] = useState<Record<string, Message[]>>({});
@@ -189,112 +266,252 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     };
 
 
-    const generateAssistantResponse = (sessionId: string, userContent: string, attachments: File[], toolStates: any, existingResponseId?: string) => {
-        setTypingStatus(prev => ({ ...prev, [sessionId]: true }));
-
-        setTimeout(() => {
-            const responseId = existingResponseId || (Date.now() + 1).toString();
-
-            let responseContent = "Here is your generated response for: " + userContent;
-            if (attachments.length > 0) {
-                responseContent += `\n\n[System: Received ${attachments.length} attachment(s)]`;
-            }
-
-            const thoughts: any[] = [];
-
-            // Check Tool States
-            if (toolStates?.execution) {
-                thoughts.push({ type: 'text', title: 'Auto Execution', content: 'Execution permission granted. Analyzing trade opportunities...' });
-            } else {
-                thoughts.push({ type: 'text', title: 'Safety Check', content: 'Auto Execution is disabled. Proceeding in Chat-Only mode.' });
-            }
-
-            if (toolStates?.write) {
-                thoughts.push({ type: 'text', title: 'Write Permission', content: 'Write access enabled.' });
-            }
-
-            // Use passed currentSymbol or default
-            const symbol = chartState?.symbol || currentSymbol || 'BTC/USDT';
-            const interval = chartState?.timeframe || '1D';
-            const baseAsset = symbol.split('/')[0] || 'BTC';
-
-            const dummyResponse: Message = {
-                id: responseId,
-                role: 'assistant',
-                content: responseContent,
-                thoughts: [
-                    ...thoughts,
-                    {
-                        type: 'browsing',
-                        title: `${baseAsset} price today`,
-                        results: [
-                            { title: `${baseAsset} price today, ${symbol} live price`, domain: 'coinmarketcap.com', url: '#', icon: 'https://github.com/coinmarketcap.png' },
-                            { title: `${baseAsset} price analysis`, domain: 'coindesk.com', url: '#', icon: 'https://github.com/coindesk.png' },
-                            { title: `Buy ${baseAsset} `, domain: 'robinhood.com', url: '#', icon: 'https://github.com/robinhood.png' }
-                        ]
-                    },
-                    { type: 'text', title: 'Great, I got current price information. Now let me search for market sentiment.' },
-                    {
-                        type: 'browsing',
-                        title: `${baseAsset} market sentiment 2026`,
-                        results: [
-                            { title: `Synthesized ${baseAsset} fundamentals, pricing data`, domain: 'example.com', url: '#' },
-                            { title: 'Crypto Market Sentiment Analysis', domain: 'analyst.com', url: '#' }
-                        ]
-                    },
-                    {
-                        type: 'code',
-                        title: 'Generating TradingView Chart Configuration',
-                        codeLanguage: 'json',
-                        content: `{ \n  "symbol": "${symbol}", \n  "interval": "${interval}", \n  "theme": "dark", \n  "studies": ["Volume"]\n } `
-                    },
-                    { type: 'text', title: 'Finalizing output based on gathered data.' }
-                ],
-                isThinking: true,
-                artifact: {
-                    type: 'chart',
-                    title: `${symbol} Analysis Chart`,
-                    data: { symbol: symbol, interval: interval }
-                }
-            };
-
-            setSessionMessages(prev => {
-                const current = prev[sessionId] || [];
-                const exists = current.some(m => m.id === responseId);
-
-                if (exists) {
-                    return {
-                        ...prev,
-                        [sessionId]: current.map(msg => msg.id === responseId ? dummyResponse : msg)
-                    };
-                } else {
-                    return {
-                        ...prev,
-                        [sessionId]: [...current, dummyResponse]
-                    };
-                }
-            });
-
-            setTypingStatus(prev => ({ ...prev, [sessionId]: false }));
-
-            setTimeout(() => {
-                setSessionMessages(prev => ({
-                    ...prev,
-                    [sessionId]: (prev[sessionId] || []).map(msg =>
-                        msg.id === responseId ? { ...msg, isThinking: false } : msg
-                    )
-                }));
-            }, 2500);
-
-        }, 1000);
+    const formatChatError = (error: unknown): string => {
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status;
+            const detail =
+                (error.response?.data as any)?.detail ||
+                (error.response?.data as any)?.message ||
+                error.message;
+            return `${status ? `(${status}) ` : ''}${detail}`;
+        }
+        if (error && typeof error === 'object' && 'message' in error) {
+            return String((error as any).message);
+        }
+        return 'Unknown error';
     };
 
-    const handleSendMessage = (content: string, attachments: File[] = [], toolStates: any = {}) => {
+    const generateAssistantResponse = async (
+        sessionId: string,
+        userContent: string,
+        modelId: string,
+        history: Message[] = [],
+        reasoningEffort?: string,
+        toolStates?: any,
+        attachments: ChatAttachment[] = []
+    ) => {
+        let currentSessionId = sessionId;
+        const responseId = `assistant-${Date.now()}`;
+        const isProviderFallbackMessage = (text: string) => {
+            if (!text) return false;
+            const normalized = text.replace(/\s+/g, ' ').trim().toLowerCase();
+            return normalized === "i'm sorry, but i'm unable to continue the conversation right now due to a technical issue. please try again later.";
+        };
+
+        const appendAssistantMessage = (content: string, thoughts?: any[], isThinking: boolean = false) => {
+            setSessionMessages(prev => {
+                const existing = prev[currentSessionId] || [];
+                const updated = existing.map(m => m.id === responseId ? {
+                    ...m,
+                    content,
+                    thoughts: thoughts && thoughts.length > 0 ? thoughts : m.thoughts,
+                    isThinking,
+                    modelId
+                } : m);
+                return { ...prev, [currentSessionId]: updated };
+            });
+        };
+
+        const appendThought = (thought: string) => {
+            if (!thought) return;
+            setSessionMessages(prev => {
+                const existing = prev[currentSessionId] || [];
+                const updated = existing.map(m => {
+                    if (m.id !== responseId) return m;
+                    const nextThoughts = Array.isArray(m.thoughts) ? [...m.thoughts, thought] : [thought];
+                    return { ...m, thoughts: nextThoughts, isThinking: true };
+                });
+                return { ...prev, [currentSessionId]: updated };
+            });
+        };
+
+        const TYPING_INTERVAL_MS = 60;
+        let pendingText = '';
+        let displayedText = '';
+        let typingTimer: ReturnType<typeof setInterval> | null = null;
+
+        const getChunkSize = () => 1;
+
+        const stopTyping = () => {
+            if (typingTimer) {
+                clearInterval(typingTimer);
+                typingTimer = null;
+            }
+        };
+
+        const startTyping = () => {
+            if (typingTimer) return;
+            typingTimer = setInterval(() => {
+                if (!pendingText) {
+                    stopTyping();
+                    return;
+                }
+                const chunkSize = getChunkSize();
+                const chunk = pendingText.slice(0, chunkSize);
+                pendingText = pendingText.slice(chunkSize);
+                displayedText += chunk;
+                appendAssistantMessage(displayedText, undefined, true);
+            }, TYPING_INTERVAL_MS);
+        };
+
+        const THOUGHT_DELAY_MS = 140;
+        let thoughtQueue: string[] = [];
+        let thoughtTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const flushThoughtQueue = () => {
+            if (thoughtTimer) {
+                clearTimeout(thoughtTimer);
+                thoughtTimer = null;
+            }
+            while (thoughtQueue.length > 0) {
+                const next = thoughtQueue.shift();
+                if (next) appendThought(next);
+            }
+        };
+
+        const scheduleThoughtFlush = () => {
+            if (thoughtTimer) return;
+            thoughtTimer = setTimeout(() => {
+                const next = thoughtQueue.shift();
+                if (next) appendThought(next);
+                thoughtTimer = null;
+                if (thoughtQueue.length > 0) {
+                    scheduleThoughtFlush();
+                }
+            }, THOUGHT_DELAY_MS);
+        };
+
+        const migrateSession = (newSessionId: string) => {
+            if (newSessionId === currentSessionId) return;
+            setSessionMessages(prev => {
+                const oldMessages = prev[currentSessionId] || [];
+                const { [currentSessionId]: _, ...rest } = prev;
+                return { ...rest, [newSessionId]: oldMessages };
+            });
+            setTypingStatus(prev => {
+                const isTyping = !!prev[currentSessionId];
+                const { [currentSessionId]: _, ...rest } = prev;
+                return { ...rest, [newSessionId]: isTyping };
+            });
+            setInboxSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, id: newSessionId } : s));
+            currentSessionId = newSessionId;
+            setActiveSessionId(newSessionId);
+        };
+
+        const persistSessionTitle = async (sessionId: string, title: string) => {
+            if (!sessionId || sessionId.startsWith('new-chat')) {
+                pendingTitleRef.current[sessionId] = title;
+                return;
+            }
+            try {
+                const token = await getAccessToken();
+                if (token) {
+                    await agentService.renameSession(sessionId, title, token);
+                }
+            } catch (err) {
+                console.error("Failed to persist session title", err);
+            }
+        };
+
+        setTypingStatus(prev => ({ ...prev, [currentSessionId]: true }));
+
+        // Create placeholder assistant message for streaming
+        setSessionMessages(prev => ({
+            ...prev,
+            [currentSessionId]: [
+                ...(prev[currentSessionId] || []),
+                {
+                    id: responseId,
+                    role: 'assistant',
+                    content: '',
+                    timestamp: Date.now(),
+                    isThinking: true,
+                    modelId
+                }
+            ]
+        }));
+
+        try {
+            const apiHistory = history.map(m => ({
+                role: m.role,
+                content: m.content
+            }));
+
+            const token = await getAccessToken();
+            let contentBuffer = '';
+
+            const apiSessionId = currentSessionId.startsWith('new-chat') ? 'new-chat' : currentSessionId;
+            await agentService.chatStream({
+                model_id: modelId,
+                message: userContent,
+                session_id: apiSessionId,
+                history: apiHistory,
+                token: token || undefined,
+                reasoning_effort: reasoningEffort,
+                tool_states: toolStates,
+                attachments
+            }, {
+                onMeta: (event) => {
+                    if (event.session_id && event.session_id !== currentSessionId) {
+                        const oldId = currentSessionId;
+                        migrateSession(event.session_id);
+                        const pendingTitle = pendingTitleRef.current[oldId];
+                        if (pendingTitle) {
+                            delete pendingTitleRef.current[oldId];
+                            void persistSessionTitle(event.session_id, pendingTitle);
+                        }
+                    }
+                },
+                onDelta: (delta) => {
+                    if (!delta) return;
+                    contentBuffer += delta;
+                    pendingText += delta;
+                    startTyping();
+                },
+                onThoughts: (thoughts) => {
+                    appendAssistantMessage(displayedText || contentBuffer, thoughts, true);
+                },
+                onThoughtDelta: (thought) => {
+                    if (!thought) return;
+                    thoughtQueue.push(thought);
+                    scheduleThoughtFlush();
+                },
+                onDone: (event) => {
+                    const finalContent = event.content || contentBuffer;
+                    const finalThoughts = Array.isArray(event.thoughts) ? event.thoughts : undefined;
+                    flushThoughtQueue();
+                    pendingText = '';
+                    displayedText = finalContent;
+                    stopTyping();
+                    if (isProviderFallbackMessage(finalContent)) {
+                        appendAssistantMessage("Maaf, chat gagal. Provider error. Silakan coba lagi.", undefined, false);
+                        return;
+                    }
+                    appendAssistantMessage(finalContent, finalThoughts, false);
+                },
+                onError: (message) => {
+                    stopTyping();
+                    appendAssistantMessage(`Maaf, chat gagal. ${message}`, undefined, false);
+                }
+            });
+        } catch (error) {
+            console.error("Chat Error:", error);
+            const errorMessage = formatChatError(error);
+            stopTyping();
+            appendAssistantMessage(`Maaf, chat gagal. ${errorMessage}`, undefined, false);
+        } finally {
+            setTypingStatus(prev => ({ ...prev, [currentSessionId]: false }));
+        }
+    };
+
+    const handleSendMessage = async (content: string, modelId: string, attachments: ChatAttachment[] = [], toolStates: any = {}) => {
         const currentSessionId = activeSessionId;
         const currentSession = getSessionById(currentSessionId);
+        const history = sessionMessages[currentSessionId] || [];
+        const reasoningEffort = toolStates?.reasoning_effort;
 
         // Auto-Title Logic
-        if (currentSession && ((!sessionMessages[currentSessionId] || sessionMessages[currentSessionId].length === 0) || currentSession.title === 'New Chat')) {
+        if (currentSession && (history.length === 0 || currentSession.title === 'New Chat')) {
             const newTitle = content.split(' ').slice(0, 5).join(' ') + (content.split(' ').length > 5 ? '...' : '');
 
             const isInbox = inboxSessions.some(s => s.id === currentSessionId);
@@ -306,25 +523,41 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                     sessions: ws.sessions.map(s => s.id === currentSessionId ? { ...s, title: newTitle, isEditing: false } : s)
                 })));
             }
+
+            void (async () => {
+                try {
+                    const token = await getAccessToken();
+                    if (!token) return;
+                    if (currentSessionId.startsWith('new-chat')) {
+                        pendingTitleRef.current[currentSessionId] = newTitle;
+                        return;
+                    }
+                    await agentService.renameSession(currentSessionId, newTitle, token);
+                } catch (err) {
+                    console.error("Failed to persist auto-title", err);
+                }
+            })();
         }
 
         const newMessage: Message = {
             id: Date.now().toString(),
             role: 'user',
             content,
-            attachments, // Pass attachments
+            attachments,
             timestamp: Date.now()
         };
 
+        const updatedHistory = [...history, newMessage];
+
         setSessionMessages(prev => ({
             ...prev,
-            [currentSessionId]: [...(prev[currentSessionId] || []), newMessage]
+            [currentSessionId]: updatedHistory
         }));
 
-        generateAssistantResponse(currentSessionId, content, attachments, toolStates);
+        generateAssistantResponse(currentSessionId, content, modelId, history, reasoningEffort, toolStates, attachments);
     };
 
-    const handleRenameSession = (sessionId: string, newName: string) => {
+    const handleRenameSession = async (sessionId: string, newName: string) => {
         const isInbox = inboxSessions.some(s => s.id === sessionId);
         if (isInbox) {
             setInboxSessions(prev => prev.map(s => s.id === sessionId ? { ...s, title: newName } : s));
@@ -334,9 +567,22 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 sessions: ws.sessions.map(s => s.id === sessionId ? { ...s, title: newName } : s)
             })));
         }
+
+        // Sync with backend if it's a real session
+        if (!sessionId.startsWith('new-chat')) {
+            try {
+                const token = await getAccessToken();
+                if (token) {
+                    await agentService.renameSession(sessionId, newName, token);
+                }
+            } catch (err) {
+                console.error("Failed to rename session in backend", err);
+            }
+        }
     };
 
-    const handleDeleteSession = (sessionId: string) => {
+    const handleDeleteSession = async (sessionId: string) => {
+        // Optimistic UI
         setWorkspaces(prev => prev.map(ws => ({
             ...ws,
             sessions: ws.sessions.filter(s => s.id !== sessionId)
@@ -352,9 +598,70 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 if (firstWsSession) setActiveSessionId(firstWsSession.id);
             }
         }
+
+        // Backend sync
+        if (!sessionId.startsWith('new-chat')) {
+            try {
+                const token = await getAccessToken();
+                if (token) {
+                    await agentService.deleteSession(sessionId, token);
+                }
+            } catch (err) {
+                console.error("Failed to delete session", err);
+            }
+        }
     };
 
-    const handleMoveSessionToWorkspace = (sessionId: string, targetWorkspaceId: string) => {
+    const handleCreateWorkspace = async (name: string) => {
+        if (!name || name.trim() === '') {
+            alert("pembikinan workspace gagal: Nama tidak boleh kosong");
+            return;
+        }
+
+        try {
+            const token = await getAccessToken();
+            if (!token) return;
+
+            const tempId = `ws-${Date.now()}`;
+            const result = await agentService.createWorkspace(name.trim(), token, tempId);
+
+            if (result.status === 'success') {
+                const newWs: Workspace = {
+                    id: result.id || tempId,
+                    name: name,
+                    isExpanded: true,
+                    sessions: []
+                };
+                setWorkspaces(prev => [...prev, newWs]);
+            }
+        } catch (err: any) {
+            console.error("Failed to create workspace", err);
+            if (err.response) {
+                console.error("Server response:", err.response.data);
+                alert(`Creation failed: ${JSON.stringify(err.response.data)}`);
+            } else {
+                alert(`Creation failed: ${err.message}`);
+            }
+        }
+    };
+
+    const handleToggleWorkspaceExpand = async (workspaceId: string, expanded: boolean) => {
+        // Optimistic
+        setWorkspaces(prev => prev.map(ws => ws.id === workspaceId ? { ...ws, isExpanded: expanded } : ws));
+
+        try {
+            const token = await getAccessToken();
+            if (token) {
+                await agentService.updateWorkspace(workspaceId, { is_expanded: expanded }, token);
+            }
+        } catch (err) {
+            console.error("Failed to toggle workspace", err);
+        }
+    };
+
+    const handleMoveSessionToWorkspace = async (sessionId: string, targetWorkspaceId: string | null) => {
+        if (sessionId.startsWith('new-chat')) return;
+
         let sessionToMove: Session | undefined;
         let sourceWorkspaceId: string | undefined;
 
@@ -374,22 +681,60 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         }
 
         if (!sessionToMove || !sourceWorkspaceId) return;
-        if (sourceWorkspaceId === targetWorkspaceId) return;
+        const targetId = targetWorkspaceId === 'inbox' ? null : targetWorkspaceId;
+        const sourceId = sourceWorkspaceId === 'inbox' ? null : sourceWorkspaceId;
 
+        if (sourceId === targetId) {
+            console.log(`Move skipped: Source ${sourceId} same as Target ${targetId}`);
+            return;
+        }
+
+        console.log(`Moving session ${sessionId} from ${sourceWorkspaceId} to ${targetWorkspaceId}`);
+
+        // Optimistic UI Update
         if (sourceWorkspaceId === 'inbox') {
             setInboxSessions(prev => prev.filter(s => s.id !== sessionId));
-            setWorkspaces(prev => prev.map(ws => ws.id === targetWorkspaceId ? {
-                ...ws, sessions: [sessionToMove!, ...ws.sessions]
-            } : ws));
         } else {
-            setWorkspaces(prev => {
-                const workspacesAfterRemove = prev.map(ws => ws.id === sourceWorkspaceId ? {
-                    ...ws, sessions: ws.sessions.filter(s => s.id !== sessionId)
-                } : ws);
-                return workspacesAfterRemove.map(ws => ws.id === targetWorkspaceId ? {
-                    ...ws, sessions: [sessionToMove!, ...ws.sessions]
-                } : ws);
-            });
+            setWorkspaces(prev => prev.map(ws => ws.id === sourceId ? {
+                ...ws, sessions: ws.sessions.filter(s => s.id !== sessionId)
+            } : ws));
+        }
+
+        if (targetWorkspaceId === 'inbox') {
+            setInboxSessions(prev => [sessionToMove!, ...prev]);
+        } else {
+            setWorkspaces(prev => prev.map(ws => ws.id === targetWorkspaceId ? {
+                ...ws, isExpanded: true, sessions: [sessionToMove!, ...ws.sessions]
+            } : ws));
+        }
+
+        // Backend Sync
+        try {
+            const token = await getAccessToken();
+            if (token) {
+                await agentService.moveSession(sessionId, targetId, token);
+            }
+        } catch (err) {
+            console.error("Failed to move session", err);
+            // Optional: Revert UI on error
+        }
+    };
+
+    const handleDeleteWorkspace = async (workspaceId: string) => {
+        // Need to add backend endpoint for delete workspace if needed, 
+        // for now just UI cleanup or move sessions to inbox first.
+        setWorkspaces(prev => prev.filter(ws => ws.id !== workspaceId));
+    };
+
+    const handleUpdateWorkspace = async (workspaceId: string, data: any) => {
+        setWorkspaces(prev => prev.map(ws => ws.id === workspaceId ? { ...ws, ...data } : ws));
+        try {
+            const token = await getAccessToken();
+            if (token) {
+                await agentService.updateWorkspace(workspaceId, data, token);
+            }
+        } catch (err) {
+            console.error("Failed to update workspace", err);
         }
     };
 
@@ -427,23 +772,41 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         });
     };
 
-    const handleOpenChart = (symbol: string = "BTC/USDT") => {
+    const mergeIndicators = (base: string[] = [], extra?: string[]) => {
+        if (!extra || extra.length === 0) return base;
+        const merged = new Set(base);
+        extra.forEach(i => merged.add(i));
+        return Array.from(merged);
+    };
+
+    const handleOpenChart = (symbol: string = "BTC/USDT", indicators?: string[], timeframe?: string) => {
         const existingTab = chartTabs.find(t => t.symbol === symbol);
         if (existingTab) {
-            setActiveArtifact({ type: 'chart', data: existingTab });
+            const mergedIndicators = mergeIndicators(existingTab.indicators || [], indicators);
+            const nextInterval = timeframe || existingTab.interval || '1D';
+            if ((indicators && mergedIndicators.length !== existingTab.indicators.length) || (timeframe && nextInterval !== existingTab.interval)) {
+                setChartTabs(prev => prev.map(t => t.symbol === symbol ? { ...t, indicators: mergedIndicators, interval: nextInterval } : t));
+            }
+            setActiveArtifact({ type: 'chart', data: { ...existingTab, indicators: mergedIndicators, interval: nextInterval } });
             // Restore state to Main Chart
             if (onRestoreChartState) {
                 onRestoreChartState({
-                    interval: existingTab.interval,
-                    indicators: existingTab.indicators
+                    interval: nextInterval,
+                    indicators: mergedIndicators
                 });
             }
         } else {
-            const newTab = { symbol, interval: '1D', indicators: [] };
+            const newTab = { symbol, interval: timeframe || '1D', indicators: indicators || [] };
             // setChartTabs handled by effect if needed, but for instant UI response:
             // Actually, the effect syncs activeArtifact -> tabs. 
             // But if we want to switch immediately with valid data:
             setActiveArtifact({ type: 'chart', data: newTab });
+            if (onRestoreChartState) {
+                onRestoreChartState({
+                    interval: newTab.interval,
+                    indicators: newTab.indicators
+                });
+            }
         }
 
         // Sync with Global Market (Trade Page)
@@ -473,51 +836,39 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         }
     };
 
-    const handleEditMessage = (sessionId: string, messageId: string, newContent: string) => {
-        let nextMessageId: string | undefined;
+    const handleEditMessage = (sessionId: string, messageId: string, newContent: string, modelId?: string, reasoningEffort?: string) => {
+        const history = sessionMessages[sessionId] || [];
+        const msgIndex = history.findIndex(m => m.id === messageId);
+        if (msgIndex === -1) return;
 
-        setSessionMessages(prev => {
-            const currentMessages = prev[sessionId] || [];
-            const msgIndex = currentMessages.findIndex(m => m.id === messageId);
+        const croppedHistory = history.slice(0, msgIndex);
 
-            if (msgIndex === -1) return prev;
+        setSessionMessages(prev => ({
+            ...prev,
+            [sessionId]: [...croppedHistory, {
+                id: messageId,
+                role: 'user',
+                content: newContent,
+                timestamp: Date.now()
+            }]
+        }));
 
-            // Check if there's a response message following the edited message
-            const nextMsg = currentMessages[msgIndex + 1];
-            if (nextMsg && nextMsg.role === 'assistant') {
-                nextMessageId = nextMsg.id;
-            }
-
-            // Slice up to the response (if it exists) or just the edited message
-            // If nextMsg exists (assistant), we keep it but clear it to act as placeholder
-            const sliceIndex = nextMessageId ? msgIndex + 2 : msgIndex + 1;
-
-            const updatedMessages = currentMessages.slice(0, sliceIndex).map(msg => {
-                if (msg.id === messageId) {
-                    return { ...msg, content: newContent };
-                }
-                if (msg.id === nextMessageId) {
-                    return {
-                        ...msg,
-                        content: '', // Clear content for loading state
-                        isThinking: true,
-                        thoughts: undefined, // Clear previous thoughts
-                        artifact: undefined // Clear previous artifacts
-                    };
-                }
-                return msg;
-            });
-
-            return {
+        if (!modelId) {
+            setSessionMessages(prev => ({
                 ...prev,
-                [sessionId]: updatedMessages
-            };
-        });
-
-        // Trigger regeneration
-        setTimeout(() => {
-            generateAssistantResponse(sessionId, newContent, [], {}, nextMessageId);
-        }, 50);
+                [sessionId]: [
+                    ...(prev[sessionId] || []),
+                    {
+                        id: `error-${Date.now()}`,
+                        role: 'assistant',
+                        content: 'Maaf, chat gagal. Model belum dipilih.',
+                        timestamp: Date.now()
+                    }
+                ]
+            }));
+            return;
+        }
+        generateAssistantResponse(sessionId, newContent, modelId, croppedHistory, reasoningEffort);
     };
 
     const handleMouseDown = () => {
@@ -581,41 +932,37 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     const activeWorkspace = getWorkspaceBySessionId(activeSessionId);
 
     // Reset artifact when session changes
-    const handleRegenerateResponse = (assistantMessageId: string) => {
-        setSessionMessages(prev => {
-            const currentMessages = prev[activeSessionId] || [];
-            const msgIndex = currentMessages.findIndex(m => m.id === assistantMessageId);
+    const handleRegenerateResponse = (assistantMessageId: string, modelId?: string, reasoningEffort?: string) => {
+        const history = sessionMessages[activeSessionId] || [];
+        const msgIndex = history.findIndex(m => m.id === assistantMessageId);
+        if (msgIndex === -1) return;
 
-            if (msgIndex === -1) return prev;
+        const userMsg = history[msgIndex - 1];
+        if (!userMsg || userMsg.role !== 'user') return;
 
-            // Find preceding user message
-            const userMsg = currentMessages[msgIndex - 1];
-            if (!userMsg || userMsg.role !== 'user') return prev;
+        const croppedHistory = history.slice(0, msgIndex - 1);
 
-            // Clear the assistant message content to show loading state
-            const updatedMessages = currentMessages.map(msg => {
-                if (msg.id === assistantMessageId) {
-                    return {
-                        ...msg,
-                        content: '',
-                        isThinking: true,
-                        thoughts: undefined,
-                        artifact: undefined
-                    };
-                }
-                return msg;
-            });
+        setSessionMessages(prev => ({
+            ...prev,
+            [activeSessionId]: [...croppedHistory, userMsg]
+        }));
 
-            // Trigger generation (this side effect in setState is a bit hacky but consistent with current pattern)
-            setTimeout(() => {
-                generateAssistantResponse(activeSessionId, userMsg.content, [], {}, assistantMessageId);
-            }, 50);
-
-            return {
+        if (!modelId) {
+            setSessionMessages(prev => ({
                 ...prev,
-                [activeSessionId]: updatedMessages
-            };
-        });
+                [activeSessionId]: [
+                    ...(prev[activeSessionId] || []),
+                    {
+                        id: `error-${Date.now()}`,
+                        role: 'assistant',
+                        content: 'Maaf, chat gagal. Model belum dipilih.',
+                        timestamp: Date.now()
+                    }
+                ]
+            }));
+            return;
+        }
+        generateAssistantResponse(activeSessionId, userMsg.content, modelId, croppedHistory, reasoningEffort);
     };
 
     const handleFeedback = (messageId: string, feedback: 'like' | 'dislike' | null) => {
@@ -634,24 +981,72 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     const handleSessionChange = (sessionId: string) => {
         setActiveSessionId(sessionId);
         setIsMinimized(true);
+        setShowSettings(false);
+    };
+
+    const handleNewChat = () => {
+        const newId = `chat-${Date.now()}`;
+        const newSession: Session = { id: newId, title: 'New Chat', type: 'chat', isEditing: false };
+        setInboxSessions(prev => [newSession, ...prev]);
+        setActiveSessionId(newId);
+        setIsMinimized(true);
+        setShowSettings(false);
     };
 
     return (
         <div className={`${styles.layoutContainer} ${compact ? styles.compact : ''} `}>
-            <AutosSidebar
-                activeSessionId={activeSessionId}
-                onSessionChange={handleSessionChange}
-                isMinimized={isMinimized}
-                onToggleMinimize={() => setIsMinimized(!isMinimized)}
-                workspaces={workspaces}
-                setWorkspaces={setWorkspaces}
-                inboxSessions={inboxSessions}
-                setInboxSessions={setInboxSessions}
-                forceMobileMode={forceMobileMode && !compact}
-                hideToggle={!!activeArtifact}
-            />
+            {!showSettings && (
+                <AutosSidebar
+                    activeSessionId={activeSessionId}
+                    onSessionChange={handleSessionChange}
+                    isMinimized={isMinimized}
+                    onToggleMinimize={() => setIsMinimized(!isMinimized)}
+                    workspaces={workspaces}
+                    setWorkspaces={setWorkspaces}
+                    inboxSessions={inboxSessions}
+                    setInboxSessions={setInboxSessions}
+                    onCreateWorkspace={handleCreateWorkspace}
+                    onDeleteWorkspace={handleDeleteWorkspace}
+                    onUpdateWorkspace={handleUpdateWorkspace}
+                    onToggleWorkspaceExpand={handleToggleWorkspaceExpand}
+                    onMoveSession={handleMoveSessionToWorkspace}
+                    onDeleteSession={handleDeleteSession}
+                    onRenameSession={handleRenameSession}
+                    forceMobileMode={forceMobileMode && !compact}
+                    hideToggle={!!activeArtifact || isMinimized}
+                />
+            )}
 
-            <div className={`${styles.contentArea} ${isMinimized && !activeArtifact ? styles.contentCentered : ''} `} style={{ padding: 0 }}>
+            <div className={`${styles.contentArea} ${isMinimized && !activeArtifact ? styles.contentCentered : ''} `} style={{ padding: 0, position: 'relative' }}>
+
+                {isMinimized && !activeArtifact && !showSettings && (
+                    <div className={styles.floatingHeaderActions}>
+                        <button
+                            className={styles.headerIconButton}
+                            onClick={() => setIsMinimized(false)}
+                            title="Expand sidebar"
+                        >
+                            <img src={sidebarIcon} alt="Sidebar" />
+                        </button>
+
+                        <div className={styles.rightHeaderActions}>
+                            <button
+                                className={styles.headerIconButton}
+                                onClick={handleNewChat}
+                                title="New Chat Session"
+                            >
+                                <img src={plusIcon} alt="New Chat" />
+                            </button>
+                            <button
+                                className={styles.headerIconButton}
+                                onClick={() => setShowSettings(true)}
+                                title="Model"
+                            >
+                                <img src={modelIcon} alt="Model" />
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {activeArtifact ? (
                     <div className={styles.artifactPanel} style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -686,10 +1081,11 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                                         key={tab.symbol}
                                         onClick={() => handleOpenChart(tab.symbol)}
                                         style={{
-                                            background: activeArtifact.data?.symbol === tab.symbol ? 'rgba(93, 95, 239, 0.1)' : 'transparent',
-                                            color: activeArtifact.data?.symbol === tab.symbol ? '#5D5FEF' : '#A77590',
+                                            background: activeArtifact.data?.symbol === tab.symbol ? 'rgba(59, 32, 48, 0.1)' : 'transparent',
+                                            color: activeArtifact.data?.symbol === tab.symbol ? '#3B2030' : '#A77590',
+                                            borderBottomColor: activeArtifact.data?.symbol === tab.symbol ? '#3B2030' : 'transparent',
                                             border: '1px solid',
-                                            borderColor: activeArtifact.data?.symbol === tab.symbol ? 'rgba(93, 95, 239, 0.3)' : 'transparent',
+                                            borderColor: activeArtifact.data?.symbol === tab.symbol ? 'rgba(59, 32, 48, 0.3)' : 'transparent',
                                             borderRadius: '6px',
                                             padding: '4px 6px 4px 8px',
                                             fontSize: '12px',
@@ -706,16 +1102,16 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                                         <button
                                             onClick={(e) => handleCloseTab(e, tab.symbol)}
                                             style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                color: 'currentColor',
-                                                opacity: 0.6,
-                                                padding: '2px',
-                                                borderRadius: '50%',
+                                                background: 'transparent',
+                                                border: '1px solid #3B2030',
+                                                borderRadius: '8px',
+                                                color: '#3B2030',
                                                 cursor: 'pointer',
                                                 display: 'flex',
                                                 alignItems: 'center',
-                                                justifyContent: 'center'
+                                                justifyContent: 'center',
+                                                opacity: 0.6,
+                                                padding: '2px',
                                             }}
                                             onMouseOver={e => e.currentTarget.style.opacity = '1'}
                                             onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
@@ -745,8 +1141,8 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                     </div>
                 ) : (
                     <div className={`${isMinimized ? styles.contentCentered : ''} `} style={{ height: '100%', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: isMinimized ? '1300px' : 'none', margin: isMinimized ? '0 auto' : '0' }}>
-                        {activeSession?.type === 'position' ? (
-                            <TradeJournal sessionTitle={activeSession.title} workspaceName={activeWorkspace?.name || 'Inbox'} />
+                        {showSettings ? (
+                            <AutosSettings onBack={() => setShowSettings(false)} />
                         ) : (
                             <ChatInterface
                                 activeSessionId={activeSessionId}
@@ -763,13 +1159,16 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                                 onRegenerateResponse={handleRegenerateResponse}
                                 onFeedback={handleFeedback}
                                 currentSymbol={currentSymbol}
+                                onToggleMinimize={() => setIsMinimized(!isMinimized)}
+                                isMinimized={isMinimized}
+                                onNewChat={handleNewChat}
                             />
                         )}
                     </div>
                 )}
 
             </div>
-        </div>
+        </div >
     );
 };
 

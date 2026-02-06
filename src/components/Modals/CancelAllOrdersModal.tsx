@@ -66,7 +66,6 @@ export const CancelAllOrdersModal: React.FC = () => {
                         className={styles.confirmButton}
                         onClick={handleConfirm}
                         disabled={isSubmitting || openOrders.length === 0}
-                        style={{ background: '#FF4560' }}
                     >
                         {isSubmitting ? 'Cancelling All...' : 'Confirm Cancel All'}
                     </button>

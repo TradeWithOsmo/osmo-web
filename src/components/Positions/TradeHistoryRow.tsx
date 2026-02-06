@@ -42,7 +42,7 @@ const TradeHistoryRow: React.FC<TradeHistoryRowProps> = ({ trade }) => {
             {/* Desktop Row */}
             <tr className={`${styles.row} ${styles.desktopRow}`}>
                 {/* Time */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdFirst}`}>
                     <div className={styles.cellContent} style={{ flexDirection: 'row', alignItems: 'center', gap: '6px' }}>
                         <span>{trade.time}</span>
                         {/* External Link Icon Placeholder - simplistic square with arrow */}
@@ -65,33 +65,33 @@ const TradeHistoryRow: React.FC<TradeHistoryRowProps> = ({ trade }) => {
                 </td>
 
                 {/* Price */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>{formatUsd(trade.price)}</span>
                 </td>
 
                 {/* Size */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>
                         {formatUsd(trade.size)} <span style={{ color: '#A77590', fontSize: '11px' }}>{trade.sizeAsset}</span>
                     </span>
                 </td>
 
                 {/* Trade Value */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>
                         {formatUsd(trade.tradeValue)} <span style={{ color: '#A77590', fontSize: '11px' }}>{trade.tradeValueAsset}</span>
                     </span>
                 </td>
 
                 {/* Fee */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>
                         {formatUsd(trade.fee)} <span style={{ color: '#A77590', fontSize: '11px' }}>{trade.feeAsset}</span>
                     </span>
                 </td>
 
                 {/* Closed PNL */}
-                <td className={styles.td} style={{ textAlign: 'right' }}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: trade.closedPnl >= 0 ? '#00E396' : '#FF4560' }}>
                         {formatUsd(trade.closedPnl)} <span style={{ color: '#A77590', fontSize: '11px' }}>{trade.closedPnlAsset}</span>
                     </span>

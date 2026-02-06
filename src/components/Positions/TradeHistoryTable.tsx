@@ -23,14 +23,14 @@ const TradeHistoryTable: React.FC<TradeHistoryTableProps> = ({ trades, footerCon
             <table className={styles.table}>
                 <thead>
                     <tr>
-                        <th className={styles.th}>Time</th>
+                        <th className={`${styles.th} ${styles.thFirst}`}>Time</th>
                         <th className={styles.th}>Coin</th>
                         <th className={styles.th}>Direction</th>
-                        <th className={styles.th}>Price</th>
-                        <th className={styles.th}>Size</th>
-                        <th className={styles.th}>Trade Value</th>
-                        <th className={styles.th}>Fee</th>
-                        <th className={styles.th} style={{ textAlign: 'right' }}>Closed PNL</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Price</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Size</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Trade Value</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Fee</th>
+                        <th className={`${styles.th} ${styles.thRight}`}>Closed PNL</th>
                     </tr>
                 </thead>
                 <tbody>

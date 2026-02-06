@@ -44,7 +44,7 @@ const OrderHistoryRow: React.FC<OrderHistoryRowProps> = ({ order }) => {
             {/* Desktop Row */}
             <tr className={`${styles.row} ${styles.desktopRow}`}>
                 {/* Time */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdFirst}`}>
                     <span>{order.time}</span>
                 </td>
 
@@ -64,22 +64,22 @@ const OrderHistoryRow: React.FC<OrderHistoryRowProps> = ({ order }) => {
                 </td>
 
                 {/* Size */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>{formatCrypto(order.size)} <span style={{ color: '#A77590', fontSize: '11px' }}>{order.symbol}</span></span>
                 </td>
 
                 {/* Original Size */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>{formatCrypto(order.originalSize)} <span style={{ color: '#A77590', fontSize: '11px' }}>{order.symbol}</span></span>
                 </td>
 
                 {/* Order Value */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>{formatUsd(order.orderValue)} <span style={{ color: '#A77590', fontSize: '11px' }}>USDC</span></span>
                 </td>
 
                 {/* Price */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span>{formatUsd(order.price)}</span>
                 </td>
 
@@ -99,7 +99,7 @@ const OrderHistoryRow: React.FC<OrderHistoryRowProps> = ({ order }) => {
                 </td>
 
                 {/* Status */}
-                <td className={styles.td} style={{ textAlign: 'right' }}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: statusColor }}>{order.status}</span>
                 </td>
             </tr>

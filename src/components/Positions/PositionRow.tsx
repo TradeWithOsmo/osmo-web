@@ -49,7 +49,7 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
             {/* Desktop Row */}
             <tr className={`${styles.row} ${styles.desktopRow}`}>
                 {/* Coin */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdFirst}`}>
                     <div className={styles.cellContent} style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
                         <div style={{ width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
                             <img
@@ -71,28 +71,28 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
                 </td>
 
                 {/* Size */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>{formatCrypto(position.size)} <span style={{ color: '#A77590', fontSize: '11px' }}>{position.symbol}</span></span>
                 </td>
 
                 {/* Position Value */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span style={{ color: '#FFFFFF' }}>{formatUsd(position.sizeUsd)} <span style={{ color: '#A77590', fontSize: '11px' }}>USDC</span></span>
                 </td>
 
                 {/* Entry Price */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span>{position.entryPrice.toLocaleString()}</span>
                 </td>
 
                 {/* Mark Price */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span>{position.markPrice.toLocaleString()}</span>
                 </td>
 
                 {/* PNL (ROE %) */}
-                <td className={styles.td}>
-                    <div className={styles.cellContent} style={{ flexDirection: 'row', alignItems: 'center', gap: '4px' }}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
+                    <div className={styles.cellContent} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                         <span className={pnlColor}>
                             {pnlText}
                         </span>
@@ -105,12 +105,12 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
                 </td>
 
                 {/* Liq. Price */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span>{position.liquidationPrice ? position.liquidationPrice.toLocaleString() : 'N/A'}</span>
                 </td>
 
                 {/* Margin */}
-                <td className={styles.td}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <span>${formatUsd(position.margin)} <span style={{ color: '#A77590', fontSize: '11px' }}>(Cross)</span></span>
                 </td>
 
@@ -125,7 +125,7 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
                 </td>
 
                 {/* TP/SL */}
-                <td className={styles.td} style={{ textAlign: 'right' }}>
+                <td className={`${styles.td} ${styles.tdRight}`}>
                     <div className={styles.actionGroup} style={{ justifyContent: 'flex-end' }}>
                         <span style={{ fontSize: '12px' }}>
                             {position.tp && position.sl ? `${position.tp} / ${position.sl}` :

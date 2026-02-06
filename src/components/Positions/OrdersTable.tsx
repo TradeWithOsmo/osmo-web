@@ -19,17 +19,17 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders }) => {
         <table className={styles.table}>
             <thead>
                 <tr>
-                    <th className={styles.th}>Time</th>
+                    <th className={`${styles.th} ${styles.thFirst}`}>Time</th>
                     <th className={styles.th}>Type</th>
                     <th className={styles.th}>Side</th>
                     <th className={styles.th}>Coin</th>
-                    <th className={styles.th}>Size</th>
-                    <th className={styles.th}>Entry Price</th>
-                    <th className={styles.th}>Mark Price</th>
+                    <th className={`${styles.th} ${styles.thRight}`}>Size</th>
+                    <th className={`${styles.th} ${styles.thRight}`}>Entry Price</th>
+                    <th className={`${styles.th} ${styles.thRight}`}>Mark Price</th>
                     <th className={styles.th}>Reduce Only</th>
                     <th className={styles.th}>Trigger</th>
                     <th className={styles.th}>TP/SL</th>
-                    <th className={styles.th} style={{ textAlign: 'right', color: '#00E396', cursor: orders.length > 0 ? 'pointer' : 'not-allowed', opacity: orders.length > 0 ? 1 : 0.5 }} onClick={() => orders.length > 0 && openCancelAllOrdersModal()}>Cancel All</th>
+                    <th className={`${styles.th} ${styles.thRight}`} style={{ color: '#00E396', cursor: orders.length > 0 ? 'pointer' : 'not-allowed', opacity: orders.length > 0 ? 1 : 0.5 }} onClick={() => orders.length > 0 && openCancelAllOrdersModal()}>Cancel All</th>
                 </tr>
             </thead>
             <tbody>

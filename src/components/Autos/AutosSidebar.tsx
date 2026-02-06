@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styles from './Autos.module.css';
 import type { Workspace, Session } from '../../types/autos';
 import sidebarIcon from '../../assets/Icons/Sidebar.png';
+import WorkspaceModal from './WorkspaceModal';
 
 interface AutosSidebarProps {
     activeSessionId: string;
@@ -12,6 +13,13 @@ interface AutosSidebarProps {
     setWorkspaces: React.Dispatch<React.SetStateAction<Workspace[]>>;
     inboxSessions: Session[];
     setInboxSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+    onCreateWorkspace?: (name: string) => void;
+    onDeleteWorkspace?: (id: string) => void;
+    onUpdateWorkspace?: (id: string, data: any) => void;
+    onToggleWorkspaceExpand?: (id: string, expanded: boolean) => void;
+    onMoveSession?: (sessionId: string, targetId: string | null) => void;
+    onDeleteSession?: (sessionId: string) => void;
+    onRenameSession?: (sessionId: string, newName: string) => void;
     forceMobileMode?: boolean;
     hideToggle?: boolean;
 }
@@ -40,13 +48,20 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
     setWorkspaces,
     inboxSessions,
     setInboxSessions,
+    onCreateWorkspace,
+    onDeleteWorkspace,
+    onUpdateWorkspace,
+    onToggleWorkspaceExpand,
+    onMoveSession,
+    onDeleteSession,
+    onRenameSession,
     forceMobileMode,
     hideToggle = false
 }) => {
     // UI State
-    const [showAllWorkspaces, setShowAllWorkspaces] = useState(false);
     const [menu, setMenu] = useState<MenuState>({ visible: false, type: null, targetId: null, x: 0, y: 0 });
     const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
+    const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
 
     // Close menu on outside click
     React.useEffect(() => {
@@ -69,9 +84,14 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
     // Data Handlers
     const toggleWorkspace = (workspaceId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        setWorkspaces(prev => prev.map(ws =>
-            ws.id === workspaceId ? { ...ws, isExpanded: !ws.isExpanded } : ws
-        ));
+        const ws = workspaces.find(w => w.id === workspaceId);
+        if (ws && onToggleWorkspaceExpand) {
+            onToggleWorkspaceExpand(workspaceId, !ws.isExpanded);
+        } else {
+            setWorkspaces(prev => prev.map(ws =>
+                ws.id === workspaceId ? { ...ws, isExpanded: !ws.isExpanded } : ws
+            ));
+        }
     };
 
     const handleRenameWorkspace = (id: string, newName: string) => {
@@ -79,7 +99,12 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
     };
 
     const handleNameSubmit = (id: string) => {
-        setWorkspaces(prev => prev.map(ws => ws.id === id ? { ...ws, isEditing: false, name: ws.name.trim() || 'Workspace' } : ws));
+        const ws = workspaces.find(w => w.id === id);
+        if (ws && onUpdateWorkspace) {
+            onUpdateWorkspace(id, { name: ws.name.trim() || 'Workspace', isEditing: false });
+        } else {
+            setWorkspaces(prev => prev.map(ws => ws.id === id ? { ...ws, isEditing: false, name: ws.name.trim() || 'Workspace' } : ws));
+        }
     };
 
     const handleRenameSession = (parentId: string, sessionId: string, newTitle: string) => {
@@ -93,26 +118,45 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
     };
 
     const handleSessionNameSubmit = (parentId: string, sessionId: string) => {
+        let finalTitle = '';
         if (parentId === 'inbox') {
-            setInboxSessions(prev => prev.map(s => s.id === sessionId ? { ...s, isEditing: false, title: s.title.trim() || 'New Chat' } : s));
+            const s = inboxSessions.find(x => x.id === sessionId);
+            finalTitle = s?.title?.trim() || 'New Chat';
+            setInboxSessions(prev => prev.map(s => s.id === sessionId ? { ...s, isEditing: false, title: finalTitle } : s));
         } else {
+            const ws = workspaces.find(w => w.id === parentId);
+            const s = ws?.sessions.find(x => x.id === sessionId);
+            finalTitle = s?.title?.trim() || 'New Chat';
             setWorkspaces(prev => prev.map(ws => ws.id === parentId ? {
-                ...ws, sessions: ws.sessions.map(s => s.id === sessionId ? { ...s, isEditing: false, title: s.title.trim() || 'New Chat' } : s)
+                ...ws, sessions: ws.sessions.map(s => s.id === sessionId ? { ...s, isEditing: false, title: finalTitle } : s)
             } : ws));
+        }
+
+        if (onRenameSession) {
+            onRenameSession(sessionId, finalTitle);
         }
     };
 
     // Menu Actions
     const handleAddWorkspace = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const newWorkspace: Workspace = {
-            id: `ws-${Date.now()}`,
-            name: '',
-            isExpanded: true,
-            sessions: [],
-            isEditing: true
-        };
-        setWorkspaces([...workspaces, newWorkspace]);
+        setIsWorkspaceModalOpen(true);
+    };
+
+    const onWorkspaceModalSubmit = (inputName: string) => {
+        setIsWorkspaceModalOpen(false);
+        if (onCreateWorkspace) {
+            onCreateWorkspace(inputName);
+        } else {
+            const newWorkspace: Workspace = {
+                id: `ws-${Date.now()}`,
+                name: inputName,
+                isExpanded: true,
+                sessions: [],
+                isEditing: false
+            };
+            setWorkspaces([...workspaces, newWorkspace]);
+        }
     };
 
     const handleAddSession = (workspaceId: string) => {
@@ -129,35 +173,21 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
         }
     };
 
-    const handleAddPosition = (workspaceId: string) => {
-        const newPosition: Session = {
-            id: `pos-${Date.now()}`,
-            title: 'Trade Journal',
-            type: 'position',
-            isEditing: false
-        };
-
-        if (workspaceId === 'inbox') {
-            setInboxSessions([newPosition, ...inboxSessions]);
-        } else {
-            setWorkspaces(prev => prev.map(ws => ws.id === workspaceId ? {
-                ...ws, isExpanded: true, sessions: [newPosition, ...ws.sessions]
-            } : ws));
-        }
-
-        onSessionChange(newPosition.id);
-    };
 
     const handleDelete = (type: 'workspace' | 'session', id: string, parentId?: string) => {
         if (type === 'workspace') {
-            setWorkspaces(prev => prev.filter(ws => ws.id !== id));
+            if (onDeleteWorkspace) onDeleteWorkspace(id);
+            else setWorkspaces(prev => prev.filter(ws => ws.id !== id));
         } else if (type === 'session') {
-            if (parentId === 'inbox') {
-                setInboxSessions(prev => prev.filter(s => s.id !== id));
-            } else {
-                setWorkspaces(prev => prev.map(ws => ws.id === parentId ? {
-                    ...ws, sessions: ws.sessions.filter(s => s.id !== id)
-                } : ws));
+            if (onDeleteSession) onDeleteSession(id);
+            else {
+                if (parentId === 'inbox') {
+                    setInboxSessions(prev => prev.filter(s => s.id !== id));
+                } else {
+                    setWorkspaces(prev => prev.map(ws => ws.id === parentId ? {
+                        ...ws, sessions: ws.sessions.filter(s => s.id !== id)
+                    } : ws));
+                }
             }
         }
     };
@@ -210,27 +240,38 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
 
         if (!draggedItem) return;
 
-        // Remove from source
-        if (draggedItem.sourceId === 'inbox') {
-            setInboxSessions(prev => prev.filter(s => s.id !== draggedItem.data.id));
+        if (onMoveSession) {
+            onMoveSession(draggedItem.data.id, targetId);
         } else {
-            setWorkspaces(prev => prev.map(ws => ws.id === draggedItem.sourceId ? {
-                ...ws, sessions: ws.sessions.filter(s => s.id !== draggedItem.data.id)
-            } : ws));
-        }
+            // Fallback for local-only mode
+            // Remove from source
+            if (draggedItem.sourceId === 'inbox') {
+                setInboxSessions(prev => prev.filter(s => s.id !== draggedItem.data.id));
+            } else {
+                setWorkspaces(prev => prev.map(ws => ws.id === draggedItem.sourceId ? {
+                    ...ws, sessions: ws.sessions.filter(s => s.id !== draggedItem.data.id)
+                } : ws));
+            }
 
-        // Add to target
-        if (targetId === 'inbox') {
-            setInboxSessions(prev => [draggedItem.data, ...prev]);
-        } else {
-            setWorkspaces(prev => prev.map(ws => ws.id === targetId ? {
-                ...ws, isExpanded: true, sessions: [draggedItem.data, ...ws.sessions]
-            } : ws));
+            // Add to target
+            if (targetId === 'inbox') {
+                setInboxSessions(prev => [draggedItem.data, ...prev]);
+            } else {
+                setWorkspaces(prev => prev.map(ws => ws.id === targetId ? {
+                    ...ws, isExpanded: true, sessions: [draggedItem.data, ...ws.sessions]
+                } : ws));
+            }
         }
     };
 
     return (
         <div className={`${styles.sidebar} ${isMinimized ? styles.sidebarMinimized : ''} ${forceMobileMode ? styles.sidebarMobile : ''}`}>
+
+            <WorkspaceModal
+                isOpen={isWorkspaceModalOpen}
+                onClose={() => setIsWorkspaceModalOpen(false)}
+                onSubmit={onWorkspaceModalSubmit}
+            />
 
             {/* Context Menu Render */}
             {menu.visible && (
@@ -244,10 +285,6 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
                             <div className={styles.dropdownItem} onClick={() => { setMenu({ ...menu, visible: false }); handleAddSession(menu.targetId!); }}>
                                 <span>+</span>
                                 <span>New Chat Session</span>
-                            </div>
-                            <div className={styles.dropdownItem} onClick={() => { setMenu({ ...menu, visible: false }); handleAddPosition(menu.targetId!); }}>
-                                <span>⌖</span>
-                                <span>Trade Journal</span>
                             </div>
                             <div className={styles.dropdownItem} onClick={() => {
                                 setMenu({ ...menu, visible: false });
@@ -454,27 +491,7 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
                                                     )}
                                                 </div>
                                             ))}
-                                            {/* Dummy Items Logic for v1-web only for demonstration */}
-                                            {workspace.name === 'v1-web' && (
-                                                <>
-                                                    {showAllWorkspaces && Array.from({ length: 70 }).map((_, index) => (
-                                                        <div key={`dummy-${index}`} className={styles.workspaceItem}>
-                                                            <span>Workspace Session {index + 1}</span>
-                                                        </div>
-                                                    ))}
-
-                                                    <div
-                                                        className={styles.workspaceItem}
-                                                        style={{ color: '#3A2530' }}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setShowAllWorkspaces(!showAllWorkspaces);
-                                                        }}
-                                                    >
-                                                        <span>{showAllWorkspaces ? 'Show less' : 'See all (73)'}</span>
-                                                    </div>
-                                                </>
-                                            )}
+                                            {/* Removed Dummy Items */}
 
                                         </div>
                                     )}

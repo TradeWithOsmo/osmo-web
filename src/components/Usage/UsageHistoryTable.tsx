@@ -16,7 +16,7 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
         <React.Fragment>
             {/* Desktop Row */}
             <tr className={`${panelStyles.row} ${panelStyles.desktopRow}`}>
-                <td className={panelStyles.td} style={{ color: '#A77590' }}>{item.timestamp}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdFirst}`} style={{ color: '#A77590' }}>{item.timestamp}</td>
                 <td className={panelStyles.td}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {/* Dynamic Logo Logic */}
@@ -34,10 +34,10 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
                         <span>{item.model}</span>
                     </div>
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right' }}>{item.tokens}</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right' }}>{item.cost}</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#A77590' }}>{item.speed}</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{item.tokens}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{item.cost}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#A77590' }}>{item.speed}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>
                     <span style={{
                         color: item.finish === 'Complete' ? '#00E396' : '#FF4560',
                         backgroundColor: item.finish === 'Complete' ? 'rgba(0, 227, 150, 0.1)' : 'rgba(255, 69, 96, 0.1)',
@@ -147,12 +147,12 @@ const UsageHistoryTable: React.FC = () => {
                     <table className={panelStyles.table}>
                         <thead className={panelStyles.th}>
                             <tr>
-                                <th className={panelStyles.th} style={{ textAlign: 'left' }}>Timestamp</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'left' }}>Model</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'right' }}>Tokens</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'right' }}>Cost</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'right' }}>Speed</th>
-                                <th className={panelStyles.th} style={{ textAlign: 'right' }}>Finish</th>
+                                <th className={`${panelStyles.th} ${panelStyles.thFirst}`}>Timestamp</th>
+                                <th className={panelStyles.th}>Model</th>
+                                <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Tokens</th>
+                                <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Cost</th>
+                                <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Speed</th>
+                                <th className={`${panelStyles.th} ${panelStyles.thRight}`}>Finish</th>
                             </tr>
                         </thead>
                         <tbody>

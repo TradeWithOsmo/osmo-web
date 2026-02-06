@@ -187,19 +187,19 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                             <table className={styles.table}>
                                 <thead>
                                     <tr>
-                                        <th className={styles.th}>Coin</th>
-                                        <th className={styles.th}>Size</th>
-                                        <th className={styles.th} style={{ cursor: 'pointer' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <th className={`${styles.th} ${styles.thFirst}`}>Coin</th>
+                                        <th className={`${styles.th} ${styles.thRight}`}>Size</th>
+                                        <th className={`${styles.th} ${styles.thRight}`} style={{ cursor: 'pointer' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                                                 Position Value
                                                 <SortIcon active={true} direction={'desc'} />
                                             </div>
                                         </th>
-                                        <th className={styles.th}>Entry Price</th>
-                                        <th className={styles.th}>Mark Price</th>
-                                        <th className={styles.th}>PNL (ROE %)</th>
-                                        <th className={styles.th}>Liq. Price</th>
-                                        <th className={styles.th}>Margin</th>
+                                        <th className={`${styles.th} ${styles.thRight}`}>Entry Price</th>
+                                        <th className={`${styles.th} ${styles.thRight}`}>Mark Price</th>
+                                        <th className={`${styles.th} ${styles.thRight}`}>PNL (ROE %)</th>
+                                        <th className={`${styles.th} ${styles.thRight}`}>Liq. Price</th>
+                                        <th className={`${styles.th} ${styles.thRight}`}>Margin</th>
                                         <th className={styles.th}>
                                             <button
                                                 className={styles.closeAllHeaderBtn}
@@ -213,7 +213,7 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                                 Close All
                                             </button>
                                         </th>
-                                        <th className={styles.th} style={{ textAlign: 'right' }}>TP/SL</th>
+                                        <th className={`${styles.th} ${styles.thRight}`}>TP/SL</th>
                                     </tr>
                                 </thead>
                                 <tbody>

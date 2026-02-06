@@ -227,19 +227,25 @@
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
     margin-top: 12px;
 }
 
-.confirmButton:hover {
+.confirmButton:hover:not(:disabled) {
     background-color: #800042;
+    transform: translateY(-1px);
 }
 
-.disabledButton {
+.confirmButton:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.confirmButton:disabled {
     background-color: #35001C !important;
     border-color: #2D0018 !important;
     color: #5D4050 !important;
     cursor: not-allowed !important;
+    opacity: 1 !important;
 }
 
 @keyframes fadeIn {

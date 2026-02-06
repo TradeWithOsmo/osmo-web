@@ -1,23 +1,35 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import styles from './ChatInterface.module.css';
-import type { Workspace, Message } from '../../types/autos';
+import type { Workspace, Message, ChatAttachment } from '../../types/autos';
+import { usageService } from '../../api/usageService';
+import { useWallets } from '@privy-io/react-auth';
+import { useUsageStore } from '../../store/useUsageStore';
+import brainIcon from '../../assets/Icons/Brain.png';
+import TokenIcon from '../MarketDetails/TokenIcon';
+import { useMarketStore } from '../../store/useMarketStore';
+
 
 
 interface ChatInterfaceProps {
     activeSessionId?: string;
     activeSessionTitle?: string;
     messages: Message[];
-    onSendMessage: (content: string, attachments?: File[], toolStates?: any) => void;
+    onSendMessage: (content: string, modelId: string, attachments?: ChatAttachment[], toolStates?: any) => void;
     isTyping: boolean;
     workspaces?: Workspace[];
     onRenameSession?: (sessionId: string, newName: string) => void;
     onDeleteSession?: (sessionId: string) => void;
     onMoveSessionToWorkspace?: (sessionId: string, workspaceId: string) => void;
-    onOpenChart?: (symbol?: string) => void;
-    onEditMessage?: (sessionId: string, messageId: string, newContent: string) => void;
-    onRegenerateResponse?: (messageId: string) => void;
+    onOpenChart?: (symbol?: string, indicators?: string[], timeframe?: string) => void;
+    onEditMessage?: (sessionId: string, messageId: string, newContent: string, modelId?: string, reasoningEffort?: string) => void;
+    onRegenerateResponse?: (messageId: string, modelId?: string, reasoningEffort?: string) => void;
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike' | null) => void;
     currentSymbol?: string;
+    onToggleMinimize?: () => void;
+    isMinimized?: boolean;
+    onNewChat?: () => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -29,23 +41,302 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     workspaces = [],
     onRenameSession,
     onDeleteSession,
-    onMoveSessionToWorkspace,
     onOpenChart,
     onEditMessage,
     onRegenerateResponse,
     onFeedback,
-    currentSymbol
+    currentSymbol,
+    onToggleMinimize,
+    isMinimized,
+    onNewChat
 }) => {
     const [inputValue, setInputValue] = useState('');
+    const [inputLinks, setInputLinks] = useState<string[]>([]);
+
+    const { markets, fetchMarkets, selectedMarket } = useMarketStore();
+    useEffect(() => {
+        if (markets.length === 0) {
+            fetchMarkets();
+        }
+    }, [markets.length, fetchMarkets]);
+
+    const marketByBase = useMemo(() => {
+        const map = new Map<string, any>();
+        markets.forEach(m => {
+            const base = (m.symbol || '').split('-')[0]?.toUpperCase();
+            if (base && !map.has(base)) {
+                map.set(base, m);
+            }
+        });
+        return map;
+    }, [markets]);
+
+    const marketBySymbol = useMemo(() => {
+        const map = new Map<string, any>();
+        markets.forEach(m => {
+            const raw = (m.symbol || '').toUpperCase();
+            if (!raw) return;
+            map.set(raw, m);
+            if (raw.includes('-')) {
+                map.set(raw.replace('-', '/'), m);
+            }
+            if (raw.includes('/')) {
+                map.set(raw.replace('/', '-'), m);
+            }
+        });
+        return map;
+    }, [markets]);
+
+    const formatPrice = (val: number) => {
+        if (!val && val !== 0) return '-';
+        if (val === 0) return '0.0000';
+        const locale = 'en-US';
+        if (val >= 100) {
+            return `${val.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        return `${val.toLocaleString(locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
+    };
+
+    const timeframes = ['1m', '5m', '15m', '1H', '4H', '1D', '1W'];
+
+    const indicatorAliases: Record<string, { label: string; study: string }> = {
+        RSI: { label: 'RSI', study: 'RSI' },
+        MACD: { label: 'MACD', study: 'MACD' },
+        ATR: { label: 'ATR', study: 'ATR' },
+        CCI: { label: 'CCI', study: 'CCI' },
+        STOCHASTIC: { label: 'Stochastic', study: 'Stochastic' },
+        STOCH: { label: 'Stochastic', study: 'Stochastic' },
+        'BOLLINGER BANDS': { label: 'Bollinger Bands', study: 'Bollinger Bands' },
+        BB: { label: 'Bollinger Bands', study: 'Bollinger Bands' },
+        'ICHIMOKU CLOUD': { label: 'Ichimoku Cloud', study: 'Ichimoku Cloud' },
+        ICHIMOKU: { label: 'Ichimoku Cloud', study: 'Ichimoku Cloud' },
+        'PARABOLIC SAR': { label: 'Parabolic SAR', study: 'Parabolic SAR' },
+        PSAR: { label: 'Parabolic SAR', study: 'Parabolic SAR' },
+        'MOVING AVERAGE': { label: 'Moving Average', study: 'Moving Average' },
+        EMA: { label: 'EMA', study: 'Moving Average' },
+        SMA: { label: 'SMA', study: 'Moving Average' },
+        WMA: { label: 'WMA', study: 'Moving Average' }
+    };
+
+    const indicatorRegex = useMemo(() => {
+        const group = [
+            'RSI',
+            'MACD',
+            'ATR',
+            'CCI',
+            'Stochastic',
+            'Stoch',
+            'Bollinger\\s+Bands',
+            'BB',
+            'Ichimoku\\s+Cloud',
+            'Ichimoku',
+            'Parabolic\\s+SAR',
+            'PSAR',
+            'Moving\\s+Average',
+            'EMA',
+            'SMA',
+            'WMA'
+        ].join('|');
+        return new RegExp(`\\b(${group})\\s*[:\\-\\(\\[]?\\s*(\\d{1,4})\\b`, 'gi');
+    }, []);
+
+    const timeframeMap = useMemo(() => {
+        const map = new Map<string, string>();
+        timeframes.forEach(tf => map.set(tf.toLowerCase(), tf));
+        return map;
+    }, [timeframes]);
+
+    const renderSymbolNodes = (text: string, keyPrefix: string) => {
+        const regex = /\b[A-Z0-9]{2,12}(?:[-/][A-Z0-9]{2,12})?\b|\b\d{1,3}[mhdw]\b/gi;
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = regex.exec(text)) !== null) {
+            const token = match[0];
+            const isTimeframe = /^\d/.test(token);
+            const timeframeLabel = isTimeframe ? timeframeMap.get(token.toLowerCase()) : undefined;
+
+            if (isTimeframe && !timeframeLabel) continue;
+
+            const tokenUpper = token.toUpperCase();
+            const market = !isTimeframe
+                ? marketBySymbol.get(tokenUpper) || marketByBase.get(tokenUpper.split(/[-/]/)[0])
+                : undefined;
+
+            if (!isTimeframe && !market) continue;
+
+            if (match.index > lastIndex) {
+                parts.push(text.slice(lastIndex, match.index));
+            }
+
+            if (isTimeframe && timeframeLabel) {
+                const targetSymbol = currentSymbol || selectedMarket?.symbol || 'BTC/USDT';
+                parts.push(
+                    <button
+                        key={`${keyPrefix}-tf-${timeframeLabel}-${match.index}`}
+                        className={styles.timeframeBadge}
+                        type="button"
+                        onClick={() => {
+                            setToolStates(prev => ({ ...prev, timeframe: [timeframeLabel] }));
+                            onOpenChart?.(targetSymbol, undefined, timeframeLabel);
+                        }}
+                        title={`Set timeframe ${timeframeLabel}`}
+                    >
+                        <span className={styles.timeframeBadgeText}>{timeframeLabel}</span>
+                    </button>
+                );
+            } else {
+                const displaySymbol = tokenUpper.split(/[-/]/)[0];
+                const price = market?.price || 0;
+                const priceLabel = price ? `$${formatPrice(price)}` : '-';
+                const changeValue =
+                    market?.change24hPercent !== undefined
+                        ? market.change24hPercent
+                        : market?.change24h !== undefined
+                            ? market.change24h
+                            : 0;
+                const priceTrendClass =
+                    changeValue > 0
+                        ? styles.symbolBadgePriceUp
+                        : changeValue < 0
+                            ? styles.symbolBadgePriceDown
+                            : '';
+
+                const tvSymbol = market?.symbol || displaySymbol;
+                parts.push(
+                    <button
+                        key={`${keyPrefix}-sym-${tokenUpper}-${match.index}`}
+                        className={styles.symbolBadge}
+                        type="button"
+                        onClick={() => onOpenChart?.(tvSymbol)}
+                        title={`Open ${tvSymbol}`}
+                    >
+                        <TokenIcon symbol={displaySymbol} size={16} className={styles.symbolBadgeIcon} />
+                        <span className={styles.symbolBadgeText}>{displaySymbol}</span>
+                        <span className={`${styles.symbolBadgePrice} ${priceTrendClass}`}>{priceLabel}</span>
+                    </button>
+                );
+            }
+
+            lastIndex = match.index + token.length;
+        }
+
+        if (lastIndex < text.length) {
+            parts.push(text.slice(lastIndex));
+        }
+
+        return parts.length ? parts : [text];
+    };
+
+    const renderTextWithTokens = (text: string) => {
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+        let segIndex = 0;
+        indicatorRegex.lastIndex = 0;
+
+        while ((match = indicatorRegex.exec(text)) !== null) {
+            const rawName = match[1];
+            const number = match[2];
+            const normalized = rawName.replace(/\s+/g, ' ').toUpperCase();
+            const config = indicatorAliases[normalized];
+            if (!config) continue;
+
+            if (match.index > lastIndex) {
+                parts.push(...renderSymbolNodes(text.slice(lastIndex, match.index), `seg-${segIndex++}`));
+            }
+
+            const targetSymbol = currentSymbol || selectedMarket?.symbol || 'BTC/USDT';
+            parts.push(
+                <button
+                    key={`ind-${normalized}-${match.index}`}
+                    className={styles.indicatorBadge}
+                    type="button"
+                    onClick={() => {
+                        setToolStates(prev => ({
+                            ...prev,
+                            indicators: prev.indicators.includes(config.study)
+                                ? prev.indicators
+                                : [...prev.indicators, config.study]
+                        }));
+                        onOpenChart?.(targetSymbol, [config.study]);
+                    }}
+                    title={`Add ${config.study}`}
+                >
+                    <span className={styles.indicatorBadgeText}>{config.label}</span>
+                    <span className={styles.indicatorBadgeNumber}>{number}</span>
+                </button>
+            );
+
+            lastIndex = match.index + match[0].length;
+        }
+
+        if (lastIndex < text.length) {
+            parts.push(...renderSymbolNodes(text.slice(lastIndex), `seg-${segIndex++}`));
+        }
+
+        return parts.length ? parts : renderSymbolNodes(text, 'seg-0');
+    };
 
 
+
+    const { wallets } = useWallets();
+    const userAddress = wallets[0]?.address;
 
     // Model Selection State
-    const [selectedModel, setSelectedModel] = useState('Claude Sonnet 4.5');
+    const [selectedModel, setSelectedModel] = useState('Claude 3.5 Sonnet');
+    const [reasoningEffort, setReasoningEffort] = useState<'low' | 'medium' | 'high' | 'extra_high'>('medium');
+    const [availableModels, setAvailableModels] = useState<{ id: string, name: string }[]>([]);
     const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
-    const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
-    const [effortLevel, setEffortLevel] = useState('High');
-    const [isEffortMenuOpen, setIsEffortMenuOpen] = useState(false);
+
+    const { enabledModels, fetchEnabledModels } = useUsageStore();
+
+    // 1. Initial load of enabled models
+    useEffect(() => {
+        fetchEnabledModels(userAddress);
+    }, [userAddress, fetchEnabledModels]);
+
+    // 2. React to changes in enabledModels or fetch all models
+    useEffect(() => {
+        const syncModels = async () => {
+            try {
+                const allModels = await usageService.getModels();
+                const enabledIds = Object.keys(enabledModels).filter(id => enabledModels[id]);
+
+                // Filter models - always include groq for now as they are "tested"
+                let filtered = allModels.filter((m: any) =>
+                    enabledIds.includes(m.id) || m.id.startsWith('groq/')
+                );
+
+                if (filtered.length === 0 && allModels.length > 0) {
+                    // Fallback to defaults if nothing enabled (e.g. initial load delay)
+                    const defaults = [
+                        'anthropic/claude-4.5-sonnet',
+                        'deepseek/deepseek-chat-v3.1',
+                        'google/gemini-3-pro',
+                        'openai/gpt-5.1',
+                        'groq/openai/gpt-oss-120b'
+                    ];
+                    filtered = allModels.filter((m: any) => defaults.includes(m.id) || m.id.startsWith('groq/'));
+                }
+
+                if (filtered.length > 0) {
+                    setAvailableModels(filtered);
+                    // Only reset if currently selected model is NOT in the new list
+                    const isSelectedStillAvailable = filtered.find((m: any) => m.name === selectedModel);
+                    if (!isSelectedStillAvailable && selectedModel !== 'Claude 3.5 Sonnet') {
+                        // Only reset if we are not on the default placeholder
+                        setSelectedModel(filtered[0].name);
+                    }
+                }
+            } catch (err) {
+                console.error("Sync models failed", err);
+            }
+        };
+        syncModels();
+    }, [enabledModels]); // Removed selectedModel from dependencies to prevent infinite reset loops
+
     const [voiceLanguage, setVoiceLanguage] = useState('en-US'); // Default fallback
     const [isVoiceLanguageMenuOpen, setIsVoiceLanguageMenuOpen] = useState(false);
     const [isListening, setIsListening] = useState(false);
@@ -105,7 +396,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const toolsRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [attachments, setAttachments] = useState<File[]>([]);
-    const [expandedImage, setExpandedImage] = useState<File | null>(null);
+    const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB per file
+    const attachmentPreviews = useMemo(
+        () =>
+            attachments.map(file => ({
+                file,
+                url: URL.createObjectURL(file)
+            })),
+        [attachments]
+    );
+
+    useEffect(() => {
+        return () => {
+            attachmentPreviews.forEach(preview => {
+                URL.revokeObjectURL(preview.url);
+            });
+        };
+    }, [attachmentPreviews]);
+
+    const readFileAsDataUrl = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const buildAttachmentPayloads = async (files: File[]): Promise<ChatAttachment[]> => {
+        const payloads: ChatAttachment[] = [];
+        const errors: string[] = [];
+
+        await Promise.all(
+            files.map(async (file) => {
+                if (file.size > MAX_ATTACHMENT_BYTES) {
+                    errors.push(`${file.name} is too large (max 5MB).`);
+                    return;
+                }
+                const dataUrl = await readFileAsDataUrl(file);
+                payloads.push({
+                    name: file.name,
+                    type: file.type || 'application/octet-stream',
+                    data: dataUrl,
+                    size: file.size
+                });
+            })
+        );
+
+        if (errors.length > 0) {
+            alert(errors.join('\n'));
+        }
+
+        return payloads;
+    };
+    const [expandedImage, setExpandedImage] = useState<{ name: string; url: string } | null>(null);
+
+    const closeExpandedImage = () => {
+        if (expandedImage?.url?.startsWith('blob:')) {
+            URL.revokeObjectURL(expandedImage.url);
+        }
+        setExpandedImage(null);
+    };
 
     // Editing State
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -122,9 +473,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         setEditValue('');
     };
 
+    const getSelectedModelId = () => {
+        const model = availableModels.find(m => m.name === selectedModel) || availableModels[0];
+        if (!model) return undefined;
+        return model.id;
+    };
+
     const handleSaveEdit = (msgId: string) => {
         if (onEditMessage && activeSessionId) {
-            onEditMessage(activeSessionId, msgId, editValue);
+            onEditMessage(activeSessionId, msgId, editValue, getSelectedModelId(), reasoningEffort);
             // Optionally trigger regeneration here if desired, but for now just edit
         }
         setEditingMessageId(null);
@@ -132,7 +489,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     const handleRegenerate = (content: string) => {
-        onSendMessage(content, [], toolStates);
+        const modelId = getSelectedModelId();
+        if (!modelId) return;
+        onSendMessage(content, modelId, [], { ...toolStates, reasoning_effort: reasoningEffort });
     };
 
     const handleCopy = (content: string, id: string) => {
@@ -147,8 +506,61 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }).replace(':', '.');
     };
 
+    const getLinkDomain = (href?: string) => {
+        if (!href) return '';
+        try {
+            const url = new URL(href);
+            return url.hostname.replace(/^www\./, '');
+        } catch {
+            return '';
+        }
+    };
 
-    const timeframes = ['1m', '5m', '15m', '1H', '4H', '1D', '1W'];
+    const extractLinks = (text: string) => {
+        const regex = /\bhttps?:\/\/[^\s<>"]+/gi;
+        const matches = text.match(regex) || [];
+        return Array.from(new Set(matches));
+    };
+
+    const getLinkLabel = (url: string) => {
+        try {
+            const u = new URL(url);
+            const parts = u.pathname.split('/').filter(Boolean);
+            return parts[parts.length - 1] || u.hostname;
+        } catch {
+            return url;
+        }
+    };
+
+    const linksInInput = useMemo(() => inputLinks, [inputLinks]);
+
+    const removeLinkFromInput = (url: string) => {
+        setInputLinks(prev => prev.filter(link => link !== url));
+        setInputValue(prev => prev.replace(url, '').replace(/\s{2,}/g, ' ').trim());
+    };
+
+    const isImageAttachment = (att: ChatAttachment) => (att.type || '').startsWith('image/');
+    const formatAttachmentType = (type?: string, name?: string) => {
+        if (type) {
+            if (type === 'application/pdf') return 'PDF';
+            if (type.includes('wordprocessingml')) return 'DOCX';
+            if (type.includes('msword')) return 'DOC';
+            if (type.startsWith('text/')) return 'TXT';
+            if (type.startsWith('image/')) return (type.split('/')[1] || 'IMAGE').toUpperCase();
+        }
+        if (name && name.includes('.')) {
+            const ext = name.split('.').pop();
+            if (ext) return ext.toUpperCase();
+        }
+        return 'FILE';
+    };
+
+    const openAttachmentImage = (att: ChatAttachment) => {
+        if (!att?.data) return;
+        setExpandedImage({ name: att.name || 'image', url: att.data });
+    };
+
+
     const availableIndicators = ['RSI', 'MACD', 'Bollinger Bands', 'Moving Average', 'Volume', 'Stochastic', 'ATR', 'Ichimoku Cloud', 'CCI', 'Parabolic SAR'];
 
     // Close menus on click outside
@@ -156,7 +568,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         const handleClickOutside = (event: MouseEvent) => {
             if (modelSectionRef.current && !modelSectionRef.current.contains(event.target as Node)) {
                 setIsModelMenuOpen(false);
-                setExpandedModelId(null);
             }
             if (toolsRef.current && !toolsRef.current.contains(event.target as Node)) {
                 setIsToolsMenuOpen(false);
@@ -232,6 +643,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // Thought process state
     const [expandedThoughtIds, setExpandedThoughtIds] = useState<Set<string>>(new Set());
     const [expandedStepKeys, setExpandedStepKeys] = useState<Set<string>>(new Set());
+    const lastThoughtCountsRef = useRef<Record<string, number>>({});
+    const lastThinkingRef = useRef<Record<string, boolean>>({});
 
     const toggleThoughts = (messageId: string) => {
         setExpandedThoughtIds(prev => {
@@ -258,6 +671,58 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         });
     };
 
+    useEffect(() => {
+        const newSteps: { id: string; index: number }[] = [];
+        const finished: string[] = [];
+
+        for (const msg of messages) {
+            if (msg.role !== 'assistant') continue;
+            const count = Array.isArray(msg.thoughts) ? msg.thoughts.length : 0;
+            const prevCount = lastThoughtCountsRef.current[msg.id] ?? 0;
+            if (count > prevCount) {
+                newSteps.push({ id: msg.id, index: count - 1 });
+                lastThoughtCountsRef.current[msg.id] = count;
+            }
+
+            const wasThinking = lastThinkingRef.current[msg.id] ?? false;
+            const isThinking = !!msg.isThinking;
+            if (wasThinking && !isThinking) {
+                finished.push(msg.id);
+            }
+            lastThinkingRef.current[msg.id] = isThinking;
+        }
+
+        if (newSteps.length > 0) {
+            setExpandedThoughtIds(prev => {
+                const next = new Set(prev);
+                for (const s of newSteps) next.add(s.id);
+                return next;
+            });
+
+            setExpandedStepKeys(prev => {
+                const next = new Set(prev);
+                for (const s of newSteps) {
+                    if (s.index >= 0) {
+                        next.add(`${s.id}-${s.index}`);
+                    }
+                }
+                return next;
+            });
+        }
+
+        if (finished.length > 0) {
+            setExpandedThoughtIds(prev => {
+                const next = new Set(prev);
+                for (const id of finished) next.delete(id);
+                return next;
+            });
+            setExpandedStepKeys(prev => {
+                const next = new Set([...prev].filter(k => !finished.some(id => k.startsWith(`${id}-`))));
+                return next;
+            });
+        }
+    }, [messages]);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -270,11 +735,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
 
 
-    const handleSend = () => {
-        if (!inputValue.trim() && attachments.length === 0) return;
+    const handleSend = async () => {
+        if (!inputValue.trim() && attachments.length === 0 && inputLinks.length === 0) return;
 
-        onSendMessage(inputValue, attachments, toolStates);
+        const model = availableModels.find(m => m.name === selectedModel) || availableModels[0];
+        if (!model) return;
+
+        const finalModelId = model.id;
+        const attachmentPayloads = attachments.length > 0 ? await buildAttachmentPayloads(attachments) : [];
+        const contentWithLinks = [inputValue.trim(), ...inputLinks].filter(Boolean).join(' ').trim();
+        onSendMessage(contentWithLinks, finalModelId, attachmentPayloads, { ...toolStates, reasoning_effort: reasoningEffort });
         setInputValue('');
+        setInputLinks([]);
         setAttachments([]);
 
         // Reset text area height
@@ -289,6 +761,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
     };
 
+    const inputAttachmentItems = attachments.map((file, index) => ({ file, index }));
+    const inputImageAttachments = inputAttachmentItems.filter(item => item.file.type.startsWith('image/'));
+    const inputFileAttachments = inputAttachmentItems.filter(item => !item.file.type.startsWith('image/'));
+
 
 
     return (
@@ -296,7 +772,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {/* Header Removed */}
 
             {/* Center Content */}
-            <div className={styles.centerContent}>
+                <div className={styles.centerContent}>
 
                 {/* Greeting - Only show if no messages */}
                 {messages.length === 0 && (
@@ -315,7 +791,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         {messages.map((msg) => (
                             <div key={msg.id} className={`${styles.messageItem} ${msg.role === 'user' ? styles.user : styles.assistant}`}>
                                 {msg.role === 'user' ? (
-                                    <div className={styles.userMessageGroup}>
+                                    <div className={`${styles.userMessageGroup} ${msg.attachments && msg.attachments.length > 0 ? styles.userMessageWithAttachments : ''}`}>
                                         {/* Edit Mode */}
                                         {editingMessageId === msg.id ? (
                                             <div className={styles.editMessageContainer}>
@@ -342,6 +818,35 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         ) : (
                                             /* Normal Display Mode */
                                             <div className={styles.userBubbleWrapper}>
+                                                {msg.attachments && msg.attachments.length > 0 && (
+                                                    <div className={styles.userAttachments}>
+                                                        {msg.attachments.map((att, idx) => (
+                                                            isImageAttachment(att) ? (
+                                                                <div key={`att-img-${idx}`} className={styles.userImageCard}>
+                                                                    <img
+                                                                        src={att.data}
+                                                                        alt={att.name}
+                                                                        className={styles.userAttachmentImage}
+                                                                        onClick={() => openAttachmentImage(att)}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div key={`att-file-${idx}`} className={styles.userFileCard}>
+                                                                    <div className={styles.userFileIcon}>
+                                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                                                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                                                        </svg>
+                                                                    </div>
+                                                                    <div className={styles.userFileMeta}>
+                                                                        <div className={styles.userFileName}>{att.name}</div>
+                                                                        <div className={styles.userFileType}>{formatAttachmentType(att.type, att.name)}</div>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        ))}
+                                                    </div>
+                                                )}
                                                 <div className={`${styles.bubble} ${styles.userBubble}`}>
                                                     {msg.content}
                                                 </div>
@@ -406,12 +911,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5D5FEF" strokeWidth="2">
-                                                                    <path d="M12 2a10 10 0 1 0 10 10H12V2z" />
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B2030" strokeWidth="2">
+                                                                    <path d="M12 2a10 10 0 1 0 10 10H12V2z" fill="#3B2030" />
                                                                     <path d="M12 2a10 10 0 0 1 10 10" />
                                                                     {/* Simple quarter circle or brain metaphor */}
                                                                 </svg>
-                                                                <span style={{ color: '#5D5FEF' }}>Thought Process</span>
+                                                                <span style={{ color: '#5B354C' }}>Thought Process</span>
                                                             </>
                                                         )}
                                                     </div>
@@ -420,7 +925,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                         height="16"
                                                         viewBox="0 0 24 24"
                                                         fill="none"
-                                                        stroke={msg.isThinking ? "#A77590" : "#5D5FEF"}
+                                                        stroke={msg.isThinking ? "#A77590" : "#3B2030"}
                                                         strokeWidth="2"
                                                         style={{ transform: expandedThoughtIds.has(msg.id) ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', marginLeft: 'auto' }}
                                                     >
@@ -479,7 +984,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
                                                                                 <div className={styles.stepIcon}>
                                                                                     {/* Code Icon */}
-                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5D5FEF" strokeWidth="2">
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B2030" strokeWidth="2">
                                                                                         <polyline points="16 18 22 12 16 6" />
                                                                                         <polyline points="8 6 2 12 8 18" />
                                                                                     </svg>
@@ -523,12 +1028,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                                 <div style={{ marginLeft: '28px', marginTop: '8px', background: '#12000A', padding: '12px', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', color: '#A77590', border: '1px solid #3A2530' }}>
                                                                                     <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{(typeof stepItem === 'object' && stepItem.content) || 'Writing code...'}</pre>
                                                                                 </div>
-                                                                            ) : (
-                                                                                // Dummy text detail for text steps
-                                                                                <div style={{ marginLeft: '28px' }}>
-                                                                                    This is a detailed explanation of the step "{stepTitle}".
-                                                                                </div>
-                                                                            )}
+                                                                              ) : (
+                                                                                  <div style={{ marginLeft: '28px' }}>
+                                                                                      {isObject ? (stepItem as any).content || stepTitle : stepTitle}
+                                                                                  </div>
+                                                                              )}
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -540,8 +1044,79 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         )}
 
                                         {/* Response Text */}
+                                        {msg.isThinking && (!msg.content || msg.content.trim().length === 0) && (
+                                            <div className={styles.loadingRow}>
+                                                <div className={styles.loadingBars}>
+                                                    <span className={styles.loadingBar}></span>
+                                                    <span className={styles.loadingBar}></span>
+                                                    <span className={styles.loadingBar}></span>
+                                                    <span className={styles.loadingBar}></span>
+                                                </div>
+                                                <span className={styles.loadingText}>Loading</span>
+                                            </div>
+                                        )}
                                         <div className={styles.responseContent}>
-                                            {msg.content}
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    text: ({ node, children }) => {
+                                                        const parentType = (node as any)?.parent?.type;
+                                                        if (parentType === 'link' || parentType === 'code' || parentType === 'inlineCode') {
+                                                            return <>{children}</>;
+                                                        }
+                                                        const text = typeof children === 'string' ? children : String(children);
+                                                        return <>{renderTextWithTokens(text)}</>;
+                                                    },
+                                                    a: ({ href, children, ...props }) => {
+                                                        const domain = getLinkDomain(href);
+                                                        const showIcon = !!domain && (href?.startsWith('http://') || href?.startsWith('https://'));
+                                                        const favicon = showIcon ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : '';
+                                                        return (
+                                                            <a
+                                                                className={styles.linkWithIcon}
+                                                                href={href}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                {...props}
+                                                            >
+                                                                {showIcon && (
+                                                                    <img
+                                                                        className={styles.linkIcon}
+                                                                        src={favicon}
+                                                                        alt=""
+                                                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                                    />
+                                                                )}
+                                                                <span className={styles.linkText}>{children}</span>
+                                                            </a>
+                                                        );
+                                                    },
+                                                    pre: ({ children }) => (
+                                                        <pre className={styles.codeBlock}>{children}</pre>
+                                                    ),
+                                                    code: ({ inline, children }) => (
+                                                        inline
+                                                            ? <code className={styles.inlineCode}>{children}</code>
+                                                            : <code>{children}</code>
+                                                    ),
+                                                    table: ({ children }) => (
+                                                        <div className={styles.tableWrapper}>
+                                                            <table className={styles.markdownTable}>{children}</table>
+                                                        </div>
+                                                    ),
+                                                    th: ({ children }) => (
+                                                        <th className={styles.tableHeader}>{children}</th>
+                                                    ),
+                                                    td: ({ children }) => (
+                                                        <td className={styles.tableCell}>{children}</td>
+                                                    ),
+                                                    blockquote: ({ children }) => (
+                                                        <blockquote className={styles.blockquote}>{children}</blockquote>
+                                                    )
+                                                }}
+                                            >
+                                                {msg.content}
+                                            </ReactMarkdown>
                                         </div>
 
                                         {/* Artifact Card (if present) */}
@@ -580,72 +1155,69 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             </div>
                                         )}
 
-                                        {/* Action Buttons */}
-                                        {/* Action Buttons */}
-                                        <div className={styles.actionRow}>
-                                            <button
-                                                className={styles.actionBtn}
-                                                title="Copy"
-                                                onClick={() => handleCopy(msg.content, msg.id)}
-                                            >
-                                                {copiedId === msg.id ? (
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <polyline points="20 6 9 17 4 12" />
-                                                    </svg>
-                                                ) : (
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                                    </svg>
-                                                )}
-                                            </button>
-                                            <button
-                                                className={`${styles.actionBtn} ${msg.feedback === 'like' ? styles.activeFeedback : ''}`}
-                                                title="Good response"
-                                                onClick={() => onFeedback && onFeedback(msg.id, msg.feedback === 'like' ? null : 'like')}
-                                            >
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={msg.feedback === 'like' ? "#5D5FEF" : "currentColor"} strokeWidth="2">
-                                                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                className={`${styles.actionBtn} ${msg.feedback === 'dislike' ? styles.activeFeedback : ''}`}
-                                                title="Bad response"
-                                                onClick={() => onFeedback && onFeedback(msg.id, msg.feedback === 'dislike' ? null : 'dislike')}
-                                            >
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={msg.feedback === 'dislike' ? "#FF4B4B" : "currentColor"} strokeWidth="2">
-                                                    <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                className={styles.actionBtn}
-                                                title="Regenerate"
-                                                onClick={() => onRegenerateResponse && onRegenerateResponse(msg.id)}
-                                            >
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M1 4v6h6" />
-                                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                                                </svg>
-                                            </button>
-                                        </div>
+                                        {!msg.isThinking && (
+                                            <>
+                                                {/* Action Buttons */}
+                                                <div className={styles.actionRow}>
+                                                    <button
+                                                        className={styles.actionBtn}
+                                                        title="Copy"
+                                                        onClick={() => handleCopy(msg.content, msg.id)}
+                                                    >
+                                                        {copiedId === msg.id ? (
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <polyline points="20 6 9 17 4 12" />
+                                                            </svg>
+                                                        ) : (
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                                            </svg>
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        className={`${styles.actionBtn} ${msg.feedback === 'like' ? styles.activeFeedback : ''}`}
+                                                        title="Good response"
+                                                        onClick={() => onFeedback && onFeedback(msg.id, msg.feedback === 'like' ? null : 'like')}
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={msg.feedback === 'like' ? "#3B2030" : "currentColor"} strokeWidth="2">
+                                                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        className={`${styles.actionBtn} ${msg.feedback === 'dislike' ? styles.activeFeedback : ''}`}
+                                                        title="Bad response"
+                                                        onClick={() => onFeedback && onFeedback(msg.id, msg.feedback === 'dislike' ? null : 'dislike')}
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={msg.feedback === 'dislike' ? "#FF4B4B" : "currentColor"} strokeWidth="2">
+                                                            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2 0 0 1-2.33 2H17" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        className={styles.actionBtn}
+                                                        title="Regenerate"
+                                                        onClick={() => onRegenerateResponse && onRegenerateResponse(msg.id, getSelectedModelId(), reasoningEffort)}
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                            <path d="M1 4v6h6" />
+                                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
 
-                                        {/* Assistant Logo (Star) */}
-                                        <div className={styles.assistantLogo}>
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                <path d="M12 2L15.09 9.26L22 12L15.09 14.74L12 22L8.91 14.74L2 12L8.91 9.26L12 2Z" />
-                                            </svg>
-                                        </div>
+                                                {/* Assistant Logo (Star) */}
+                                                <div className={styles.assistantLogo}>
+                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M12 2L15.09 9.26L22 12L15.09 14.74L12 22L8.91 14.74L2 12L8.91 9.26L12 2Z" />
+                                                    </svg>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         ))}
-                        {isTyping && (
-                            <div className={`${styles.messageItem} ${styles.assistant}`}>
-                                <div className={styles.assistantBubble} style={{ opacity: 0.7, paddingLeft: '8px' }}>
-                                    Thinking...
-                                </div>
-                            </div>
-                        )}
+                          {isTyping && null}
                         <div ref={messagesEndRef} />
                     </div>
                 )}
@@ -653,35 +1225,85 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {/* Input Area */}
                 <div className={`${styles.inputWrapper} ${isToolsMenuOpen ? styles.toolsOpen : ''} ${isModelMenuOpen ? styles.modelOpen : ''}`}>
                     <div className={styles.textWrapper}>
-                        {attachments.length > 0 && (
-                            <div style={{ display: 'flex', gap: '8px', paddingBottom: '12px', overflowX: 'auto' }}>
-                                {attachments.map((file, index) => (
-                                    <div key={index} style={{ position: 'relative', width: '60px', height: '60px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #3A2530', flexShrink: 0, backgroundColor: '#12000A' }}>
-                                        {file.type.startsWith('image/') ? (
-                                            <img
-                                                src={URL.createObjectURL(file)}
-                                                alt="preview"
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
-                                                onClick={() => setExpandedImage(file)}
-                                            />
-                                        ) : (
-                                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFE1F2', fontSize: '10px', flexDirection: 'column' }}>
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                                </svg>
-                                                <span style={{ fontSize: '8px', marginTop: '2px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 2px' }}>{file.name}</span>
-                                            </div>
-                                        )}
-                                        <div
-                                            onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
-                                            style={{ position: 'absolute', top: 0, right: 0, width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', color: 'white', cursor: 'pointer', borderBottomLeftRadius: '6px' }}
-                                        >
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                        {(linksInInput.length > 0 || inputFileAttachments.length > 0) && (
+                            <div className={styles.linkChipsRow}>
+                                {linksInInput.map((link) => (
+                                    <div key={link} className={styles.linkChip}>
+                                        <svg className={styles.linkChipIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M10 13a5 5 0 0 1 0-7l2-2a5 5 0 0 1 7 7l-1 1" />
+                                            <path d="M14 11a5 5 0 0 1 0 7l-2 2a5 5 0 0 1-7-7l1-1" />
+                                        </svg>
+                                        <span className={styles.linkChipText}>{getLinkLabel(link)}</span>
+                                        <button className={styles.linkChipRemove} type="button" onClick={() => removeLinkFromInput(link)}>
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                                {inputFileAttachments.map(({ file, index }) => (
+                                    <div key={`file-chip-${index}`} className={styles.fileChip}>
+                                        <div className={styles.fileChipIcon}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
                                             </svg>
                                         </div>
+                                        <span className={styles.fileChipText}>{file.name}</span>
+                                        <button
+                                            className={styles.fileChipRemove}
+                                            type="button"
+                                            onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {inputImageAttachments.length > 0 && (
+                            <div className={styles.inputAttachmentRow}>
+                                {inputImageAttachments.map(({ file, index }) => (
+                                    <div key={index} className={styles.inputAttachmentItem}>
+                                        {file.type.startsWith('image/') ? (
+                                            <div className={styles.inputImageCard}>
+                                                {attachmentPreviews[index] && (
+                                                    <img
+                                                        src={attachmentPreviews[index].url}
+                                                        alt="preview"
+                                                        className={styles.inputImagePreview}
+                                                        onClick={() => {
+                                                            setExpandedImage({ name: file.name, url: attachmentPreviews[index].url });
+                                                        }}
+                                                    />
+                                                )}
+                                                <button
+                                                    className={styles.inputAttachmentRemove}
+                                                    type="button"
+                                                    onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className={styles.inputFileCard}>
+                                                <div className={styles.inputFileIcon}>
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                                    </svg>
+                                                </div>
+                                                <div className={styles.inputFileMeta}>
+                                                    <div className={styles.inputFileName}>{file.name}</div>
+                                                    <div className={styles.inputFileType}>{formatAttachmentType(file.type, file.name)}</div>
+                                                </div>
+                                                <button
+                                                    className={styles.inputFileRemove}
+                                                    type="button"
+                                                    onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -691,7 +1313,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             placeholder="Ask osmo to help you trade..."
                             rows={3}
                             value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
+                            onChange={(e) => {
+                                const nextValue = e.target.value;
+                                const foundLinks = extractLinks(nextValue);
+                                if (foundLinks.length > 0) {
+                                    setInputLinks(prev => Array.from(new Set([...prev, ...foundLinks])));
+                                }
+                                const cleaned = nextValue
+                                    .replace(/\bhttps?:\/\/[^\s<>"]+/gi, '')
+                                    .replace(/\s{2,}/g, ' ');
+                                setInputValue(cleaned);
+                            }}
                             onKeyDown={handleKeyDown}
                             onInput={(e) => {
                                 const target = e.target as HTMLTextAreaElement;
@@ -708,7 +1340,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 type="file"
                                 ref={fileInputRef}
                                 style={{ display: 'none' }}
-                                accept="image/*,application/pdf"
+                                accept="image/*,application/pdf,text/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                 multiple
                                 onChange={(e) => {
                                     if (e.target.files && e.target.files.length > 0) {
@@ -866,19 +1498,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 className={`${styles.modelSelectorTrigger} ${isModelMenuOpen ? styles.active : ''}`}
                                 onClick={toggleModelMenu}
                             >
-                                <img
-                                    src={
-                                        selectedModel === 'Claude Sonnet 4.5' ? "/src/assets/Model logos/Anthropic.svg" :
-                                            selectedModel === 'DeepSeek V3.2' ? "/src/assets/Model logos/DeepSeek.png" :
-                                                selectedModel === 'Gemini 3' ? "/src/assets/Model logos/GoogleGemini.svg" :
-                                                    selectedModel === 'Qwen3 Max' ? "/src/assets/Model logos/Qwen.png" :
-                                                        "/src/assets/Model logos/OpenAI.svg"
-                                    }
-                                    style={selectedModel === 'ChatGPT 5.2' ? { filter: 'invert(1)' } : {}}
-                                    alt={selectedModel}
-                                    width={16}
-                                    height={16}
-                                />
                                 <span>{selectedModel}</span>
                                 <div style={{ flex: 1 }}></div>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: isModelMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
@@ -887,102 +1506,55 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             </div>
                             {isModelMenuOpen && (
                                 <div className={`${styles.modelMenu} ${styles.menuTop}`}>
-                                    {[
-                                        { id: 'DeepSeek V3.2', icon: "/src/assets/Model logos/DeepSeek.png" },
-                                        { id: 'Gemini 3', icon: "/src/assets/Model logos/GoogleGemini.svg" },
-                                        { id: 'Claude Sonnet 4.5', icon: "/src/assets/Model logos/Anthropic.svg" },
-                                        { id: 'Qwen3 Max', icon: "/src/assets/Model logos/Qwen.png" },
-                                        { id: 'ChatGPT 5.2', icon: "/src/assets/Model logos/OpenAI.svg", style: { filter: 'invert(1)' } }
-                                    ].map((model) => (
+                                    {/* Modes section */}
+                                    <div style={{ padding: '8px', borderBottom: '1px solid #2A1A24', background: '#0A0005' }}>
+                                        <div style={{ fontSize: '10px', color: '#5A4A54', marginBottom: '8px', paddingLeft: '8px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Reasoning Effort</div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                                            {[
+                                                { id: 'low', label: 'Low', level: 1 },
+                                                { id: 'medium', label: 'Medium', level: 2 },
+                                                { id: 'high', label: 'High', level: 3 },
+                                                { id: 'extra_high', label: 'Extra High', level: 4 }
+                                            ].map(mode => (
+                                                <div
+                                                    key={mode.id}
+                                                    onClick={(e) => { e.stopPropagation(); setReasoningEffort(mode.id as any); }}
+                                                    style={{
+                                                        padding: '8px',
+                                                        borderRadius: '6px',
+                                                        background: reasoningEffort === mode.id ? '#3B2030' : '#12000A',
+                                                        color: reasoningEffort === mode.id ? '#FFFFFF' : '#A77590',
+                                                        fontSize: '11px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                        cursor: 'pointer',
+                                                        border: '1px solid',
+                                                        borderColor: reasoningEffort === mode.id ? '#3B2030' : '#2A1A24'
+                                                    }}
+                                                >
+                                                    <span className={styles.reasoningIconGroup}>
+                                                        <img src={brainIcon} alt="" className={styles.reasoningIcon} />
+                                                    </span>
+                                                    <span>{mode.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ fontSize: '10px', color: '#5A4A54', padding: '8px 16px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Select Model</div>
+                                    {availableModels.map((model) => (
                                         <div key={model.id} className={styles.modelMenuItemWrapper}>
                                             <div className={styles.modelMenuItem}>
                                                 <div
                                                     className={styles.modelMenuItemMain}
-                                                    onClick={() => { setSelectedModel(model.id); setIsModelMenuOpen(false); }}
+                                                    onClick={() => { setSelectedModel(model.name); setIsModelMenuOpen(false); }}
+                                                    style={{ background: selectedModel === model.name ? '#1A0D15' : 'transparent' }}
                                                 >
-                                                    <img src={model.icon} alt={model.id} width={16} height={16} style={model.style} />
-                                                    <span>{model.id}</span>
-                                                </div>
-                                                <div
-                                                    className={styles.modelMenuItemChevron}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setExpandedModelId(expandedModelId === model.id ? null : model.id);
-                                                    }}
-                                                >
-                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                                                        style={{ transform: expandedModelId === model.id ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                                                        <path d="M6 9l6 6 6-6" />
-                                                    </svg>
+                                                    <span>{model.name}</span>
+                                                    {selectedModel === model.name && <span style={{ color: '#3B2030', fontSize: '12px' }}>✓</span>}
                                                 </div>
                                             </div>
-
-                                            {/* Submenu for Model Config */}
-                                            {expandedModelId === model.id && (
-                                                <div className={styles.modelSubmenu}>
-                                                    <div className={styles.modelInfoContent}>
-                                                        <p className={styles.modelDescription}>
-                                                            {model.id === 'Claude Sonnet 4.5' ? "Anthropic's smartest model, great for difficult tasks." :
-                                                                model.id === 'DeepSeek V3.2' ? "Advanced reasoning model for complex analysis." :
-                                                                    model.id === 'Gemini 3' ? "Google's most capable multimodal model." :
-                                                                        model.id === 'Qwen3 Max' ? "Top-tier performance on coding and math." :
-                                                                            "OpenAI's latest flagship model."}
-                                                        </p>
-
-                                                        <div className={styles.modelMetaRow}>
-                                                            <div className={styles.modelMetaItem}>
-                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                                                    <line x1="9" y1="3" x2="9" y2="21"></line>
-                                                                </svg>
-                                                                <span>
-                                                                    {model.id === 'Claude Sonnet 4.5' ? "200k context" :
-                                                                        model.id === 'Gemini 3' ? "1M context" :
-                                                                            "128k context"}
-                                                                </span>
-                                                            </div>
-                                                            <div className={styles.modelMetaItem} style={{ position: 'relative', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); setIsEffortMenuOpen(!isEffortMenuOpen); }}>
-                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                    <circle cx="12" cy="12" r="10"></circle>
-                                                                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
-                                                                </svg>
-                                                                <span>Version: {effortLevel} effort</span>
-                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: isEffortMenuOpen && expandedModelId === model.id ? 1 : 0.5 }}>
-                                                                    <line x1="4" y1="21" x2="4" y2="14"></line>
-                                                                    <line x1="4" y1="10" x2="4" y2="3"></line>
-                                                                    <line x1="12" y1="21" x2="12" y2="12"></line>
-                                                                    <line x1="12" y1="8" x2="12" y2="3"></line>
-                                                                    <line x1="20" y1="21" x2="20" y2="16"></line>
-                                                                    <line x1="20" y1="12" x2="20" y2="3"></line>
-                                                                    <line x1="1" y1="14" x2="7" y2="14"></line>
-                                                                    <line x1="9" y1="8" x2="15" y2="8"></line>
-                                                                    <line x1="17" y1="16" x2="23" y2="16"></line>
-                                                                </svg>
-
-                                                                {isEffortMenuOpen && expandedModelId === model.id && (
-                                                                    <div className={styles.effortDropdown}>
-                                                                        {['Low', 'Medium', 'High'].map((level) => (
-                                                                            <div
-                                                                                key={level}
-                                                                                className={styles.effortItem}
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    setEffortLevel(level);
-                                                                                    setSelectedModel(model.id);
-                                                                                    setIsEffortMenuOpen(false);
-                                                                                    setIsModelMenuOpen(false);
-                                                                                }}
-                                                                            >
-                                                                                {level}
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -1038,9 +1610,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                         <div className={styles.sendSection}>
                             <button
-                                className={`${styles.sendAction} ${inputValue.trim() || attachments.length > 0 ? styles.active : ''}`}
+                                className={`${styles.sendAction} ${inputValue.trim() || attachments.length > 0 || inputLinks.length > 0 ? styles.active : ''}`}
                                 onClick={handleSend}
-                                disabled={!(inputValue.trim() || attachments.length > 0)}
+                                disabled={!(inputValue.trim() || attachments.length > 0 || inputLinks.length > 0)}
                             >
                                 <img src="/src/assets/Arrow.png" alt="Send" className={styles.arrowIcon} width={18} height={18} />
                             </button>
@@ -1050,15 +1622,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
             {/* Image Overlay */}
             {expandedImage && (
-                <div className={styles.imageOverlayBackdrop} onClick={() => setExpandedImage(null)}>
+                <div className={styles.imageOverlayBackdrop} onClick={closeExpandedImage}>
                     <div className={styles.imageOverlayContent} onClick={(e) => e.stopPropagation()}>
-                        <button className={styles.overlayClose} onClick={() => setExpandedImage(null)}>
+                        <button className={styles.overlayClose} onClick={closeExpandedImage}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
                                 <line x1="6" y1="6" x2="18" y2="18"></line>
                             </svg>
                         </button>
-                        <img src={URL.createObjectURL(expandedImage)} alt="Expanded" className={styles.fullImage} />
+                        <img src={expandedImage.url} alt="Expanded" className={styles.fullImage} />
                         <div className={styles.overlayInfo}>
                             {expandedImage.name}
                         </div>

@@ -296,16 +296,7 @@ export const SessionKeyModal: React.FC<SessionKeyModalProps> = ({ isOpen, onClos
                         </button>
 
                         <button
-                            style={{
-                                background: 'transparent',
-                                border: '1px solid #3A2530',
-                                color: '#A77590',
-                                padding: '12px',
-                                borderRadius: '10px',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                fontWeight: 500
-                            }}
+                            className={styles.secondaryButton}
                             onClick={onClose}
                             disabled={creating}
                         >

@@ -46,8 +46,22 @@ export const usageService = {
         return response.data;
     },
 
-    getModels: async (): Promise<any[]> => {
-        const response = await axios.get(`${API_URL}/api/usage/models`);
+    getModels: async (searchQuery?: string): Promise<any[]> => {
+        const params: any = {};
+        if (searchQuery) params.search = searchQuery;
+        const response = await axios.get(`${API_URL}/api/usage/models`, { params });
+        return response.data;
+    },
+
+    getProviders: async (): Promise<string[]> => {
+        const response = await axios.get(`${API_URL}/api/usage/providers`);
+        return response.data;
+    },
+
+    getModelsByProvider: async (provider: string): Promise<any[]> => {
+        const response = await axios.get(`${API_URL}/api/usage/models`, {
+            params: { provider }
+        });
         return response.data;
     },
 
@@ -55,6 +69,34 @@ export const usageService = {
         const response = await axios.get(`${API_URL}/api/usage/last-used/${userAddress}`, {
             params: { timeframe }
         });
+        return response.data;
+    },
+
+    getEnabledModels: async (userAddress: string): Promise<string[]> => {
+        const response = await axios.get(`${API_URL}/api/usage/models/enabled/${userAddress}`);
+        return response.data;
+    },
+
+    saveEnabledModels: async (userAddress: string, models: string[]): Promise<void> => {
+        await axios.post(`${API_URL}/api/usage/models/enabled/${userAddress}`, { models });
+    },
+
+    getDefaultEnabledModels: async (): Promise<string[]> => {
+        const response = await axios.get(`${API_URL}/api/usage/models/enabled/default`);
+        return response.data;
+    },
+
+    getEnabledAgents: async (userAddress: string): Promise<string[]> => {
+        const response = await axios.get(`${API_URL}/api/usage/agents/enabled/${userAddress}`);
+        return response.data;
+    },
+
+    saveEnabledAgents: async (userAddress: string, agents: string[]): Promise<void> => {
+        await axios.post(`${API_URL}/api/usage/agents/enabled/${userAddress}`, { agents });
+    },
+
+    getDefaultEnabledAgents: async (): Promise<string[]> => {
+        const response = await axios.get(`${API_URL}/api/usage/agents/enabled/default`);
         return response.data;
     }
 };

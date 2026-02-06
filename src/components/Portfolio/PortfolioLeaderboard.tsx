@@ -65,7 +65,7 @@ const TraderLeaderboardRow: React.FC<TraderLeaderboardRowProps> = ({ item, forma
             {/* Desktop Row */}
             <tr className={`${panelStyles.row} ${panelStyles.desktopRow}`}>
                 <td className={panelStyles.td} style={{ width: '60px' }}>{item.rank}</td>
-                <td className={panelStyles.td} style={{ color: '#FFE1F2', minWidth: '200px' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdFirst}`}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {item.trader}
                         {!showModelColumn && item.agentModel && (
@@ -87,16 +87,16 @@ const TraderLeaderboardRow: React.FC<TraderLeaderboardRowProps> = ({ item, forma
                         {item.agentModel || 'N/A'}
                     </td>
                 )}
-                <td className={panelStyles.td} style={{ textAlign: 'right', width: '140px' }}>{formatCurrency(item.accountValue)}</td>
-                <td className={panelStyles.td} style={{ color: item.pnl >= 0 ? '#00E396' : '#FF4560', textAlign: 'right', width: '140px' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ width: '140px' }}>{formatCurrency(item.accountValue)}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: item.pnl >= 0 ? '#00E396' : '#FF4560', width: '140px' }}>
                     {item.pnl >= 0 ? '+' : ''}{formatCurrency(item.pnl)}
                 </td>
-                <td className={panelStyles.td} style={{ color: item.roi >= 0 ? '#00E396' : '#FF4560', textAlign: 'right', width: '100px' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: item.roi >= 0 ? '#00E396' : '#FF4560', width: '100px' }}>
                     {item.roi >= 0 ? '+' : ''}{item.roi.toFixed(2)}%
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#FFE1F2', width: '80px' }}>{item.tradeCount}</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#00E396', width: '100px' }}>{item.winRate.toFixed(1)}%</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', width: '150px' }}>{formatCurrency(item.volume)}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#FFE1F2', width: '80px' }}>{item.tradeCount}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#00E396', width: '100px' }}>{item.winRate.toFixed(1)}%</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ width: '150px' }}>{formatCurrency(item.volume)}</td>
             </tr>
 
             {/* Mobile Row */}
@@ -181,7 +181,7 @@ const AgentLeaderboardRow: React.FC<AgentLeaderboardRowProps> = ({ item, formatC
             {/* Desktop Row */}
             <tr className={`${panelStyles.row} ${panelStyles.desktopRow}`}>
                 <td className={panelStyles.td} style={{ width: '60px' }}>{item.rank}</td>
-                <td className={panelStyles.td} style={{ minWidth: '200px' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdFirst}`}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {agentLogo && <img src={agentLogo} alt={item.agentName} style={{ width: '20px', height: '20px', borderRadius: '4px' }} />}
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -190,17 +190,17 @@ const AgentLeaderboardRow: React.FC<AgentLeaderboardRowProps> = ({ item, formatC
                         </div>
                     </div>
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', width: '100px' }}>{item.totalUsers}</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', width: '140px' }}>{formatCurrency(item.accountValue)}</td>
-                <td className={panelStyles.td} style={{ color: item.pnl >= 0 ? '#00E396' : '#FF4560', textAlign: 'right', width: '140px' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ width: '100px' }}>{item.totalUsers}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ width: '140px' }}>{formatCurrency(item.accountValue)}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: item.pnl >= 0 ? '#00E396' : '#FF4560', width: '140px' }}>
                     {item.pnl >= 0 ? '+' : ''}{formatCurrency(item.pnl)}
                 </td>
-                <td className={panelStyles.td} style={{ color: item.roi >= 0 ? '#00E396' : '#FF4560', textAlign: 'right', width: '100px' }}>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: item.roi >= 0 ? '#00E396' : '#FF4560', width: '100px' }}>
                     {item.roi >= 0 ? '+' : ''}{item.roi.toFixed(2)}%
                 </td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#FFE1F2', width: '80px' }}>{item.tradeCount}</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', color: '#00E396', width: '100px' }}>{item.winRate.toFixed(1)}%</td>
-                <td className={panelStyles.td} style={{ textAlign: 'right', width: '150px' }}>{formatCurrency(item.volume)}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#FFE1F2', width: '80px' }}>{item.tradeCount}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#00E396', width: '100px' }}>{item.winRate.toFixed(1)}%</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ width: '150px' }}>{formatCurrency(item.volume)}</td>
             </tr>
 
             {/* Mobile Row */}
@@ -445,23 +445,23 @@ const PortfolioLeaderboard: React.FC = () => {
                                     <th className={panelStyles.th} style={{ width: '60px' }}>Rank</th>
                                     {activeTab === 'model' ? (
                                         <>
-                                            <th className={panelStyles.th} style={{ minWidth: '200px' }}>Model</th>
-                                            <th className={panelStyles.th} style={{ textAlign: 'right', width: '100px' }}>Users</th>
+                                            <th className={`${panelStyles.th} ${panelStyles.thFirst}`}>Model</th>
+                                            <th className={`${panelStyles.th} ${panelStyles.thRight}`} style={{ width: '100px' }}>Users</th>
                                         </>
                                     ) : activeTab === 'agent' ? (
                                         <>
-                                            <th className={panelStyles.th} style={{ minWidth: '200px' }}>Trader</th>
+                                            <th className={`${panelStyles.th} ${panelStyles.thFirst}`}>Trader</th>
                                             <th className={panelStyles.th} style={{ width: '150px' }}>Model</th>
                                         </>
                                     ) : (
-                                        <th className={panelStyles.th} style={{ minWidth: '200px' }}>Trader</th>
+                                        <th className={`${panelStyles.th} ${panelStyles.thFirst}`}>Trader</th>
                                     )}
-                                    <th className={panelStyles.th} style={{ textAlign: 'right', width: '140px' }}>Account Value</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right', width: '140px' }}>PNL ({timeFilter.toUpperCase()})</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right', width: '100px' }}>ROI ({timeFilter.toUpperCase()})</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right', width: '80px' }}>Trades</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right', width: '100px' }}>Win Rate</th>
-                                    <th className={panelStyles.th} style={{ textAlign: 'right', width: '150px' }}>Volume ({timeFilter.toUpperCase()})</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`} style={{ width: '140px' }}>Account Value</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`} style={{ width: '140px' }}>PNL ({timeFilter.toUpperCase()})</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`} style={{ width: '100px' }}>ROI ({timeFilter.toUpperCase()})</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`} style={{ width: '80px' }}>Trades</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`} style={{ width: '100px' }}>Win Rate</th>
+                                    <th className={`${panelStyles.th} ${panelStyles.thRight}`} style={{ width: '150px' }}>Volume ({timeFilter.toUpperCase()})</th>
                                 </tr>
                             </thead>
                             <tbody style={{ borderTop: 'none' }}>

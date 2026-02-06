@@ -379,18 +379,18 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                 <table className={styles.table}>
                     <thead>
                         <tr>
-                            <th>
+                            <th className={styles.thFirst}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     Market
                                 </div>
                             </th>
-                            <th onClick={(e) => { e.stopPropagation(); handleSort('price'); }} style={{ cursor: 'pointer' }} className={styles.hideOnSmallMobile}>
+                            <th onClick={(e) => { e.stopPropagation(); handleSort('price'); }} style={{ cursor: 'pointer' }} className={`${styles.thRight} ${styles.hideOnSmallMobile}`}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                                     Price
                                     <SortIcon columnKey="price" />
                                 </div>
                             </th>
-                            <th onClick={(e) => { e.stopPropagation(); handleSort('change24hPercent'); }} style={{ cursor: 'pointer' }}>
+                            <th onClick={(e) => { e.stopPropagation(); handleSort('change24hPercent'); }} style={{ cursor: 'pointer' }} className={styles.thRight}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                                     24h %
                                     <SortIcon columnKey="change24hPercent" />
@@ -399,7 +399,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                             <th
                                 style={{ cursor: 'pointer' }}
                                 onClick={(e) => { e.stopPropagation(); handleSort('volume24h'); }}
-                                className={styles.hideOnMobile}
+                                className={`${styles.thRight} ${styles.hideOnMobile}`}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                                     Vol / OI
@@ -414,7 +414,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
                             return (
                                 <tr key={`${item.source || 'hyperliquid'}:${item.symbol}`} onClick={() => handleItemClick(item)}>
-                                    <td className={styles.marketCell}>
+                                    <td className={`${styles.marketCell} ${styles.tdFirst}`}>
                                         <button
                                             className={styles.starBtn}
                                             onClick={(e) => {
@@ -444,11 +444,11 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                             <span className={styles.feeBadge}>{item.source}</span>
                                         </div>
                                     </td>
-                                    <td className={styles.hideOnSmallMobile}>{formatPrice(item.price)}</td>
-                                    <td className={!isPositive ? styles.negative : styles.positive}>
+                                    <td className={`${styles.tdRight} ${styles.hideOnSmallMobile}`}>{formatPrice(item.price)}</td>
+                                    <td className={`${styles.tdRight} ${!isPositive ? styles.negative : styles.positive}`}>
                                         {isPositive ? '+' : ''}{formatPercent(item.change24hPercent)}
                                     </td>
-                                    <td className={styles.hideOnMobile}>{formatVol(item.volume24h)}</td>
+                                    <td className={`${styles.tdRight} ${styles.hideOnMobile}`}>{formatVol(item.volume24h)}</td>
                                 </tr>
                             );
                         })}

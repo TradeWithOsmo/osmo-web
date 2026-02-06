@@ -152,7 +152,7 @@
 
 .th {
     text-align: left;
-    padding: 12px 16px;
+    padding: 12px 20px;
     font-size: 12px;
     color: #A77590;
     font-weight: 400;
@@ -165,6 +165,23 @@
     white-space: nowrap;
     box-shadow: 0 1px 0 #3A2530;
     /* Optional: adds a bottom border illusion if normal border moves */
+    min-width: 100px;
+}
+
+.thRight {
+    text-align: right;
+}
+
+.thCenter {
+    text-align: center;
+}
+
+.thLeft {
+    text-align: left;
+}
+
+.thFirst {
+    min-width: 200px;
 }
 
 .closeAllHeaderBtn {
@@ -196,11 +213,28 @@
 }
 
 .td {
-    padding: 16px 16px;
+    padding: 16px 20px;
     font-size: 13px;
     vertical-align: middle;
     color: #FFE1F2;
     white-space: nowrap;
+    min-width: 100px;
+}
+
+.tdRight {
+    text-align: right;
+}
+
+.tdCenter {
+    text-align: center;
+}
+
+.tdLeft {
+    text-align: left;
+}
+
+.tdFirst {
+    min-width: 200px;
 }
 
 /* Specific Cell Styling */

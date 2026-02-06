@@ -19,9 +19,43 @@
 
 .chatHeader {
     position: absolute;
-    top: 20px;
-    left: 24px;
-    z-index: 10;
+    top: 12px;
+    left: 12px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.headerIconButton {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.headerIconButton:hover {
+    background-color: #3A2530;
+    border-color: #3B2030;
+}
+
+.headerIconButton img {
+    width: 18px;
+    height: 18px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.headerIconButton:hover img {
+    opacity: 1;
 }
 
 .titleWrapper {
@@ -106,7 +140,7 @@
 
 .renameInput {
     background: #12000A;
-    border: 1px solid #5D5FEF;
+    border: 1px solid #3B2030;
     border-radius: 6px;
     color: #FFE1F2;
     padding: 4px 8px;
@@ -157,7 +191,7 @@
 }
 
 .incognitoIcon:hover {
-    border-color: #5D5FEF;
+    border-color: #3B2030;
     color: #FFE1F2;
 }
 
@@ -167,7 +201,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: 24px 24px 32px 24px;
+    padding: 45px 20px 20px 20px;
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
@@ -188,7 +222,7 @@
 }
 
 .planBadge:hover {
-    border-color: #5D5FEF;
+    border-color: #3B2030;
     color: #FFE1F2;
 }
 
@@ -247,7 +281,7 @@
 
 .inputWrapper:focus-within {
     /* Background kept consistent */
-    border-color: #3A2530;
+    border-color: #3B2030;
     z-index: 1000;
     /* Bring forward when interacting to cover messages */
 }
@@ -707,11 +741,11 @@
 }
 
 .sendAction.active {
-    background-color: #5D5FEF;
+    background-color: #3B2030;
 }
 
 .sendAction.active:hover {
-    background-color: #6D6FF0;
+    background-color: #4D2D40;
 }
 
 /* Adjust Model Menu to match new parent */
@@ -936,8 +970,8 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
-    padding: 40px 0 20px 0;
-    margin-bottom: 20px;
+    padding: 16px 0 0 0;
+    margin-bottom: 15px;
     /* Hide Scrollbar */
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -1187,7 +1221,7 @@
 
 .loadingSpinner {
     animation: spin 1s linear infinite;
-    color: #5D5FEF;
+    color: #3B2030;
 }
 
 @keyframes spin {
@@ -1209,6 +1243,510 @@
     margin-bottom: 4px;
     margin-top: 4px;
 }
+
+.responseContent h1,
+.responseContent h2,
+.responseContent h3,
+.responseContent h4,
+.responseContent h5,
+.responseContent h6 {
+    margin: 12px 0 6px 0;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #FFE1F2;
+}
+
+.responseContent h1 { font-size: 22px; }
+.responseContent h2 { font-size: 20px; }
+.responseContent h3 { font-size: 18px; }
+.responseContent h4 { font-size: 16px; }
+.responseContent h5 { font-size: 15px; }
+.responseContent h6 { font-size: 14px; color: #CFA9BF; }
+
+.responseContent p {
+    margin: 6px 0;
+}
+
+.symbolBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    margin: 0 2px;
+    border: 1px solid #3A2530;
+    border-radius: 999px;
+    background: rgba(18, 0, 10, 0.6);
+    color: #FFE1F2;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    font-family: inherit;
+    appearance: none;
+    outline: none;
+}
+
+.symbolBadge:hover {
+    border-color: #5A3A4A;
+    background: rgba(18, 0, 10, 0.8);
+}
+
+.symbolBadge:active {
+    transform: translateY(1px);
+}
+
+.indicatorBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    margin: 0 2px;
+    border: 1px solid #2E3A45;
+    border-radius: 999px;
+    background: rgba(10, 16, 22, 0.6);
+    color: #E4F1FF;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    font-family: inherit;
+    appearance: none;
+    outline: none;
+}
+
+.indicatorBadge:hover {
+    border-color: #3F5160;
+    background: rgba(10, 16, 22, 0.8);
+}
+
+.indicatorBadge:active {
+    transform: translateY(1px);
+}
+
+.indicatorBadgeText {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.indicatorBadgeNumber {
+    color: #8FB7D9;
+    font-weight: 500;
+}
+
+.linkChipsRow {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 10px;
+    overflow-x: auto;
+    flex-wrap: wrap;
+}
+
+.linkChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid #3A2530;
+    background: rgba(18, 0, 10, 0.6);
+    color: #FFE1F2;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.linkChipIcon {
+    width: 12px;
+    height: 12px;
+    color: #A77590;
+}
+
+.linkChipText {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.linkChipRemove {
+    background: transparent;
+    border: none;
+    color: #A77590;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+.fileChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid #3A2530;
+    background: rgba(18, 0, 10, 0.6);
+    color: #FFE1F2;
+    font-size: 12px;
+    line-height: 1;
+    max-width: 240px;
+}
+
+.fileChipIcon {
+    width: 12px;
+    height: 12px;
+    color: #E14B4B;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fileChipText {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fileChipRemove {
+    background: transparent;
+    border: none;
+    color: #A77590;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+.fileChipRemove:hover {
+    color: #FFE1F2;
+}
+
+.inputAttachmentRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-bottom: 12px;
+}
+
+.inputAttachmentItem {
+    display: flex;
+    align-items: stretch;
+}
+
+.inputImageCard {
+    position: relative;
+    width: min(220px, 70vw);
+    height: 260px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid #3A2530;
+    background: #12000A;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.inputImagePreview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    cursor: pointer;
+}
+
+.inputAttachmentRemove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid #3A2530;
+    background: rgba(18, 0, 10, 0.7);
+    color: #FFE1F2;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inputAttachmentRemove:hover {
+    background: rgba(58, 37, 48, 0.8);
+}
+
+.inputFileCard {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid #3A2530;
+    background: #12000A;
+    min-width: 220px;
+    max-width: 360px;
+}
+
+.inputFileIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #E14B4B;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    flex-shrink: 0;
+}
+
+.inputFileMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.inputFileName {
+    font-size: 13px;
+    color: #FFE1F2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inputFileType {
+    font-size: 11px;
+    color: #A77590;
+    letter-spacing: 0.4px;
+}
+
+.inputFileRemove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: transparent;
+    border: none;
+    color: #A77590;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.inputFileRemove:hover {
+    color: #FFE1F2;
+}
+
+.timeframeBadge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    margin: 0 2px;
+    border: 1px solid #3A2F45;
+    border-radius: 999px;
+    background: rgba(18, 10, 22, 0.6);
+    color: #F3E7FF;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    font-family: inherit;
+    appearance: none;
+    outline: none;
+}
+
+.timeframeBadge:hover {
+    border-color: #4A3A60;
+    background: rgba(18, 10, 22, 0.8);
+}
+
+.timeframeBadge:active {
+    transform: translateY(1px);
+}
+
+.timeframeBadgeText {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.symbolBadgeIcon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.symbolBadgeText {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.symbolBadgePrice {
+    color: #A77590;
+    font-weight: 500;
+}
+
+.symbolBadgePriceUp {
+    color: #34D399;
+}
+
+.symbolBadgePriceDown {
+    color: #F87171;
+}
+
+.loadingRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0 2px 0;
+    color: #A77590;
+    font-size: 13px;
+}
+
+.loadingBars {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 14px;
+}
+
+.loadingBar {
+    width: 3px;
+    height: 6px;
+    background-color: #E07A5F;
+    border-radius: 2px;
+    animation: loadingWave 0.9s ease-in-out infinite;
+}
+
+.loadingBar:nth-child(1) { animation-delay: 0s; }
+.loadingBar:nth-child(2) { animation-delay: 0.1s; }
+.loadingBar:nth-child(3) { animation-delay: 0.2s; }
+.loadingBar:nth-child(4) { animation-delay: 0.3s; }
+
+.loadingText {
+    letter-spacing: 0.2px;
+}
+
+@keyframes loadingWave {
+    0%, 100% { height: 6px; opacity: 0.6; }
+    50% { height: 14px; opacity: 1; }
+}
+
+.responseContent hr {
+    border: none;
+    border-top: 1px solid #3A2530;
+    margin: 10px 0;
+    opacity: 0.4;
+}
+
+.responseContent ul,
+.responseContent ol {
+    margin: 6px 0 6px 18px;
+    padding: 0;
+}
+
+.responseContent li {
+    margin: 4px 0;
+}
+
+.inlineCode {
+    background: #12000A;
+    border: 1px solid #3A2530;
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 14px;
+    color: #E07A5F;
+}
+
+.codeBlock {
+    background: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 10px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 8px 0;
+}
+
+.codeBlock code {
+    background: transparent;
+    padding: 0;
+    border: none;
+    color: #A77590;
+    font-family: 'Satoshi', sans-serif;
+}
+
+.blockquote {
+    border-left: 3px solid #3A2530;
+    margin: 8px 0;
+    padding: 6px 12px;
+    color: #CFA9BF;
+    background: rgba(18, 0, 10, 0.4);
+    border-radius: 8px;
+}
+
+.tableWrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin: 8px 0;
+}
+
+.markdownTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.tableHeader {
+    text-align: left;
+    background: #12000A;
+    border: 1px solid #3A2530;
+    padding: 8px 10px;
+    font-weight: 600;
+}
+
+.tableCell {
+    border: 1px solid #3A2530;
+    padding: 8px 10px;
+}
+
+.linkWithIcon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #E07A5F;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.linkWithIcon:hover {
+    color: #F2A07A;
+}
+
+.linkIcon {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    background: #12000A;
+}
+
+.linkText {
+    display: inline;
+}
+
+.reasoningIconGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.reasoningIcon {
+    width: 12px;
+    height: 12px;
+    opacity: 0.85;
+}
+
 
 .actionRow {
     display: flex;
@@ -1257,7 +1795,7 @@
 
 .artifactCard:hover {
     background-color: #3A2530;
-    border-color: #5D5FEF;
+    border-color: #3B2030;
 }
 
 .artifactInfo {
@@ -1452,8 +1990,8 @@
 .toolValue {
     margin-left: auto;
     font-size: 12px;
-    color: #5D5FEF;
-    background: rgba(93, 95, 239, 0.1);
+    color: #3B2030;
+    background: rgba(59, 32, 48, 0.1);
     padding: 2px 6px;
     border-radius: 4px;
 }
@@ -1496,12 +2034,12 @@
 }
 
 .toggleSwitch.checked {
-    background-color: rgba(93, 95, 239, 0.2);
+    background-color: rgba(59, 32, 48, 0.4);
 }
 
 .toggleSwitch.checked::after {
     transform: translateX(14px);
-    background-color: #5D5FEF;
+    background-color: #3B2030;
 }
 
 /* Indicators & Timeframe Sub-Page */
@@ -1565,7 +2103,7 @@
 }
 
 .toolSearch input:focus {
-    border-color: #5D5FEF;
+    border-color: #3B2030;
 }
 
 .toolList {
@@ -1695,6 +2233,78 @@
     width: 100%;
 }
 
+.userAttachments {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 6px;
+}
+
+.userImageCard {
+    width: min(320px, 75vw);
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid #3A2530;
+    background: #12000A;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.userAttachmentImage {
+    width: 100%;
+    height: 100%;
+    max-height: 360px;
+    object-fit: cover;
+    display: block;
+    cursor: pointer;
+}
+
+.userFileCard {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid #3A2530;
+    background: #12000A;
+    min-width: 220px;
+    max-width: 340px;
+}
+
+.userFileIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #3A2530;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFE1F2;
+    flex-shrink: 0;
+}
+
+.userFileMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.userFileName {
+    font-size: 13px;
+    color: #FFE1F2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.userFileType {
+    font-size: 11px;
+    color: #A77590;
+    letter-spacing: 0.4px;
+}
+
 .userActionBar {
     display: none;
     /* Hidden by default */
@@ -1723,6 +2333,17 @@
 .userMessageGroup:hover .userActionBar,
 .userActionBar.visible {
     display: flex;
+}
+
+.userMessageWithAttachments .userActionBar {
+    display: flex;
+    position: relative;
+    right: auto;
+    padding: 6px 0 0 0;
+}
+
+.userMessageWithAttachments .userActionBar::before {
+    display: none;
 }
 
 @keyframes fadeIn {
@@ -1765,8 +2386,8 @@
 .editMessageContainer {
     width: 100%;
     background-color: #12000A;
-    border: 1px solid #5D5FEF;
-    /* Active border color from image */
+    border: 1px solid #3B2030;
+    /* Active border color replaced with #3B2030 */
     border-radius: 12px;
     padding: 0;
     margin-bottom: 8px;
