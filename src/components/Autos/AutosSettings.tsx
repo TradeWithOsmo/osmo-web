@@ -41,12 +41,11 @@ interface AutosSettingsProps {
 interface ModelRowProps {
     model: Model;
     index: number;
-    provider: string;
     enabledModels: Record<string, boolean>;
     onToggle: (id: string) => void;
 }
 
-const ModelRow = React.memo(({ model, index, provider, enabledModels, onToggle }: ModelRowProps) => {
+const ModelRow = React.memo(({ model, index, enabledModels, onToggle }: ModelRowProps) => {
     return (
         <tr className={`${styles.row} ${styles.childRow}`}>
             <td className={`${styles.td} ${styles.tdFirst}`} style={{ paddingLeft: '40px' }}>
@@ -174,7 +173,6 @@ const ProviderRow = React.memo(({
                     key={model.id}
                     model={model}
                     index={index}
-                    provider={provider}
                     enabledModels={enabledModels}
                     onToggle={onToggle}
                 />
@@ -188,7 +186,6 @@ const AutosSettings: React.FC<AutosSettingsProps> = ({ onBack }) => {
     const userAddress = wallets[0]?.address;
 
     // State
-    const [providerNames, setProviderNames] = useState<string[]>([]);
     const [providerModels, setProviderModels] = useState<Record<string, Model[]>>({});
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -234,19 +231,15 @@ const AutosSettings: React.FC<AutosSettingsProps> = ({ onBack }) => {
             try {
                 const allModels = await usageService.getModels();
                 const grouped: Record<string, Model[]> = {};
-                const providersSet = new Set<string>();
-
                 allModels.forEach((m: Model) => {
                     const parts = m.id.split('/');
                     let p = parts.length > 1 ? parts[0] : 'Other';
                     p = p.charAt(0).toUpperCase() + p.slice(1);
                     if (!grouped[p]) grouped[p] = [];
                     grouped[p].push(m);
-                    providersSet.add(p);
                 });
 
                 setProviderModels(grouped);
-                setProviderNames(sortProviderList(Array.from(providersSet)));
             } catch (err) {
                 console.error("Failed to fetch models", err);
             } finally {

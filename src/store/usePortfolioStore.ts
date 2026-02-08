@@ -3,6 +3,51 @@ import { useMarketStore } from './useMarketStore';
 import { onchainService } from '../api/onchainService';
 import { orderService, type PositionData, type OrderData, type AccountSummary } from '../api/orderService';
 import { portfolioService, type PortfolioHistoryPoint, type FundingHistoryData } from '../api/portfolioService';
+import { tradingViewCommandService } from '../api/tradingViewCommandService';
+
+const toPositiveNumber = (value: unknown): number | null => {
+    const parsed = Number(String(value ?? '').replace(/[^0-9.\-]/g, '').trim());
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return parsed;
+};
+
+const normalizeSide = (side: unknown): 'long' | 'short' | null => {
+    const s = String(side ?? '').toLowerCase();
+    if (s === 'long' || s === 'buy') return 'long';
+    if (s === 'short' || s === 'sell') return 'short';
+    return null;
+};
+
+const resolveTriggerPrice = (
+    rawValue: unknown,
+    mode: 'tp' | 'sl',
+    side: 'long' | 'short',
+    entry: number
+): number | null => {
+    if (!rawValue || !Number.isFinite(entry) || entry <= 0) return null;
+    const text = String(rawValue).trim().toUpperCase();
+    if (!text) return null;
+
+    const numeric = toPositiveNumber(text);
+    if (!numeric) return null;
+
+    if (text.endsWith('%')) {
+        const ratio = numeric / 100;
+        if (mode === 'tp') {
+            return side === 'long' ? entry * (1 + ratio) : entry * (1 - ratio);
+        }
+        return side === 'long' ? entry * (1 - ratio) : entry * (1 + ratio);
+    }
+
+    if (text.endsWith('$') || text.endsWith('USD')) {
+        if (mode === 'tp') {
+            return side === 'long' ? entry + numeric : entry - numeric;
+        }
+        return side === 'long' ? entry - numeric : entry + numeric;
+    }
+
+    return numeric;
+};
 
 export interface TradeHistoryData {
     id: string;
@@ -93,8 +138,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
                     const currentLocalTPSL = get().localTPSL;
                     const mergedPositions = message.data.positions.map((p: any) => ({
                         ...p,
-                        tp: currentLocalTPSL[p.id]?.tp ?? p.tp,
-                        sl: currentLocalTPSL[p.id]?.sl ?? p.sl
+                        tp: currentLocalTPSL[p.id]?.tp ?? currentLocalTPSL[p.symbol]?.tp ?? p.tp,
+                        sl: currentLocalTPSL[p.id]?.sl ?? currentLocalTPSL[p.symbol]?.sl ?? p.sl
                     })).filter((p: any) => Math.abs(p.size) > 1e-8);
 
                     set({
@@ -213,8 +258,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
                 const currentLocalTPSL = get().localTPSL;
                 const mergedPositions = positionsResult.positions.map(p => ({
                     ...p,
-                    tp: currentLocalTPSL[p.id]?.tp ?? p.tp,
-                    sl: currentLocalTPSL[p.id]?.sl ?? p.sl
+                    tp: currentLocalTPSL[p.id]?.tp ?? currentLocalTPSL[p.symbol]?.tp ?? p.tp,
+                    sl: currentLocalTPSL[p.id]?.sl ?? currentLocalTPSL[p.symbol]?.sl ?? p.sl
                 })).filter(p => Math.abs(p.size) > 1e-8);
 
                 set({
@@ -342,14 +387,19 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
                 tp: tp ?? currentEntry.tp,
                 sl: sl ?? currentEntry.sl
             };
+            const matchedPosition = state.positions.find(p => p.id === positionId || p.symbol === positionId);
+            const symbolKey = matchedPosition?.symbol ?? positionId;
 
             return {
                 localTPSL: {
                     ...state.localTPSL,
-                    [positionId]: newEntry
+                    [positionId]: newEntry,
+                    [symbolKey]: newEntry
                 },
                 positions: state.positions.map(p =>
-                    p.id === positionId ? { ...p, tp: newEntry.tp ?? p.tp, sl: newEntry.sl ?? p.sl } : p
+                    (p.id === positionId || p.symbol === symbolKey)
+                        ? { ...p, tp: newEntry.tp ?? p.tp, sl: newEntry.sl ?? p.sl }
+                        : p
                 )
             };
         });
@@ -361,6 +411,37 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             const symbol = position ? position.symbol : positionId;
 
             await orderService.updateTPSL(userAddress, symbol, tp, sl);
+
+            // Sync TradingView visualization if we can resolve full setup levels.
+            const matchedPosition = get().positions.find(p => p.id === positionId || p.symbol === symbol);
+            const side = normalizeSide((matchedPosition as any)?.side);
+            const entry =
+                toPositiveNumber((matchedPosition as any)?.entry_price) ??
+                toPositiveNumber((matchedPosition as any)?.entryPrice) ??
+                toPositiveNumber((matchedPosition as any)?.mark_price) ??
+                toPositiveNumber((matchedPosition as any)?.markPrice) ??
+                toPositiveNumber(useMarketStore.getState().getPrice(symbol));
+            const tpRaw = tp ?? (matchedPosition as any)?.tp;
+            const slRaw = sl ?? (matchedPosition as any)?.sl;
+
+            if (side && entry) {
+                const tpPrice = resolveTriggerPrice(tpRaw, 'tp', side, entry);
+                const slPrice = resolveTriggerPrice(slRaw, 'sl', side, entry);
+
+                if (tpPrice && slPrice) {
+                    await tradingViewCommandService.queueSetupTrade({
+                        symbol,
+                        side,
+                        entry,
+                        tp: tpPrice,
+                        sl: slPrice,
+                        validation: tpPrice,
+                        invalidation: slPrice,
+                        validation_note: 'TP hit zone',
+                        invalidation_note: 'SL invalidation',
+                    });
+                }
+            }
         } catch (error) {
             console.error("Failed to sync TP/SL to backend:", error);
         }

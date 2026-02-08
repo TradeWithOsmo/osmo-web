@@ -4,11 +4,12 @@ import remarkGfm from 'remark-gfm';
 import styles from './ChatInterface.module.css';
 import type { Workspace, Message, ChatAttachment } from '../../types/autos';
 import { usageService } from '../../api/usageService';
-import { useWallets } from '@privy-io/react-auth';
+import { useWallets, usePrivy } from '@privy-io/react-auth';
 import { useUsageStore } from '../../store/useUsageStore';
 import brainIcon from '../../assets/Icons/Brain.png';
 import TokenIcon from '../MarketDetails/TokenIcon';
 import { useMarketStore } from '../../store/useMarketStore';
+import { agentService } from '../../api/agentService';
 
 
 
@@ -32,26 +33,38 @@ interface ChatInterfaceProps {
     onNewChat?: () => void;
 }
 
+interface PlanStepItem {
+    id: string;
+    label: string;
+    reason?: string;
+}
+
+interface PlanPreviewState {
+    title: string;
+    intent: string;
+    steps: PlanStepItem[];
+    warnings: string[];
+    blocks: string[];
+}
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
     activeSessionId,
-    activeSessionTitle,
     messages,
     onSendMessage,
     isTyping,
-    workspaces = [],
-    onRenameSession,
-    onDeleteSession,
     onOpenChart,
     onEditMessage,
     onRegenerateResponse,
     onFeedback,
-    currentSymbol,
-    onToggleMinimize,
-    isMinimized,
-    onNewChat
+    currentSymbol
 }) => {
     const [inputValue, setInputValue] = useState('');
     const [inputLinks, setInputLinks] = useState<string[]>([]);
+    const [planPreview, setPlanPreview] = useState<PlanPreviewState | null>(null);
+    const [isPlanLoading, setIsPlanLoading] = useState(false);
+    const [isPlanMinimized, setIsPlanMinimized] = useState(false);
+    const [planActiveStep, setPlanActiveStep] = useState(0);
+    const planRequestSeqRef = useRef(0);
 
     const { markets, fetchMarkets, selectedMarket } = useMarketStore();
     useEffect(() => {
@@ -98,6 +111,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     const timeframes = ['1m', '5m', '15m', '1H', '4H', '1D', '1W'];
+    const MIN_MAX_THINKING = 1;
+    const MAX_MAX_THINKING = 32;
+    const DEFAULT_MAX_THINKING = 6;
 
     const indicatorAliases: Record<string, { label: string; study: string }> = {
         RSI: { label: 'RSI', study: 'RSI' },
@@ -146,6 +162,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         return map;
     }, [timeframes]);
 
+    const renderToolNameNodes = (text: string, keyPrefix: string) => {
+        const regex = /\b(?:get|add|set|place|open|close|fetch|update|list|create|delete|remove|capture|draw|write)_[a-z0-9_]{2,}\b/g;
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = regex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                parts.push(text.slice(lastIndex, match.index));
+            }
+            const token = match[0];
+            parts.push(
+                <span key={`${keyPrefix}-tool-${token}-${match.index}`} className={styles.toolUsageInlinePill}>
+                    {token.replace(/_/g, ' ')}
+                </span>
+            );
+            lastIndex = match.index + token.length;
+        }
+
+        if (lastIndex < text.length) {
+            parts.push(text.slice(lastIndex));
+        }
+
+        return parts.length ? parts : [text];
+    };
+
     const renderSymbolNodes = (text: string, keyPrefix: string) => {
         const regex = /\b[A-Z0-9]{2,12}(?:[-/][A-Z0-9]{2,12})?\b|\b\d{1,3}[mhdw]\b/gi;
         const parts: React.ReactNode[] = [];
@@ -167,7 +209,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             if (!isTimeframe && !market) continue;
 
             if (match.index > lastIndex) {
-                parts.push(text.slice(lastIndex, match.index));
+                parts.push(...renderToolNameNodes(text.slice(lastIndex, match.index), `${keyPrefix}-txt-${match.index}`));
             }
 
             if (isTimeframe && timeframeLabel) {
@@ -223,10 +265,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
 
         if (lastIndex < text.length) {
-            parts.push(text.slice(lastIndex));
+            parts.push(...renderToolNameNodes(text.slice(lastIndex), `${keyPrefix}-tail`));
         }
 
-        return parts.length ? parts : [text];
+        return parts.length ? parts : renderToolNameNodes(text, `${keyPrefix}-all`);
     };
 
     const renderTextWithTokens = (text: string) => {
@@ -282,10 +324,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
 
     const { wallets } = useWallets();
+    const { getAccessToken } = usePrivy();
     const userAddress = wallets[0]?.address;
 
     // Model Selection State
-    const [selectedModel, setSelectedModel] = useState('Claude 3.5 Sonnet');
+    const [selectedModel, setSelectedModel] = useState('');
     const [reasoningEffort, setReasoningEffort] = useState<'low' | 'medium' | 'high' | 'extra_high'>('medium');
     const [availableModels, setAvailableModels] = useState<{ id: string, name: string }[]>([]);
     const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -304,38 +347,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 const allModels = await usageService.getModels();
                 const enabledIds = Object.keys(enabledModels).filter(id => enabledModels[id]);
 
-                // Filter models - always include groq for now as they are "tested"
+                // Keep provider list strict: enabled models + Groq models only.
                 let filtered = allModels.filter((m: any) =>
                     enabledIds.includes(m.id) || m.id.startsWith('groq/')
                 );
 
                 if (filtered.length === 0 && allModels.length > 0) {
-                    // Fallback to defaults if nothing enabled (e.g. initial load delay)
-                    const defaults = [
-                        'anthropic/claude-4.5-sonnet',
-                        'deepseek/deepseek-chat-v3.1',
-                        'google/gemini-3-pro',
-                        'openai/gpt-5.1',
-                        'groq/openai/gpt-oss-120b'
-                    ];
-                    filtered = allModels.filter((m: any) => defaults.includes(m.id) || m.id.startsWith('groq/'));
+                    filtered = allModels.filter((m: any) => m.id.startsWith('groq/'));
                 }
 
                 if (filtered.length > 0) {
                     setAvailableModels(filtered);
-                    // Only reset if currently selected model is NOT in the new list
-                    const isSelectedStillAvailable = filtered.find((m: any) => m.name === selectedModel);
-                    if (!isSelectedStillAvailable && selectedModel !== 'Claude 3.5 Sonnet') {
-                        // Only reset if we are not on the default placeholder
-                        setSelectedModel(filtered[0].name);
-                    }
+                    setSelectedModel(prevSelected => {
+                        const isSelectedStillAvailable = filtered.some((m: any) => m.name === prevSelected);
+                        return isSelectedStillAvailable ? prevSelected : filtered[0].name;
+                    });
+                } else {
+                    setAvailableModels([]);
+                    setSelectedModel('');
                 }
             } catch (err) {
                 console.error("Sync models failed", err);
             }
         };
         syncModels();
-    }, [enabledModels]); // Removed selectedModel from dependencies to prevent infinite reset loops
+    }, [enabledModels]);
 
     const [voiceLanguage, setVoiceLanguage] = useState('en-US'); // Default fallback
     const [isVoiceLanguageMenuOpen, setIsVoiceLanguageMenuOpen] = useState(false);
@@ -388,14 +424,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const [toolStates, setToolStates] = useState({
         execution: false,
         write: false,
+        planMode: false,
         timeframe: ['1D'],
-        indicators: [] as string[]
+        indicators: [] as string[],
+        webObservation: true,
+        knowledgeEnabled: true,
+        memoryEnabled: false,
+        maxThinking: DEFAULT_MAX_THINKING
     });
-    const [activeToolView, setActiveToolView] = useState<'main' | 'indicators' | 'timeframe'>('main');
+    const [activeToolView, setActiveToolView] = useState<'main' | 'indicators' | 'timeframe' | 'more'>('main');
     const [indicatorSearch, setIndicatorSearch] = useState('');
     const toolsRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [attachments, setAttachments] = useState<File[]>([]);
+    const [isPreparingAttachments, setIsPreparingAttachments] = useState(false);
     const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB per file
     const attachmentPreviews = useMemo(
         () =>
@@ -474,14 +516,139 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     const getSelectedModelId = () => {
-        const model = availableModels.find(m => m.name === selectedModel) || availableModels[0];
-        if (!model) return undefined;
-        return model.id;
+        const model = availableModels.find(m => m.name === selectedModel);
+        return model?.id;
     };
+
+    const buildOutboundToolStates = () => {
+        const marketRaw = currentSymbol || selectedMarket?.symbol || '';
+        const normalizedMarket = marketRaw
+            ? marketRaw.replace('/', '-').toUpperCase()
+            : '';
+        const selectedModelId = getSelectedModelId();
+        const timeframeList = Array.isArray(toolStates.timeframe)
+            ? toolStates.timeframe
+            : (toolStates.timeframe ? [toolStates.timeframe] : []);
+
+        return {
+            ...toolStates,
+            plan_mode: toolStates.planMode,
+            planner_source: 'ai',
+            planner_fallback: 'none',
+            ...(selectedModelId ? { planner_model_id: selectedModelId } : {}),
+            reasoning_effort: reasoningEffort,
+            web_observation_enabled: !!toolStates.webObservation,
+            knowledge_enabled: !!toolStates.knowledgeEnabled,
+            memory_enabled: !!toolStates.memoryEnabled,
+            strict_react: true,
+            max_react_iterations: Number(toolStates.maxThinking || DEFAULT_MAX_THINKING),
+            market_symbol: normalizedMarket,
+            market_display: marketRaw ? marketRaw.replace(/-/g, '/') : normalizedMarket.replace(/-/g, '/'),
+            timeframe: timeframeList
+        };
+    };
+
+    useEffect(() => {
+        if (!toolStates.planMode) {
+            planRequestSeqRef.current += 1;
+            setPlanPreview(null);
+            setIsPlanLoading(false);
+            return;
+        }
+
+        const contentWithLinks = [inputValue.trim(), ...inputLinks].filter(Boolean).join(' ').trim();
+        const hasSignal = contentWithLinks.length >= 2;
+
+        if (!hasSignal) {
+            planRequestSeqRef.current += 1;
+            setPlanPreview(null);
+            setIsPlanLoading(false);
+            return;
+        }
+
+        const reqId = ++planRequestSeqRef.current;
+        setPlanPreview(null);
+        setIsPlanLoading(true);
+        const timer = setTimeout(async () => {
+            try {
+                const token = await getAccessToken();
+                const history = (messages || []).slice(-6).map(m => ({ role: m.role, content: m.content }));
+                const selectedModelId = getSelectedModelId();
+                const data = await agentService.planPreview({
+                    model_id: selectedModelId || undefined,
+                    message: contentWithLinks || 'Plan based on current context.',
+                    history,
+                    tool_states: buildOutboundToolStates(),
+                    token: token || undefined
+                });
+
+                if (reqId !== planRequestSeqRef.current) return;
+                setPlanPreview({
+                    title: data?.render?.title || 'AI Plan',
+                    intent: data?.render?.intent || 'analysis',
+                    steps: Array.isArray(data?.render?.steps) ? data.render.steps.slice(0, 6) : [],
+                    warnings: Array.isArray(data?.render?.warnings) ? data.render.warnings.slice(0, 3) : [],
+                    blocks: Array.isArray(data?.render?.blocks) ? data.render.blocks.slice(0, 3) : []
+                });
+            } catch (error) {
+                if (reqId !== planRequestSeqRef.current) return;
+                setPlanPreview(null);
+                console.error('Plan preview failed', error);
+            } finally {
+                if (reqId === planRequestSeqRef.current) {
+                    setIsPlanLoading(false);
+                }
+            }
+        }, 350);
+
+        return () => {
+            clearTimeout(timer);
+            if (reqId === planRequestSeqRef.current) {
+                setIsPlanLoading(false);
+            }
+        };
+    }, [
+        inputValue,
+        inputLinks,
+        toolStates,
+        currentSymbol,
+        selectedMarket?.symbol,
+        messages,
+        getAccessToken
+    ]);
+
+    useEffect(() => {
+        setPlanActiveStep(0);
+    }, [planPreview?.intent, planPreview?.steps?.length]);
+
+    useEffect(() => {
+        const steps = planPreview?.steps || [];
+        if (steps.length === 0) return;
+
+        const maxIndex = steps.length - 1;
+        const isRunning = isPlanLoading || isTyping;
+
+        if (!isRunning) {
+            setPlanActiveStep(maxIndex);
+            return;
+        }
+
+        setPlanActiveStep(0);
+        const intervalMs = isPlanLoading ? 700 : 1100;
+        const timer = setInterval(() => {
+            setPlanActiveStep(prev => (prev >= maxIndex ? maxIndex : prev + 1));
+        }, intervalMs);
+        return () => clearInterval(timer);
+    }, [isPlanLoading, isTyping, planPreview?.steps]);
 
     const handleSaveEdit = (msgId: string) => {
         if (onEditMessage && activeSessionId) {
-            onEditMessage(activeSessionId, msgId, editValue, getSelectedModelId(), reasoningEffort);
+            const modelId = getSelectedModelId();
+            if (!modelId) {
+                alert('Model belum dipilih. Pilih model dulu.');
+                return;
+            }
+            onEditMessage(activeSessionId, msgId, editValue, modelId, reasoningEffort);
             // Optionally trigger regeneration here if desired, but for now just edit
         }
         setEditingMessageId(null);
@@ -490,8 +657,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     const handleRegenerate = (content: string) => {
         const modelId = getSelectedModelId();
-        if (!modelId) return;
-        onSendMessage(content, modelId, [], { ...toolStates, reasoning_effort: reasoningEffort });
+        if (!modelId) {
+            alert('Model belum dipilih. Pilih model dulu.');
+            return;
+        }
+        onSendMessage(content, modelId, [], buildOutboundToolStates());
+    };
+
+    const handleAssistantRegenerate = (messageId: string) => {
+        if (!onRegenerateResponse) return;
+        const modelId = getSelectedModelId();
+        if (!modelId) {
+            alert('Model belum dipilih. Pilih model dulu.');
+            return;
+        }
+        onRegenerateResponse(messageId, modelId, reasoningEffort);
     };
 
     const handleCopy = (content: string, id: string) => {
@@ -702,6 +882,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             setExpandedStepKeys(prev => {
                 const next = new Set(prev);
                 for (const s of newSteps) {
+                    for (const existing of [...next]) {
+                        if (existing.startsWith(`${s.id}-`)) {
+                            next.delete(existing);
+                        }
+                    }
                     if (s.index >= 0) {
                         next.add(`${s.id}-${s.index}`);
                     }
@@ -737,14 +922,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     const handleSend = async () => {
         if (!inputValue.trim() && attachments.length === 0 && inputLinks.length === 0) return;
+        if (isPreparingAttachments) return;
 
-        const model = availableModels.find(m => m.name === selectedModel) || availableModels[0];
-        if (!model) return;
+        const finalModelId = getSelectedModelId();
+        if (!finalModelId) {
+            alert('Model belum dipilih. Pilih model dulu.');
+            return;
+        }
 
-        const finalModelId = model.id;
-        const attachmentPayloads = attachments.length > 0 ? await buildAttachmentPayloads(attachments) : [];
+        let attachmentPayloads: ChatAttachment[] = [];
+        try {
+            setIsPreparingAttachments(true);
+            attachmentPayloads = attachments.length > 0 ? await buildAttachmentPayloads(attachments) : [];
+        } catch (error) {
+            console.error('Failed to prepare attachments', error);
+            alert('Attachment gagal diproses. Coba lagi.');
+            return;
+        } finally {
+            setIsPreparingAttachments(false);
+        }
         const contentWithLinks = [inputValue.trim(), ...inputLinks].filter(Boolean).join(' ').trim();
-        onSendMessage(contentWithLinks, finalModelId, attachmentPayloads, { ...toolStates, reasoning_effort: reasoningEffort });
+        if (!contentWithLinks && attachmentPayloads.length === 0) {
+            return;
+        }
+        onSendMessage(contentWithLinks, finalModelId, attachmentPayloads, buildOutboundToolStates());
         setInputValue('');
         setInputLinks([]);
         setAttachments([]);
@@ -764,6 +965,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const inputAttachmentItems = attachments.map((file, index) => ({ file, index }));
     const inputImageAttachments = inputAttachmentItems.filter(item => item.file.type.startsWith('image/'));
     const inputFileAttachments = inputAttachmentItems.filter(item => !item.file.type.startsWith('image/'));
+    const activeMarketLabel = (currentSymbol || selectedMarket?.symbol || '').replace(/-/g, '/');
+    const selectedTimeframes = Array.isArray(toolStates.timeframe) ? toolStates.timeframe : [];
 
 
 
@@ -789,6 +992,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {messages.length > 0 && (
                     <div className={styles.messageList}>
                         {messages.map((msg) => (
+                            (() => {
+                                const thoughtsList = Array.isArray(msg.thoughts) ? msg.thoughts : [];
+                                const hasStructuredThoughts = thoughtsList.some(item => {
+                                    if (!item || typeof item !== 'object') return false;
+                                    const type = String((item as any).type || 'text');
+                                    return type === 'tool' || type === 'code' || type === 'browsing';
+                                });
+                                const shouldShowThoughtBlock = thoughtsList.length > 0 && (hasStructuredThoughts || !!msg.isThinking);
+                                return (
                             <div key={msg.id} className={`${styles.messageItem} ${msg.role === 'user' ? styles.user : styles.assistant}`}>
                                 {msg.role === 'user' ? (
                                     <div className={`${styles.userMessageGroup} ${msg.attachments && msg.attachments.length > 0 ? styles.userMessageWithAttachments : ''}`}>
@@ -894,7 +1106,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 ) : (
                                     <div className={`${styles.bubble} ${styles.assistantBubble}`}>
                                         {/* Thinking Block */}
-                                        {msg.thoughts && msg.thoughts.length > 0 && (
+                                        {shouldShowThoughtBlock && (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                                                 <div
                                                     className={styles.thinkingBlock}
@@ -939,24 +1151,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                             <div className={styles.stepTreeLine}></div>
                                                         </div>
 
-                                                        {msg.thoughts.map((stepItem, idx) => {
+                                                        {thoughtsList.map((stepItem, idx) => {
                                                             const stepKey = `${msg.id}-${idx}`;
                                                             const isStepExpanded = expandedStepKeys.has(stepKey);
 
                                                             // Handle legacy string steps or new object steps
                                                             const isObject = typeof stepItem === 'object';
                                                             const stepType = isObject ? stepItem.type : 'text';
-                                                            const stepTitle = isObject ? stepItem.title : stepItem;
+                                                            const stepTitle = isObject ? stepItem.title : String(stepItem);
+                                                            const stepContent = isObject ? String((stepItem as any).content || '') : '';
                                                             const stepResults = isObject && stepItem.type === 'browsing' ? stepItem.results : undefined;
+                                                            const stepToolName = isObject ? (stepItem as any).toolName : '';
+                                                            const stepPhase = isObject ? String((stepItem as any).phase || '') : '';
+                                                            const stepStatus = isObject ? String((stepItem as any).status || '').toLowerCase() : '';
+                                                            const hasDetail =
+                                                                (stepType === 'browsing' && Array.isArray(stepResults) && stepResults.length > 0) ||
+                                                                (stepType === 'code' && !!stepContent.trim()) ||
+                                                                (stepType === 'tool' && !!stepContent.trim() && stepContent.trim() !== stepTitle.trim()) ||
+                                                                (stepType === 'text' && isObject && !!stepContent.trim() && stepContent.trim() !== stepTitle.trim());
 
                                                             return (
-                                                                <div key={idx} style={{ borderBottom: idx === msg.thoughts!.length - 1 ? 'none' : '1px solid #3A2530' }}>
+                                                                <div key={idx} style={{ borderBottom: idx === thoughtsList.length - 1 ? 'none' : '1px solid #3A2530' }}>
                                                                     <div
                                                                         className={styles.thinkingStep}
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            toggleStep(msg.id, idx);
+                                                                            if (hasDetail) {
+                                                                                toggleStep(msg.id, idx);
+                                                                            }
                                                                         }}
+                                                                        role={hasDetail ? 'button' : undefined}
+                                                                        aria-expanded={hasDetail ? isStepExpanded : undefined}
                                                                         style={{ borderBottom: 'none' }}
                                                                     >
                                                                         {stepType === 'browsing' ? (
@@ -974,9 +1199,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                                 </div>
                                                                                 <div className={styles.stepResultCount}>
                                                                                     {stepResults ? `${stepResults.length} results` : ''}
-                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                                                                                        <path d="M6 9l6 6 6-6" />
-                                                                                    </svg>
+                                                                                    {hasDetail && (
+                                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                                                                            <path d="M6 9l6 6 6-6" />
+                                                                                        </svg>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         ) : stepType === 'code' ? (
@@ -990,9 +1217,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                                     </svg>
                                                                                 </div>
                                                                                 <span style={{ flex: 1 }}>{stepTitle}</span>
-                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                                                                                    <path d="M6 9l6 6 6-6" />
-                                                                                </svg>
+                                                                                {hasDetail && (
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                                                                        <path d="M6 9l6 6 6-6" />
+                                                                                    </svg>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : stepType === 'tool' ? (
+                                                                            <div className={styles.toolStepContent}>
+                                                                                <div className={styles.stepIcon}>
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A77590" strokeWidth="2">
+                                                                                        <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-3.2-3.2 2.4-2z" />
+                                                                                    </svg>
+                                                                                </div>
+                                                                                <span style={{ flex: 1 }}>{stepTitle}</span>
+                                                                                <span className={`${styles.toolStepPill} ${stepStatus === 'error' ? styles.toolStepPillError : styles.toolStepPillOk}`}>
+                                                                                    {stepToolName || (stepPhase ? stepPhase.replace(/_/g, ' ') : 'tool')}
+                                                                                </span>
+                                                                                {hasDetail && (
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                                                                        <path d="M6 9l6 6 6-6" />
+                                                                                    </svg>
+                                                                                )}
                                                                             </div>
                                                                         ) : (
                                                                             // Text Step
@@ -1002,15 +1248,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                                     <div style={{ width: '6px', height: '6px', backgroundColor: '#3A2530', borderRadius: '50%' }}></div>
                                                                                 </div>
                                                                                 <span style={{ flex: 1 }}>{stepTitle}</span>
-                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                                                                                    <path d="M6 9l6 6 6-6" />
-                                                                                </svg>
+                                                                                {hasDetail && (
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                                                                        <path d="M6 9l6 6 6-6" />
+                                                                                    </svg>
+                                                                                )}
                                                                             </div>
                                                                         )}
                                                                     </div>
 
                                                                     {/* Expanded Content */}
-                                                                    {isStepExpanded && (
+                                                                    {hasDetail && isStepExpanded && (
                                                                         <div className={styles.stepDetail}>
                                                                             {stepType === 'browsing' && stepResults ? (
                                                                                 <div className={styles.resultList}>
@@ -1028,9 +1276,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                                 <div style={{ marginLeft: '28px', marginTop: '8px', background: '#12000A', padding: '12px', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', color: '#A77590', border: '1px solid #3A2530' }}>
                                                                                     <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{(typeof stepItem === 'object' && stepItem.content) || 'Writing code...'}</pre>
                                                                                 </div>
+                                                                            ) : stepType === 'tool' ? (
+                                                                                <div className={styles.toolStepDetail}>
+                                                                                    {stepContent || 'Tool phase completed.'}
+                                                                                </div>
                                                                               ) : (
                                                                                   <div style={{ marginLeft: '28px' }}>
-                                                                                      {isObject ? (stepItem as any).content || stepTitle : stepTitle}
+                                                                                      {stepContent || stepTitle}
                                                                                   </div>
                                                                               )}
                                                                         </div>
@@ -1094,10 +1346,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     pre: ({ children }) => (
                                                         <pre className={styles.codeBlock}>{children}</pre>
                                                     ),
-                                                    code: ({ inline, children }) => (
-                                                        inline
-                                                            ? <code className={styles.inlineCode}>{children}</code>
-                                                            : <code>{children}</code>
+                                                    code: ({ className, children }) => (
+                                                        className
+                                                            ? <code className={className}>{children}</code>
+                                                            : <code className={styles.inlineCode}>{children}</code>
                                                     ),
                                                     table: ({ children }) => (
                                                         <div className={styles.tableWrapper}>
@@ -1196,7 +1448,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     <button
                                                         className={styles.actionBtn}
                                                         title="Regenerate"
-                                                        onClick={() => onRegenerateResponse && onRegenerateResponse(msg.id, getSelectedModelId(), reasoningEffort)}
+                                                        onClick={() => handleAssistantRegenerate(msg.id)}
                                                     >
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                             <path d="M1 4v6h6" />
@@ -1216,6 +1468,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     </div>
                                 )}
                             </div>
+                                );
+                            })()
                         ))}
                           {isTyping && null}
                         <div ref={messagesEndRef} />
@@ -1224,6 +1478,117 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                 {/* Input Area */}
                 <div className={`${styles.inputWrapper} ${isToolsMenuOpen ? styles.toolsOpen : ''} ${isModelMenuOpen ? styles.modelOpen : ''}`}>
+                    {toolStates.planMode && planPreview && (
+                        <div className={styles.aiPlanCard}>
+                            <div className={styles.aiPlanHeader}>
+                                <span className={styles.aiPlanTitle}>
+                                    <img src={brainIcon} alt="" className={styles.aiPlanBrain} />
+                                    {planPreview?.title || 'AI Plan'}
+                                </span>
+                                <div className={styles.aiPlanHeaderRight}>
+                                    <span className={styles.aiPlanIntent}>
+                                        {planPreview?.intent || 'analysis'}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className={styles.aiPlanToggle}
+                                        onClick={() => setIsPlanMinimized(prev => !prev)}
+                                        title={isPlanMinimized ? 'Expand AI Plan' : 'Minimize AI Plan'}
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: isPlanMinimized ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                            <path d="M6 9l6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {planPreview?.steps?.length ? (
+                                <>
+                                    {isPlanMinimized ? (
+                                        <div className={styles.aiPlanSteps}>
+                                            {(() => {
+                                                const maxIndex = planPreview.steps.length - 1;
+                                                const activeIndex = Math.min(planActiveStep, maxIndex);
+                                                const activeStep = planPreview.steps[activeIndex];
+                                                const status = 'running';
+                                                return (
+                                                    <div className={styles.aiPlanStep}>
+                                                        <span className={`${styles.aiPlanStatus} ${status === 'running' ? styles.aiPlanStatusRunning : styles.aiPlanStatusDone}`}>
+                                                            {status === 'running' ? <span className={styles.aiPlanSpinner}></span> : <span className={styles.aiPlanCheck}>✓</span>}
+                                                        </span>
+                                                        <span className={styles.aiPlanStepIndex}>{activeIndex + 1}.</span>
+                                                        <div className={styles.aiPlanStepBody}>
+                                                            <span className={styles.aiPlanStepText}>{activeStep?.label}</span>
+                                                            {activeStep?.reason && (
+                                                                <span className={styles.aiPlanStepMeta}>{activeStep.reason}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    ) : (
+                                        <div className={`${styles.aiPlanSteps} ${styles.aiPlanStepsScrollable}`}>
+                                            {planPreview.steps.map((step, idx) => {
+                                                const running = isPlanLoading || isTyping;
+                                                const activeIndex = Math.min(planActiveStep, Math.max(planPreview.steps.length - 1, 0));
+                                                const status: 'done' | 'running' | 'pending' = running
+                                                    ? (idx < activeIndex ? 'done' : idx === activeIndex ? 'running' : 'pending')
+                                                    : 'done';
+
+                                                return (
+                                                    <div key={step.id || `${idx}`} className={styles.aiPlanStep}>
+                                                        <span className={`${styles.aiPlanStatus} ${status === 'running' ? styles.aiPlanStatusRunning : status === 'done' ? styles.aiPlanStatusDone : styles.aiPlanStatusPending}`}>
+                                                            {status === 'running' ? (
+                                                                <span className={styles.aiPlanSpinner}></span>
+                                                            ) : status === 'done' ? (
+                                                                <span className={styles.aiPlanCheck}>✓</span>
+                                                            ) : (
+                                                                <span className={styles.aiPlanDot}></span>
+                                                            )}
+                                                        </span>
+                                                        <span className={styles.aiPlanStepIndex}>{idx + 1}.</span>
+                                                        <div className={styles.aiPlanStepBody}>
+                                                            <span className={styles.aiPlanStepText}>{step.label}</span>
+                                                            {step.reason && (
+                                                                <span className={styles.aiPlanStepMeta}>{step.reason}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    {!isPlanMinimized && planPreview.steps.length > 3 && (
+                                        <div className={styles.aiPlanFooter}>
+                                            {(() => {
+                                                const activeIndex = Math.min(
+                                                    planActiveStep,
+                                                    Math.max(planPreview.steps.length - 1, 0)
+                                                );
+                                                return `Task ${activeIndex + 1} of ${planPreview.steps.length} · Scroll to see all`;
+                                            })()}
+                                        </div>
+                                    )}
+
+                                    {!isPlanMinimized && planPreview?.warnings?.length ? (
+                                        <div className={styles.aiPlanNotes}>
+                                            {planPreview.warnings.map((w, i) => (
+                                                <span key={`warn-${i}`} className={styles.aiPlanWarnChip}>{w}</span>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                    {!isPlanMinimized && planPreview?.blocks?.length ? (
+                                        <div className={styles.aiPlanNotes}>
+                                            {planPreview.blocks.map((b, i) => (
+                                                <span key={`block-${i}`} className={styles.aiPlanBlockChip}>{b}</span>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </>
+                            ) : null}
+                        </div>
+                    )}
                     <div className={styles.textWrapper}>
                         {(linksInInput.length > 0 || inputFileAttachments.length > 0) && (
                             <div className={styles.linkChipsRow}>
@@ -1306,6 +1671,92 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         )}
                                     </div>
                                 ))}
+                            </div>
+                        )}
+                        {(activeMarketLabel || toolStates.indicators.length > 0 || selectedTimeframes.length > 0 || toolStates.webObservation || toolStates.knowledgeEnabled || toolStates.memoryEnabled || toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
+                            <div className={styles.contextChipsRow}>
+                                {activeMarketLabel && (
+                                    <button
+                                        type="button"
+                                        className={`${styles.contextChip} ${styles.marketContextChip}`}
+                                        onClick={() => onOpenChart?.(activeMarketLabel)}
+                                        title={`Open ${activeMarketLabel}`}
+                                    >
+                                        <span className={styles.contextChipKey}>Market</span>
+                                        <span className={styles.contextChipValue}>{activeMarketLabel}</span>
+                                    </button>
+                                )}
+                                {selectedTimeframes.map((tf) => (
+                                    <div key={`tf-${tf}`} className={`${styles.contextChip} ${styles.timeframeContextChip}`}>
+                                        <span className={styles.contextChipKey}>Timeframe</span>
+                                        <span className={styles.contextChipValue}>{tf}</span>
+                                        <button
+                                            type="button"
+                                            className={styles.contextChipRemove}
+                                            onClick={() => {
+                                                setToolStates(prev => ({
+                                                    ...prev,
+                                                    timeframe: prev.timeframe.filter(item => item !== tf)
+                                                }));
+                                            }}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                                {toolStates.indicators.map((indicator) => (
+                                    <div key={`ind-${indicator}`} className={`${styles.contextChip} ${styles.indicatorContextChip}`}>
+                                        <span className={styles.contextChipKey}>Indicator</span>
+                                        <span className={styles.contextChipValue}>{indicator}</span>
+                                        <button
+                                            type="button"
+                                            className={styles.contextChipRemove}
+                                            onClick={() => {
+                                                setToolStates(prev => ({
+                                                    ...prev,
+                                                    indicators: prev.indicators.filter(item => item !== indicator)
+                                                }));
+                                            }}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                                {toolStates.webObservation && (
+                                    <div className={styles.contextChip}>
+                                        <span className={styles.contextChipKey}>Web</span>
+                                        <span className={styles.contextChipValue}>Search On</span>
+                                    </div>
+                                )}
+                                {toolStates.knowledgeEnabled && (
+                                    <div className={styles.contextChip}>
+                                        <span className={styles.contextChipKey}>Knowledge</span>
+                                        <span className={styles.contextChipValue}>RAG On</span>
+                                    </div>
+                                )}
+                                {toolStates.memoryEnabled && (
+                                    <div className={styles.contextChip}>
+                                        <span className={styles.contextChipKey}>Memory</span>
+                                        <span className={styles.contextChipValue}>On</span>
+                                    </div>
+                                )}
+                                {toolStates.maxThinking !== DEFAULT_MAX_THINKING && (
+                                    <div className={styles.contextChip}>
+                                        <span className={styles.contextChipKey}>Max Thinking</span>
+                                        <span className={styles.contextChipValue}>{toolStates.maxThinking}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {isPreparingAttachments && (
+                            <div className={styles.loadingRow}>
+                                <span className={styles.loadingBars}>
+                                    <span className={styles.loadingBar}></span>
+                                    <span className={styles.loadingBar}></span>
+                                    <span className={styles.loadingBar}></span>
+                                    <span className={styles.loadingBar}></span>
+                                </span>
+                                <span className={styles.loadingText}>Uploading attachments...</span>
                             </div>
                         )}
                         <textarea
@@ -1408,6 +1859,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 <span>Allow Write</span>
                                                 <div className={`${styles.toggleSwitch} ${toolStates.write ? styles.checked : ''}`}></div>
                                             </div>
+
+                                            {/* 6. Plan Mode */}
+                                            <div className={styles.toolItem} onClick={() => setToolStates(prev => ({ ...prev, planMode: !prev.planMode }))}>
+                                                <div className={styles.toolIconWrapper}>
+                                                    <img src={brainIcon} alt="Plan Mode" width={18} height={18} />
+                                                </div>
+                                                <span>Plan Mode</span>
+                                                <div className={`${styles.toggleSwitch} ${toolStates.planMode ? styles.checked : ''}`}></div>
+                                            </div>
+
+                                            {/* 7. More */}
+                                            <div className={styles.toolItem} onClick={() => setActiveToolView('more')}>
+                                                <div className={styles.toolIconWrapper}>
+                                                    <img src={brainIcon} alt="More" width={18} height={18} />
+                                                </div>
+                                                <span>More</span>
+                                                <span className={styles.toolValue}>
+                                                    {`${toolStates.webObservation ? 'Web On' : 'Web Off'} | ${toolStates.knowledgeEnabled ? 'Rag On' : 'Rag Off'} | ${toolStates.memoryEnabled ? 'Mem On' : 'Mem Off'} | Max ${toolStates.maxThinking}`}
+                                                </span>
+                                                <span className={styles.toolArrow}>â€º</span>
+                                            </div>
                                         </div>
                                     ) : activeToolView === 'indicators' ? (
                                         /* INDICATORS SUB-PAGE */
@@ -1452,7 +1924,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     ))}
                                             </div>
                                         </div>
-                                    ) : (
+                                    ) : activeToolView === 'timeframe' ? (
                                         /* TIMEFRAME SUB-PAGE */
                                         <div className={styles.toolSubPage}>
                                             <div className={styles.toolPageHeader}>
@@ -1487,6 +1959,104 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 ))}
                                             </div>
                                         </div>
+                                    ) : (
+                                        /* MORE SUB-PAGE */
+                                        <div className={styles.toolSubPage}>
+                                            <div className={styles.toolPageHeader}>
+                                                <button className={styles.backButton} onClick={() => setActiveToolView('main')}>
+                                                    â€¹
+                                                </button>
+                                                <span>More Settings</span>
+                                            </div>
+                                            <div className={styles.toolList}>
+                                                <div
+                                                    className={styles.toolItem}
+                                                    onClick={() => setToolStates(prev => ({ ...prev, webObservation: !prev.webObservation }))}
+                                                >
+                                                    <div className={styles.toolIconWrapper}>
+                                                        <img src={brainIcon} alt="Web Search" width={18} height={18} />
+                                                    </div>
+                                                    <span>Web Search</span>
+                                                    <div className={`${styles.toggleSwitch} ${toolStates.webObservation ? styles.checked : ''}`}></div>
+                                                </div>
+
+                                                <div
+                                                    className={styles.toolItem}
+                                                    onClick={() => setToolStates(prev => ({ ...prev, memoryEnabled: !prev.memoryEnabled }))}
+                                                >
+                                                    <div className={styles.toolIconWrapper}>
+                                                        <img src={brainIcon} alt="Memory" width={18} height={18} />
+                                                    </div>
+                                                    <span>Memory</span>
+                                                    <div className={`${styles.toggleSwitch} ${toolStates.memoryEnabled ? styles.checked : ''}`}></div>
+                                                </div>
+
+                                                <div
+                                                    className={styles.toolItem}
+                                                    onClick={() => setToolStates(prev => ({ ...prev, knowledgeEnabled: !prev.knowledgeEnabled }))}
+                                                >
+                                                    <div className={styles.toolIconWrapper}>
+                                                        <img src={brainIcon} alt="Knowledge" width={18} height={18} />
+                                                    </div>
+                                                    <span>Knowledge (RAG)</span>
+                                                    <div className={`${styles.toggleSwitch} ${toolStates.knowledgeEnabled ? styles.checked : ''}`}></div>
+                                                </div>
+
+                                                <div className={styles.toolItem}>
+                                                    <div className={styles.toolIconWrapper}>
+                                                        <img src={brainIcon} alt="Max Thinking" width={18} height={18} />
+                                                    </div>
+                                                    <span>Max Thinking</span>
+                                                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setToolStates(prev => ({
+                                                                    ...prev,
+                                                                    maxThinking: Math.max(MIN_MAX_THINKING, Number(prev.maxThinking || DEFAULT_MAX_THINKING) - 1)
+                                                                }));
+                                                            }}
+                                                            style={{
+                                                                width: 24,
+                                                                height: 24,
+                                                                borderRadius: 6,
+                                                                border: '1px solid #3A2530',
+                                                                background: '#12000A',
+                                                                color: '#FFE1F2',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <span className={styles.toolValue} style={{ minWidth: 34, textAlign: 'center' }}>
+                                                            {toolStates.maxThinking}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setToolStates(prev => ({
+                                                                    ...prev,
+                                                                    maxThinking: Math.min(MAX_MAX_THINKING, Number(prev.maxThinking || DEFAULT_MAX_THINKING) + 1)
+                                                                }));
+                                                            }}
+                                                            style={{
+                                                                width: 24,
+                                                                height: 24,
+                                                                borderRadius: 6,
+                                                                border: '1px solid #3A2530',
+                                                                background: '#12000A',
+                                                                color: '#FFE1F2',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             )}
@@ -1498,7 +2068,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 className={`${styles.modelSelectorTrigger} ${isModelMenuOpen ? styles.active : ''}`}
                                 onClick={toggleModelMenu}
                             >
-                                <span>{selectedModel}</span>
+                                <span>{selectedModel || 'Select model'}</span>
                                 <div style={{ flex: 1 }}></div>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: isModelMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
                                     <path d="M6 9l6 6 6-6" />
@@ -1612,7 +2182,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             <button
                                 className={`${styles.sendAction} ${inputValue.trim() || attachments.length > 0 || inputLinks.length > 0 ? styles.active : ''}`}
                                 onClick={handleSend}
-                                disabled={!(inputValue.trim() || attachments.length > 0 || inputLinks.length > 0)}
+                                disabled={isPreparingAttachments || !(inputValue.trim() || attachments.length > 0 || inputLinks.length > 0)}
                             >
                                 <img src="/src/assets/Arrow.png" alt="Send" className={styles.arrowIcon} width={18} height={18} />
                             </button>

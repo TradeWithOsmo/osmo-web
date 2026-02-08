@@ -23,7 +23,7 @@ export interface ChatResponse {
 }
 
 export interface ChatStreamEvent {
-    type: 'meta' | 'delta' | 'thoughts' | 'thoughts_delta' | 'done' | 'error';
+    type: 'meta' | 'delta' | 'thoughts' | 'thoughts_delta' | 'runtime' | 'runtime_phase' | 'done' | 'error';
     [key: string]: any;
 }
 
@@ -32,8 +32,30 @@ export interface ChatStreamHandlers {
     onDelta?: (content: string) => void;
     onThoughts?: (thoughts: any[]) => void;
     onThoughtDelta?: (thought: string) => void;
+    onRuntime?: (runtime: any) => void;
+    onRuntimePhase?: (phase: any) => void;
     onDone?: (event: ChatStreamEvent) => void;
     onError?: (message: string) => void;
+}
+
+export interface PlanPreviewRequest {
+    model_id?: string;
+    message: string;
+    history?: { role: string; content: string }[];
+    token?: string;
+    tool_states?: any;
+}
+
+export interface PlanPreviewResponse {
+    status: string;
+    plan: any;
+    render: {
+        title: string;
+        intent: string;
+        steps: { id: string; label: string; reason?: string; args?: any }[];
+        warnings: string[];
+        blocks: string[];
+    };
 }
 
 export const agentService = {
@@ -85,7 +107,8 @@ export const agentService = {
             const { value, done } = await reader.read();
             if (done) break;
 
-            buffer += decoder.decode(value, { stream: true });
+            // Normalize CRLF so SSE chunk splitting works across proxies/servers.
+            buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
 
             let idx: number;
             while ((idx = buffer.indexOf('\n\n')) !== -1) {
@@ -108,6 +131,8 @@ export const agentService = {
                 if (event.type === 'delta') handlers.onDelta?.(event.content || '');
                 if (event.type === 'thoughts') handlers.onThoughts?.(event.thoughts || []);
                 if (event.type === 'thoughts_delta') handlers.onThoughtDelta?.(event.thought || '');
+                if (event.type === 'runtime') handlers.onRuntime?.(event.runtime || {});
+                if (event.type === 'runtime_phase') handlers.onRuntimePhase?.(event.phase || {});
                 if (event.type === 'done') {
                     handlers.onDone?.(event);
                     return;
@@ -118,6 +143,37 @@ export const agentService = {
                 }
             }
         }
+
+        if (buffer.trim().length > 0) {
+            const lines = buffer.split('\n');
+            const dataLines = lines.filter(l => l.startsWith('data:'));
+            const dataStr = dataLines.map(l => l.slice(5).trimStart()).join('\n');
+            if (dataStr) {
+                try {
+                    const event: ChatStreamEvent = JSON.parse(dataStr);
+                    if (event.type === 'meta') handlers.onMeta?.(event);
+                    if (event.type === 'delta') handlers.onDelta?.(event.content || '');
+                    if (event.type === 'thoughts') handlers.onThoughts?.(event.thoughts || []);
+                    if (event.type === 'thoughts_delta') handlers.onThoughtDelta?.(event.thought || '');
+                    if (event.type === 'runtime') handlers.onRuntime?.(event.runtime || {});
+                    if (event.type === 'runtime_phase') handlers.onRuntimePhase?.(event.phase || {});
+                    if (event.type === 'done') handlers.onDone?.(event);
+                    if (event.type === 'error') handlers.onError?.(event.message || 'Unknown error');
+                } catch {
+                    // ignore trailing non-json fragments
+                }
+            }
+        }
+    },
+
+    planPreview: async (request: PlanPreviewRequest): Promise<PlanPreviewResponse> => {
+        const { token, ...data } = request;
+        const headers: any = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        const response = await axios.post(`${API_URL}/api/agent/plan/preview`, data, { headers });
+        return response.data;
     },
 
     getModels: async (): Promise<any> => {

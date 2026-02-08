@@ -12,6 +12,10 @@ import { useMarketStore } from '../../store/useMarketStore';
 import AutosSettings from './AutosSettings';
 import { agentService } from '../../api/agentService';
 import axios from 'axios';
+import type { TradeDecisionTriggerEvent } from '../../hooks/useTradingViewConnector';
+
+const dedupeSessionsById = <T extends { id: string }>(sessions: T[]): T[] =>
+    Array.from(new Map(sessions.map((s) => [s.id, s])).values());
 
 interface AutosProps {
     forceMobileMode?: boolean;
@@ -152,12 +156,6 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
 
 
 
-    // Resizable Split View State
-    const [chatPanelWidth, setChatPanelWidth] = useState<number>(50); // percentage
-    const [hideArtifact, setHideArtifact] = useState(false);
-    const splitLayoutRef = useRef<HTMLDivElement>(null);
-    const isResizing = useRef(false);
-
     // Global Market Store
     const setGlobalMarket = useMarketStore(state => state.setMarket);
 
@@ -209,8 +207,8 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                         type: 'chat'
                     }));
                     setInboxSessions(prev => {
-                        const newChat = prev.find(s => s.id === 'new-chat-1');
-                        return newChat ? [newChat, ...inboxOnly] : inboxOnly;
+                        const pendingNewChats = prev.filter(s => s.id.startsWith('new-chat'));
+                        return dedupeSessionsById([...pendingNewChats, ...inboxOnly]);
                     });
                 }
             } catch (err) {
@@ -312,50 +310,226 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             });
         };
 
-        const appendThought = (thought: string) => {
-            if (!thought) return;
+        const buildThoughtKey = (item: any) => {
+            if (typeof item === 'string') {
+                return `s:${item.trim()}`;
+            }
+            if (!item || typeof item !== 'object') {
+                return `x:${String(item)}`;
+            }
+            const type = String(item.type || 'text');
+            const title = String(item.title || '');
+            const content = String(item.content || '');
+            const toolName = String(item.toolName || '');
+            const status = String(item.status || '');
+            const phase = String(item.phase || '');
+            return `o:${type}|${phase}|${toolName}|${status}|${title}|${content}`;
+        };
+
+        const isRuntimePhaseLine = (value: string) =>
+            /^\[(plan_|tool_|execution_adapter|runtime_ready|plan_ready|plan_start|tool_round_|tool_execution|tool_followup|tool_round_complete)/i.test(
+                value.trim()
+            );
+
+        const mergeAssistantThoughts = (incomingThoughts: any[]) => {
+            if (!Array.isArray(incomingThoughts) || incomingThoughts.length === 0) return;
             setSessionMessages(prev => {
                 const existing = prev[currentSessionId] || [];
                 const updated = existing.map(m => {
                     if (m.id !== responseId) return m;
-                    const nextThoughts = Array.isArray(m.thoughts) ? [...m.thoughts, thought] : [thought];
+                    const base = Array.isArray(m.thoughts) ? [...m.thoughts] : [];
+                    const keys = new Set(base.map(buildThoughtKey));
+                    for (const item of incomingThoughts) {
+                        if (typeof item === 'string' && isRuntimePhaseLine(item)) continue;
+                        const key = buildThoughtKey(item);
+                        if (!keys.has(key)) {
+                            keys.add(key);
+                            base.push(item);
+                        }
+                    }
+                    return { ...m, thoughts: base, isThinking: true, modelId };
+                });
+                return { ...prev, [currentSessionId]: updated };
+            });
+        };
+
+        const appendThought = (thought: any) => {
+            if (!thought) return;
+            if (typeof thought === 'string' && isRuntimePhaseLine(thought)) return;
+            setSessionMessages(prev => {
+                const existing = prev[currentSessionId] || [];
+                const updated = existing.map(m => {
+                    if (m.id !== responseId) return m;
+                    const nextThoughts = Array.isArray(m.thoughts) ? [...m.thoughts] : [];
+                    const key = buildThoughtKey(thought);
+                    const hasKey = nextThoughts.some(item => buildThoughtKey(item) === key);
+                    if (!hasKey) {
+                        nextThoughts.push(thought);
+                    }
                     return { ...m, thoughts: nextThoughts, isThinking: true };
                 });
                 return { ...prev, [currentSessionId]: updated };
             });
         };
 
-        const TYPING_INTERVAL_MS = 60;
+        const appendRuntimePhase = (phase: any) => {
+            const phaseName = String(phase?.name || '').trim();
+            if (!phaseName) return;
+            const status = String(phase?.status || 'done').trim();
+            const detail = String(phase?.detail || '').trim();
+            const phaseTool = String(phase?.meta?.tool || '').trim();
+            const phaseStage = String(phase?.meta?.stage || '').trim().toLowerCase();
+            const loopRaw = phase?.meta?.loop;
+            const phaseLoop = Number.isFinite(Number(loopRaw)) ? Number(loopRaw) : null;
+            const normalizedDetail = detail.toLowerCase();
+
+            // Keep reasoning UI clean:
+            // only surface runtime events when a real tool is involved.
+            if (!phaseTool) return;
+            if (status.toLowerCase() === 'skipped') return;
+            if (normalizedDetail.includes('not triggered for this request')) return;
+
+            const stageLabel = phaseStage
+                ? (
+                    {
+                        think: 'Think',
+                        act: 'Act',
+                        observe: 'Observe',
+                        plan: 'Plan'
+                    } as Record<string, string>
+                )[phaseStage] || phaseStage
+                : '';
+
+            const baseTitle = detail || (stageLabel ? `${stageLabel}: ${phaseName.replace(/_/g, ' ')}` : phaseName.replace(/_/g, ' '));
+            const hasLoopPrefix = /^\s*(plan\s+loop|loop\s+\d+)/i.test(baseTitle);
+            const title =
+                phaseLoop && phaseLoop > 0 && !hasLoopPrefix
+                    ? `Loop ${phaseLoop}: ${baseTitle}`
+                    : baseTitle;
+
+            const contentParts = [
+                `tool=${phaseTool}`,
+                `status=${status}`
+            ];
+            if (phaseLoop && phaseLoop > 0) {
+                contentParts.push(`loop=${phaseLoop}`);
+            }
+            if (stageLabel) {
+                contentParts.push(`stage=${stageLabel}`);
+            }
+            const content = contentParts.join(', ');
+            const toolLabel = phaseLoop && phaseLoop > 0 ? `${phaseTool} · L${phaseLoop}` : phaseTool;
+
+            setSessionMessages(prev => {
+                const existing = prev[currentSessionId] || [];
+                const updated = existing.map(m => {
+                    if (m.id !== responseId) return m;
+                    const currentPhases = Array.isArray(m.runtimePhases) ? [...m.runtimePhases] : [];
+                    const duplicate = currentPhases.some(
+                        p => p.name === phaseName && (p.detail || '') === detail && (p.status || '') === status
+                    );
+                    if (!duplicate) {
+                        currentPhases.push({
+                            name: phaseName,
+                            status,
+                            detail,
+                            meta: phase?.meta,
+                        });
+                    }
+                    return { ...m, runtimePhases: currentPhases, isThinking: true };
+                });
+                return { ...prev, [currentSessionId]: updated };
+            });
+
+            appendThought({
+                type: 'tool',
+                title,
+                content,
+                toolName: toolLabel || undefined,
+                status,
+                phase: phaseName,
+                meta: phase?.meta || undefined,
+            });
+        };
+
+        const MIN_TYPING_INTERVAL_MS = 80;
+        const MAX_TYPING_INTERVAL_MS = 180;
         let pendingText = '';
         let displayedText = '';
-        let typingTimer: ReturnType<typeof setInterval> | null = null;
+        let typingTimer: ReturnType<typeof setTimeout> | null = null;
+        let firstWordDisplayed = false;
 
-        const getChunkSize = () => 1;
+        const getChunkSize = () => {
+            const backlog = pendingText.length;
+            if (backlog > 1600) return 96;
+            if (backlog > 1200) return 72;
+            if (backlog > 800) return 52;
+            if (backlog > 500) return 36;
+            if (backlog > 260) return 24;
+            if (backlog > 120) return 14;
+            if (backlog > 60) return 8;
+            if (backlog > 20) return 4;
+            return 2;
+        };
+
+        const getTypingIntervalMs = () => {
+            const backlog = pendingText.length;
+            if (backlog > 1600) return MIN_TYPING_INTERVAL_MS;
+            if (backlog > 1200) return 7;
+            if (backlog > 800) return 8;
+            if (backlog > 500) return 9;
+            if (backlog > 260) return 10;
+            if (backlog > 120) return 12;
+            if (backlog > 60) return 14;
+            if (backlog > 20) return 16;
+            return MAX_TYPING_INTERVAL_MS;
+        };
 
         const stopTyping = () => {
             if (typingTimer) {
-                clearInterval(typingTimer);
+                clearTimeout(typingTimer);
                 typingTimer = null;
             }
         };
 
+        const pumpTyping = () => {
+            if (!pendingText) {
+                stopTyping();
+                return;
+            }
+            const chunkSize = getChunkSize();
+            const chunk = pendingText.slice(0, chunkSize);
+            pendingText = pendingText.slice(chunkSize);
+            displayedText += chunk;
+            appendAssistantMessage(displayedText, undefined, true);
+            typingTimer = setTimeout(pumpTyping, getTypingIntervalMs());
+        };
+
         const startTyping = () => {
             if (typingTimer) return;
-            typingTimer = setInterval(() => {
-                if (!pendingText) {
-                    stopTyping();
-                    return;
-                }
-                const chunkSize = getChunkSize();
-                const chunk = pendingText.slice(0, chunkSize);
-                pendingText = pendingText.slice(chunkSize);
-                displayedText += chunk;
-                appendAssistantMessage(displayedText, undefined, true);
-            }, TYPING_INTERVAL_MS);
+            pumpTyping();
+        };
+
+        const tryDisplayFirstChunk = () => {
+            if (firstWordDisplayed || !pendingText) return;
+            const firstNonWhitespace = pendingText.search(/\S/);
+            if (firstNonWhitespace === -1) return;
+
+            const visibleTail = pendingText.slice(firstNonWhitespace);
+            const firstWordMatch = visibleTail.match(/^\S+/);
+            const firstWordLength = firstWordMatch?.[0]?.length || 1;
+            const firstChunkLength = Math.min(pendingText.length, firstNonWhitespace + Math.min(16, firstWordLength));
+            const firstChunk = pendingText.slice(0, firstChunkLength);
+            pendingText = pendingText.slice(firstChunkLength);
+            displayedText += firstChunk;
+            firstWordDisplayed = true;
+
+            // Ensure loading ends immediately on first visible token.
+            appendAssistantMessage(displayedText, undefined, true);
         };
 
         const THOUGHT_DELAY_MS = 140;
-        let thoughtQueue: string[] = [];
+        let thoughtQueue: any[] = [];
         let thoughtTimer: ReturnType<typeof setTimeout> | null = null;
 
         const flushThoughtQueue = () => {
@@ -393,7 +567,9 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 const { [currentSessionId]: _, ...rest } = prev;
                 return { ...rest, [newSessionId]: isTyping };
             });
-            setInboxSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, id: newSessionId } : s));
+            setInboxSessions(prev => dedupeSessionsById(
+                prev.map(s => s.id === currentSessionId ? { ...s, id: newSessionId } : s)
+            ));
             currentSessionId = newSessionId;
             setActiveSessionId(newSessionId);
         };
@@ -466,28 +642,36 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                     if (!delta) return;
                     contentBuffer += delta;
                     pendingText += delta;
+                    tryDisplayFirstChunk();
                     startTyping();
                 },
                 onThoughts: (thoughts) => {
-                    appendAssistantMessage(displayedText || contentBuffer, thoughts, true);
+                    mergeAssistantThoughts(thoughts);
                 },
                 onThoughtDelta: (thought) => {
                     if (!thought) return;
                     thoughtQueue.push(thought);
                     scheduleThoughtFlush();
                 },
+                onRuntimePhase: (phase) => {
+                    appendRuntimePhase(phase);
+                },
                 onDone: (event) => {
                     const finalContent = event.content || contentBuffer;
                     const finalThoughts = Array.isArray(event.thoughts) ? event.thoughts : undefined;
+                    if (finalThoughts && finalThoughts.length > 0) {
+                        mergeAssistantThoughts(finalThoughts);
+                    }
                     flushThoughtQueue();
                     pendingText = '';
                     displayedText = finalContent;
+                    firstWordDisplayed = true;
                     stopTyping();
                     if (isProviderFallbackMessage(finalContent)) {
                         appendAssistantMessage("Maaf, chat gagal. Provider error. Silakan coba lagi.", undefined, false);
                         return;
                     }
-                    appendAssistantMessage(finalContent, finalThoughts, false);
+                    appendAssistantMessage(finalContent, undefined, false);
                 },
                 onError: (message) => {
                     stopTyping();
@@ -555,6 +739,49 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         }));
 
         generateAssistantResponse(currentSessionId, content, modelId, history, reasoningEffort, toolStates, attachments);
+    };
+
+    const resolveAutoTriggerModelId = (sessionId: string): string => {
+        const history = sessionMessages[sessionId] || [];
+        for (let i = history.length - 1; i >= 0; i -= 1) {
+            const msg = history[i] as Message & { modelId?: string };
+            if (msg.role === 'assistant' && msg.modelId) {
+                return msg.modelId;
+            }
+        }
+        return 'groq/openai/gpt-oss-120b';
+    };
+
+    const handleTradeDecisionTrigger = async (event: TradeDecisionTriggerEvent) => {
+        const modelId = resolveAutoTriggerModelId(activeSessionId);
+        const triggerLabel = event.triggerType === 'validation' ? 'VALIDATION' : 'INVALIDATION';
+        const actionHint =
+            event.triggerType === 'validation'
+                ? 'update rencana saat profit/konfirmasi setup'
+                : 'defensive action karena setup terancam';
+        const note = event.note ? `\nNote: ${event.note}` : '';
+        const autoPrompt =
+            `[AUTO_TRIGGER ${triggerLabel}] ${event.symbol} ${event.timeframe}\n` +
+            `Side: ${event.side || 'unknown'}\n` +
+            `Trigger level hit: ${event.triggerLevel}\n` +
+            `Current price: ${event.currentPrice}\n` +
+            `Tolong generate decision message baru otomatis untuk ${actionHint}.\n` +
+            `Gunakan flow Think -> Act -> Observe, cek data terbaru (price/teknikal/funding/orderbook/news bila perlu), ` +
+            `lalu berikan langkah next action + risk control singkat.${note}`;
+
+        const autoToolStates = {
+            plan_mode: true,
+            reasoning_effort: 'high',
+            execution: false,
+            write: false,
+            memory_enabled: true,
+            knowledge_enabled: true,
+            market_symbol: event.symbol,
+            timeframe: [event.timeframe],
+            auto_trigger_source: 'tradingview'
+        };
+
+        await handleSendMessage(autoPrompt, modelId, [], autoToolStates);
     };
 
     const handleRenameSession = async (sessionId: string, newName: string) => {
@@ -871,29 +1098,6 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         generateAssistantResponse(sessionId, newContent, modelId, croppedHistory, reasoningEffort);
     };
 
-    const handleMouseDown = () => {
-        isResizing.current = true;
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-        document.body.style.userSelect = 'none';
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-        if (!isResizing.current || !splitLayoutRef.current) return;
-        const containerRect = splitLayoutRef.current.getBoundingClientRect();
-        const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-        if (newWidth > 20 && newWidth < 80) {
-            setChatPanelWidth(newWidth);
-        }
-    };
-
-    const handleMouseUp = () => {
-        isResizing.current = false;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.body.style.userSelect = '';
-    };
-
     // Drag to scroll tabs logic
     const tabsContainerRef = useRef<HTMLDivElement>(null);
     const isDraggingTabs = useRef(false);
@@ -924,12 +1128,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         tabsContainerRef.current.scrollLeft = scrollLeft.current - walk;
     };
 
-    const getWorkspaceBySessionId = (sessionId: string): Workspace | undefined => {
-        return workspaces.find(ws => ws.sessions.some(s => s.id === sessionId));
-    };
-
     const activeSession = getSessionById(activeSessionId);
-    const activeWorkspace = getWorkspaceBySessionId(activeSessionId);
 
     // Reset artifact when session changes
     const handleRegenerateResponse = (assistantMessageId: string, modelId?: string, reasoningEffort?: string) => {
@@ -985,9 +1184,9 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     };
 
     const handleNewChat = () => {
-        const newId = `chat-${Date.now()}`;
+        const newId = `new-chat-${Date.now()}`;
         const newSession: Session = { id: newId, title: 'New Chat', type: 'chat', isEditing: false };
-        setInboxSessions(prev => [newSession, ...prev]);
+        setInboxSessions(prev => dedupeSessionsById([newSession, ...prev]));
         setActiveSessionId(newId);
         setIsMinimized(true);
         setShowSettings(false);
@@ -1132,6 +1331,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                                 interval={activeArtifact.data?.interval || "1D"}
                                 studies={activeArtifact.data?.indicators || []}
                                 onChartStateChange={handleChartStateChange}
+                                onTradeDecisionTrigger={handleTradeDecisionTrigger}
                                 theme="dark"
                                 height="100%"
                                 hideTopToolbar={true}

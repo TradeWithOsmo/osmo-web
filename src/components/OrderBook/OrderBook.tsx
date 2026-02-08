@@ -16,7 +16,7 @@ interface OrderBookProps {
 }
 
 const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
-    const { selectedMarket } = useMarketStore();
+    const { selectedMarket, setPendingLimitPrice } = useMarketStore();
     const [asks, setAsks] = useState<OrderRowData[]>([]);
     const [bids, setBids] = useState<OrderRowData[]>([]);
     const [rowCount, setRowCount] = useState<number>(15);
@@ -127,6 +127,10 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
     };
 
     const formatAmount = (amount: number) => amount.toFixed(4);
+    const handlePriceClick = (clickedPrice: number) => {
+        if (!selectedMarket || !Number.isFinite(clickedPrice) || clickedPrice <= 0) return;
+        setPendingLimitPrice(selectedMarket.symbol, clickedPrice);
+    };
 
     if (isOstium) return null;
 
@@ -154,7 +158,12 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
                         ))
                     ) : (
                         asks.map((ask) => (
-                            <div key={ask.id} className={styles.row}>
+                            <div
+                                key={ask.id}
+                                className={styles.row}
+                                onClick={() => handlePriceClick(ask.price)}
+                                title={`Set limit price: ${formatPrice(ask.price)}`}
+                            >
                                 <div className={`${styles.bgBar} ${styles.ask}`} style={{ width: `${ask.depthPercent}%` }}></div>
                                 <div className={`${styles.cell} ${styles.left} ${styles.askText}`}>{formatPrice(ask.price)}</div>
                                 <div className={`${styles.cell} ${styles.center}`}>{formatAmount(ask.amount)}</div>
@@ -187,7 +196,12 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
                         ))
                     ) : (
                         bids.map((bid) => (
-                            <div key={bid.id} className={styles.row}>
+                            <div
+                                key={bid.id}
+                                className={styles.row}
+                                onClick={() => handlePriceClick(bid.price)}
+                                title={`Set limit price: ${formatPrice(bid.price)}`}
+                            >
                                 <div className={`${styles.bgBar} ${styles.bid}`} style={{ width: `${bid.depthPercent}%` }}></div>
                                 <div className={`${styles.cell} ${styles.left} ${styles.bidText}`}>{formatPrice(bid.price)}</div>
                                 <div className={`${styles.cell} ${styles.center}`}>{formatAmount(bid.amount)}</div>

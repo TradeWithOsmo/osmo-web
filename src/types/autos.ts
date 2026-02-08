@@ -28,6 +28,7 @@ export interface Message {
         data?: any;
     };
     attachments?: ChatAttachment[];
+    runtimePhases?: { name: string; status?: string; detail?: string; meta?: any }[];
     timestamp?: number;
     feedback?: 'like' | 'dislike';
 }
@@ -47,9 +48,13 @@ export interface SearchResult {
 }
 
 export interface ThoughtStep {
-    type: 'text' | 'browsing' | 'code';
+    type: 'text' | 'browsing' | 'code' | 'tool';
     title: string;
     content?: string;
     results?: SearchResult[];
     codeLanguage?: string;
+    toolName?: string;
+    status?: string;
+    phase?: string;
+    meta?: any;
 }

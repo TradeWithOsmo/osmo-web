@@ -9,9 +9,6 @@ import nonActiveLogo from '../assets/deposited chain/nonactive.png';
 // Store
 import { useUIStore } from '../store/useUIStore';
 
-// Logo removed as per new layering request
-import logo from '../assets/Icons/Osmo-Logos.png'; // Keeping import just in case, but unused
-
 const FaucetBackground = React.memo(() => (
     <>
         {/* Layer 1: Dots Pattern (New) */}

@@ -9,6 +9,8 @@ export interface PlaceOrderParams {
     leverage?: number;
     price?: number;
     stop_price?: number;
+    tp?: number;
+    sl?: number;
     exchange?: string;
     reduce_only?: boolean;
     post_only?: boolean;
@@ -120,19 +122,49 @@ export const orderService = {
     },
 
     async getPositions(user_address: string): Promise<{ success: boolean, positions: PositionData[], summary: AccountSummary }> {
-        const url = new URL(`${API_URL}/api/orders/positions`);
-        url.searchParams.append('user_address', user_address);
-        url.searchParams.append('_t', Date.now().toString());
+        const fallback = {
+            success: false,
+            positions: [] as PositionData[],
+            summary: {
+                account_value: 0,
+                total_margin_used: 0,
+                free_collateral: 0,
+                margin_usage: 0,
+                leverage: 0
+            } as AccountSummary
+        };
 
-        const response = await fetch(url.toString(), {
-            cache: 'no-store'
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch positions');
+        const normalizedAddress = (user_address || '').trim();
+        const isValidAddress = /^0x[a-fA-F0-9]{40}$/.test(normalizedAddress);
+        if (!isValidAddress) {
+            console.warn('[orderService.getPositions] Skip request: invalid user_address', { user_address });
+            return fallback;
         }
 
-        return response.json();
+        try {
+            const url = new URL(`${API_URL}/api/orders/positions`);
+            url.searchParams.append('user_address', normalizedAddress);
+            url.searchParams.append('_t', Date.now().toString());
+
+            const response = await fetch(url.toString(), {
+                cache: 'no-store'
+            });
+
+            if (!response.ok) {
+                const raw = await response.text().catch(() => '');
+                console.error('[orderService.getPositions] Non-OK response', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: raw
+                });
+                return fallback;
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('[orderService.getPositions] Request failed', error);
+            return fallback;
+        }
     },
 
     async updateTPSL(user_address: string, symbol: string, tp?: string, sl?: string): Promise<any> {
@@ -160,6 +192,8 @@ export const orderService = {
         tx_hash: string;
         price?: number;
         stop_price?: number;
+        tp?: number;
+        sl?: number;
         exchange?: string;
     }): Promise<any> {
         const response = await fetch(`${API_URL}/api/orders/report`, {

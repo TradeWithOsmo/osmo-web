@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./TradingChart.css";
-import { useTradingViewConnector } from "../../hooks/useTradingViewConnector";
+import { useTradingViewConnector, type TradeDecisionTriggerEvent } from "../../hooks/useTradingViewConnector";
 
 interface TVChartContainerProps {
   symbol?: string;
@@ -20,6 +20,7 @@ interface TVChartContainerProps {
     volumeDown?: string;
   };
   onChartStateChange?: (state: { symbol: string; timeframe: string; indicators: string[] }) => void;
+  onTradeDecisionTrigger?: (event: TradeDecisionTriggerEvent) => void;
   studies?: string[];
 }
 
@@ -31,6 +32,7 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
   hideSideToolbar = false,
   source = 'hyperliquid', // Default to hyperliquid
   onChartStateChange,
+  onTradeDecisionTrigger,
   studies = []
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -39,7 +41,7 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
   const hasInitialized = useRef(false);
 
   // Sync data to backend when chart is ready (Hook v3.1)
-  useTradingViewConnector(widgetRef.current, isChartReady, onChartStateChange);
+  useTradingViewConnector(widgetRef.current, isChartReady, onChartStateChange, onTradeDecisionTrigger);
 
   // Sync Studies (Indicators)
   useEffect(() => {
@@ -148,10 +150,14 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
       // Dynamically load datafeed based on source
       console.log(`[TradingChart] Loading datafeed for source: ${source}`);
-      // @ts-ignore
-      const Datafeed = source === 'ostium'
-        ? await import('../../charting/datafeeds/Ostium/datafeed_ostium.js')
-        : await import('../../charting/datafeeds/datafeed_custom.js');
+      let Datafeed: any;
+      if (source === 'ostium') {
+        // @ts-ignore - JS datafeed module has no TS declarations
+        Datafeed = await import('../../charting/datafeeds/Ostium/datafeed_ostium.js');
+      } else {
+        // @ts-ignore - JS datafeed module has no TS declarations
+        Datafeed = await import('../../charting/datafeeds/datafeed_custom.js');
+      }
 
       const disabledFeatures = [
         "symbol_search_hot_key",
