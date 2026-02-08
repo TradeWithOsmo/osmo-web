@@ -283,7 +283,7 @@ export const onchainService = {
     // Deposit to AIVault
     async depositToAIVault(walletClient: any, address: string, amount: number) {
         const amountUnits = parseUnits(amount.toString(), 6);
-        const account = address as `0x${string}`;
+        void address;
 
         try {
             const fees = await publicClient.estimateFeesPerGas().catch(() => ({ maxFeePerGas: undefined, maxPriorityFeePerGas: undefined }));
@@ -323,7 +323,7 @@ export const onchainService = {
     // Withdraw from AIVault
     async withdrawFromAIVault(walletClient: any, address: string, amount: number) {
         const amountUnits = parseUnits(amount.toString(), 6);
-        const account = address as `0x${string}`;
+        void address;
 
         try {
             const fees = await publicClient.estimateFeesPerGas().catch(() => ({ maxFeePerGas: undefined, maxPriorityFeePerGas: undefined }));

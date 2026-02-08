@@ -3,7 +3,6 @@ import styles from './Portfolio.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import OrdersTable from '../Positions/OrdersTable';
 import type { OrderData as UIOrderData } from '../Positions/OrderRow';
-import { usePortfolioStore } from '../../store/usePortfolioStore';
 // import { useWallet } from '../../hooks';
 // import type { OrderData as APIOrderData } from '../../api/orderService';
 

@@ -4,6 +4,7 @@ import { type MarketData, marketService } from '../api/marketService';
 interface MarketState {
     markets: MarketData[];
     selectedMarket: MarketData | null;
+    pendingLimitPrice: { symbol: string; price: number } | null;
     isLoading: boolean;
     error: string | null;
 
@@ -13,11 +14,14 @@ interface MarketState {
     updateMarketData: (symbol: string, data: Partial<MarketData>) => void; // For real-time updates
     updatePrices: (prices: Record<string, any>) => void; // Bulk price updates
     getPrice: (symbol: string) => number; // Helper to get latest price
+    setPendingLimitPrice: (symbol: string, price: number) => void;
+    clearPendingLimitPrice: () => void;
 }
 
 export const useMarketStore = create<MarketState>((set, get) => ({
     markets: [],
     selectedMarket: null,
+    pendingLimitPrice: null,
     isLoading: false,
     error: null,
 
@@ -53,7 +57,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     setMarket: (symbol: string) => {
         const market = get().markets.find(m => m.symbol === symbol);
         if (market) {
-            set({ selectedMarket: market });
+            set({ selectedMarket: market, pendingLimitPrice: null });
         }
     },
 
@@ -125,5 +129,13 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     getPrice: (symbol: string) => {
         const market = get().markets.find(m => m.symbol === symbol);
         return market?.price || 0;
-    }
+    },
+
+    setPendingLimitPrice: (symbol: string, price: number) => {
+        set({ pendingLimitPrice: { symbol, price } });
+    },
+
+    clearPendingLimitPrice: () => {
+        set({ pendingLimitPrice: null });
+    },
 }));

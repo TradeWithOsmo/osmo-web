@@ -35,6 +35,7 @@ export const NavHandler: CommandExecutor = {
             }
         } catch (e) {
             console.error(`[NavHandler] Error executing ${action}:`, e);
+            throw e;
         }
     }
 };
@@ -130,12 +131,28 @@ const handleSetSymbol = async (chart: any, params: any) => {
     const { symbol } = params;
     if (symbol) {
         console.log(`[NavHandler] Switching symbol to: ${symbol}`);
-        try {
-            chart.setSymbol(symbol, () => {
-                console.log(`[NavHandler] Symbol successfully set to ${symbol}`);
-            });
-        } catch (e) {
-            console.error(`[NavHandler] Failed to set symbol: ${e}`);
-        }
+        await new Promise<void>((resolve, reject) => {
+            let finished = false;
+            const timer = setTimeout(() => {
+                if (!finished) {
+                    finished = true;
+                    reject(new Error(`setSymbol timeout for ${symbol}`));
+                }
+            }, 7000);
+            try {
+                chart.setSymbol(symbol, () => {
+                    if (finished) return;
+                    finished = true;
+                    clearTimeout(timer);
+                    console.log(`[NavHandler] Symbol successfully set to ${symbol}`);
+                    resolve();
+                });
+            } catch (e) {
+                if (finished) return;
+                finished = true;
+                clearTimeout(timer);
+                reject(e as Error);
+            }
+        });
     }
 };

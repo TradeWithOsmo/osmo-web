@@ -7,8 +7,50 @@ import { useWallet } from '../../hooks';
 import { useUIStore } from '../../store/useUIStore';
 import { onchainService } from '../../api/onchainService';
 import { orderService } from '../../api/orderService';
+import { tradingViewCommandService } from '../../api/tradingViewCommandService';
 import toast from 'react-hot-toast';
 import { useWalletClient } from 'wagmi';
+
+const parsePositiveNumber = (raw: string): number | null => {
+    const parsed = parseFloat(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return parsed;
+};
+
+const formatInputPrice = (value: number): string => {
+    if (!Number.isFinite(value) || value <= 0) return '';
+    return value < 10 && value > 0.0001 ? value.toFixed(4) : value.toFixed(2);
+};
+
+const toNumber = (raw: string): number | null => {
+    const val = parseFloat(String(raw || '').trim());
+    if (!Number.isFinite(val) || val <= 0) return null;
+    return val;
+};
+
+const computeTpslPrice = (
+    side: 'buy' | 'sell',
+    basisPrice: number,
+    mode: 'tp' | 'sl',
+    unit: '%' | '$',
+    inputRaw: string
+): number | null => {
+    const input = toNumber(inputRaw);
+    if (!input || !Number.isFinite(basisPrice) || basisPrice <= 0) return null;
+
+    if (unit === '%') {
+        const ratio = input / 100;
+        if (mode === 'tp') {
+            return side === 'buy' ? basisPrice * (1 + ratio) : basisPrice * (1 - ratio);
+        }
+        return side === 'buy' ? basisPrice * (1 - ratio) : basisPrice * (1 + ratio);
+    }
+
+    if (mode === 'tp') {
+        return side === 'buy' ? basisPrice + input : basisPrice - input;
+    }
+    return side === 'buy' ? basisPrice - input : basisPrice + input;
+};
 
 
 const OrderForm: React.FC = () => {
@@ -17,6 +59,8 @@ const OrderForm: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const selectedMarket = useMarketStore((state) => state.selectedMarket);
+    const pendingLimitPrice = useMarketStore((state) => state.pendingLimitPrice);
+    const clearPendingLimitPrice = useMarketStore((state) => state.clearPendingLimitPrice);
     const { refreshAll, summary, updateTPSL } = usePortfolioStore();
     const { openDepositModal, hasSession, setHasSession, openSessionModal, isTradingSetupOpen, openTradingSetup, isSessionChecking } = useUIStore();
 
@@ -85,8 +129,10 @@ const OrderForm: React.FC = () => {
 
     // Inputs
     const [price, setPrice] = useState('');
+    const [marketOrderPrice, setMarketOrderPrice] = useState('');
     const [stopPrice, setStopPrice] = useState('');
     const [stopOrderType, setStopOrderType] = useState<'Stop Limit' | 'Stop Market'>('Stop Limit');
+    const [stopLimitPriceTarget, setStopLimitPriceTarget] = useState<'stop' | 'limit'>('stop');
     const [stopDropdownOpen, setStopDropdownOpen] = useState(false);
     const [amount, setAmount] = useState('');
     const [isAmountUSD, setIsAmountUSD] = useState(true);
@@ -140,19 +186,69 @@ const OrderForm: React.FC = () => {
                 break;
         }
 
-        // Format to correct precision (using simplest approach for now)
-        const formatted = targetPrice < 10 && targetPrice > 0.0001
-            ? targetPrice.toFixed(4)
-            : targetPrice.toFixed(2);
+        const formatted = formatInputPrice(targetPrice);
 
-        // If in Stop Limit mode, we might want to set Stop Price if it's focused, 
-        // but broadly these helpers usually target the Limit Price.
-        // For simplicity, we set the main Price field.
+        if (activeTab === 'Market') {
+            setMarketOrderPrice(formatted);
+            return;
+        }
+
+        if (activeTab === 'Stop Limit') {
+            if (stopOrderType === 'Stop Market') {
+                setStopPrice(formatted);
+                return;
+            }
+
+            if (stopLimitPriceTarget === 'stop') {
+                setStopPrice(formatted);
+                setStopLimitPriceTarget('limit');
+            } else {
+                setPrice(formatted);
+            }
+            return;
+        }
+
         setPrice(formatted);
-
-        // If Stop Limit and Price is empty, maybe set Stop Price too? 
-        // User asked "set price", assuming Limit Price.
     };
+
+    // Fill price input from OrderBook row click (contextual by active tab)
+    React.useEffect(() => {
+        if (!pendingLimitPrice || !selectedMarket) return;
+        if (pendingLimitPrice.symbol !== selectedMarket.symbol) return;
+
+        const clickedPrice = pendingLimitPrice.price;
+        if (!Number.isFinite(clickedPrice) || clickedPrice <= 0) {
+            clearPendingLimitPrice();
+            return;
+        }
+
+        const formatted = formatInputPrice(clickedPrice);
+        if (activeTab === 'Market') {
+            setMarketOrderPrice(formatted);
+        } else if (activeTab === 'Stop Limit') {
+            if (stopOrderType === 'Stop Market') {
+                setStopPrice(formatted);
+            } else if (stopLimitPriceTarget === 'limit') {
+                setPrice(formatted);
+            } else {
+                setStopPrice(formatted);
+                setStopLimitPriceTarget('limit');
+            }
+        } else {
+            setPrice(formatted);
+        }
+        clearPendingLimitPrice();
+    }, [pendingLimitPrice, selectedMarket?.symbol, activeTab, stopOrderType, stopLimitPriceTarget, clearPendingLimitPrice]);
+
+    React.useEffect(() => {
+        if (activeTab !== 'Stop Limit') {
+            setStopLimitPriceTarget('stop');
+            return;
+        }
+        if (stopOrderType === 'Stop Market') {
+            setStopLimitPriceTarget('stop');
+        }
+    }, [activeTab, stopOrderType]);
 
     // Amount Toggle Logic
     const handleAmountSwitch = () => {
@@ -182,6 +278,14 @@ const OrderForm: React.FC = () => {
 
         setAmount(formatted);
     };
+    const currentMarketPrice = selectedMarket?.price || 0;
+    const parsedLimitPrice = parsePositiveNumber(price);
+    const parsedStopPrice = parsePositiveNumber(stopPrice);
+    const parsedMarketOrderPrice = parsePositiveNumber(marketOrderPrice);
+    const effectiveMarketOrderPrice = parsedMarketOrderPrice ?? currentMarketPrice;
+    const effectiveDisplayPrice = activeTab === 'Market'
+        ? effectiveMarketOrderPrice
+        : (parsedLimitPrice ?? currentMarketPrice);
 
     // Handle order submission
     const handleSubmit = async () => {
@@ -189,6 +293,8 @@ const OrderForm: React.FC = () => {
             side,
             amount,
             price,
+            marketOrderPrice,
+            stopPrice,
             selectedMarket: selectedMarket?.symbol,
             authenticated,
             hasSession
@@ -251,6 +357,21 @@ const OrderForm: React.FC = () => {
                 ? parseFloat(amount)
                 : parseFloat(amount) * (selectedMarket?.price || 0);
 
+            // Resolve TP/SL for backend execution + position persistence
+            const basisPriceForTpsl = activeTab === 'Market'
+                ? effectiveMarketOrderPrice
+                : (parsedLimitPrice ?? selectedMarket?.price ?? 0);
+            const computedTpFromUnit = computeTpslPrice(side, basisPriceForTpsl, 'tp', tpUnit as '%' | '$', tpValue);
+            const computedSlFromUnit = computeTpslPrice(side, basisPriceForTpsl, 'sl', slUnit as '%' | '$', slValue);
+            const resolvedTp = tpslEnabled ? (toNumber(tpPrice) ?? computedTpFromUnit ?? undefined) : undefined;
+            const resolvedSl = tpslEnabled ? (toNumber(slPrice) ?? computedSlFromUnit ?? undefined) : undefined;
+            const finalTP =
+                (tpslEnabled ? tpPrice : '') ||
+                (resolvedTp ? formatInputPrice(resolvedTp) : (tpValue ? `${tpValue}${tpUnit}` : undefined));
+            const finalSL =
+                (tpslEnabled ? slPrice : '') ||
+                (resolvedSl ? formatInputPrice(resolvedSl) : (slValue ? `${slValue}${slUnit}` : undefined));
+
             // 1-Click Trading Logic: If session key exists and authorized
             // Explicitly check for key existence AND store state.
             if (sessionKey && hasSession) {
@@ -264,8 +385,8 @@ const OrderForm: React.FC = () => {
                     leverage: leverage,
                     // For Market orders, we must pass the current price because the contract 
                     // has no price pusher and otherwise reverts with "Invalid price".
-                    price: activeTab === 'Market' ? (selectedMarket.price || 0) : (price ? parseFloat(price) : 0),
-                    stopPrice: stopPrice ? parseFloat(stopPrice) : 0
+                    price: activeTab === 'Market' ? effectiveMarketOrderPrice : (parsedLimitPrice || 0),
+                    stopPrice: parsedStopPrice || 0
                 });
             } else {
                 // If we thought we had a session but key is missing, or hasSession is false
@@ -295,8 +416,10 @@ const OrderForm: React.FC = () => {
                     order_type: activeTab.toLowerCase() as any,
                     amount_usd: finalAmountUsd,
                     leverage: leverage,
-                    price: price ? parseFloat(price) : undefined,
-                    stop_price: stopPrice ? parseFloat(stopPrice) : undefined,
+                    price: activeTab === 'Market' ? effectiveMarketOrderPrice : (parsedLimitPrice ?? undefined),
+                    stop_price: parsedStopPrice ?? undefined,
+                    tp: resolvedTp,
+                    sl: resolvedSl,
                     exchange: 'simulation'
                 });
 
@@ -323,8 +446,12 @@ const OrderForm: React.FC = () => {
                         amount_usd: finalAmountUsd,
                         leverage: leverage,
                         tx_hash: result.tx_hash,
-                        price: price ? parseFloat(price) : (selectedMarket?.price || undefined),
-                        stop_price: stopPrice ? parseFloat(stopPrice) : undefined
+                        price: activeTab === 'Market'
+                            ? effectiveMarketOrderPrice
+                            : (parsedLimitPrice ?? (selectedMarket?.price || undefined)),
+                        stop_price: parsedStopPrice ?? undefined,
+                        tp: resolvedTp,
+                        sl: resolvedSl,
                     }).catch(err => {
                         console.error('[OrderForm] Failed to report order to backend:', err);
                     });
@@ -337,12 +464,22 @@ const OrderForm: React.FC = () => {
 
                 // Handle TP/SL if enabled
                 if (tpslEnabled) {
-                    const finalTP = tpPrice || (tpValue ? `${tpValue}${tpUnit}` : undefined);
-                    const finalSL = slPrice || (slValue ? `${slValue}${slUnit}` : undefined);
-
                     if (finalTP || finalSL) {
                         try {
                             await updateTPSL(walletAddress, selectedMarket.symbol, finalTP, finalSL);
+                            if (resolvedTp && resolvedSl && basisPriceForTpsl > 0) {
+                                await tradingViewCommandService.queueSetupTrade({
+                                    symbol: selectedMarket.symbol,
+                                    side,
+                                    entry: basisPriceForTpsl,
+                                    tp: resolvedTp,
+                                    sl: resolvedSl,
+                                    validation: resolvedTp,
+                                    invalidation: resolvedSl,
+                                    validation_note: 'TP hit zone',
+                                    invalidation_note: 'SL invalidation',
+                                });
+                            }
                             toast.success('TP/SL preferences updated');
                         } catch (e) {
                             console.error('Failed to set TP/SL', e);
@@ -385,6 +522,7 @@ const OrderForm: React.FC = () => {
     const handleReset = () => {
         setAmount('');
         setPrice('');
+        setMarketOrderPrice('');
         setStopPrice('');
         // Default leverage: 20x or Max Leverage if lower
         const defaultLev = 1;
@@ -457,6 +595,7 @@ const OrderForm: React.FC = () => {
                                             className={`${styles.dropdownItem} ${stopOrderType === type ? styles.active : ''}`}
                                             onClick={() => {
                                                 setStopOrderType(type as 'Stop Limit' | 'Stop Market');
+                                                setStopLimitPriceTarget('stop');
                                                 setStopDropdownOpen(false);
                                             }}
                                         >
@@ -472,6 +611,25 @@ const OrderForm: React.FC = () => {
                 {/* 5. Form Content */}
                 <div className={styles.formArea}>
 
+                    {/* Order Price - Only for Market tab (defaults to live price if empty) */}
+                    {activeTab === 'Market' && (
+                        <div className={styles.inputWrapper}>
+                            <div className={styles.inputLabelRow}>
+                                <span>Order Price</span>
+                                <span>Auto: Live Price</span>
+                            </div>
+                            <div className={styles.inputRow}>
+                                <input
+                                    className={styles.inputMain}
+                                    placeholder={formatInputPrice(currentMarketPrice) || '0.00'}
+                                    value={marketOrderPrice}
+                                    onChange={(e) => setMarketOrderPrice(e.target.value)}
+                                    inputMode="decimal"
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {/* Stop Price - Only for Stop Limit Tab */}
                     {activeTab === 'Stop Limit' && (
                         <div className={styles.inputWrapper}>
@@ -483,7 +641,11 @@ const OrderForm: React.FC = () => {
                                     className={styles.inputMain}
                                     placeholder="0.00"
                                     value={stopPrice}
-                                    onChange={(e) => setStopPrice(e.target.value)}
+                                    onFocus={() => setStopLimitPriceTarget('stop')}
+                                    onChange={(e) => {
+                                        setStopLimitPriceTarget('stop');
+                                        setStopPrice(e.target.value);
+                                    }}
                                 />
                             </div>
                         </div>
@@ -501,7 +663,13 @@ const OrderForm: React.FC = () => {
                                         className={styles.inputMain}
                                         placeholder="0.00"
                                         value={price}
-                                        onChange={(e) => setPrice(e.target.value)}
+                                        onFocus={() => {
+                                            if (activeTab === 'Stop Limit') setStopLimitPriceTarget('limit');
+                                        }}
+                                        onChange={(e) => {
+                                            if (activeTab === 'Stop Limit') setStopLimitPriceTarget('limit');
+                                            setPrice(e.target.value);
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -525,7 +693,7 @@ const OrderForm: React.FC = () => {
                         <div className={styles.marketInputColumn}>
                             <div className={styles.inputLabelRow} style={{ justifyContent: 'flex-start', gap: '8px', alignItems: 'center' }}>
                                 <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', cursor: 'help' }}>Amount</span>
-                                <span className={styles.badges} style={{ fontSize: '11px', padding: '2px 6px' }}>
+                                <span className={styles.badges}>
                                     {isAmountUSD ? 'USD' : (selectedMarket?.symbol?.split('-')[0] || 'Token')}
                                 </span>
                             </div>
@@ -541,7 +709,10 @@ const OrderForm: React.FC = () => {
                             className={styles.swapButton}
                             onClick={handleAmountSwitch}
                         >
-                            <span style={{ fontSize: '18px' }}>⇄</span>
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M7 7H19M19 7L15.5 3.5M19 7L15.5 10.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M17 17H5M5 17L8.5 13.5M5 17L8.5 20.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
                         </div>
                     </div>
                 </div>
@@ -997,7 +1168,7 @@ const OrderForm: React.FC = () => {
                             <span className={styles.summaryValue}>
                                 {(!authenticated || (summary?.account_value || 0) <= 0)
                                     ? '—'
-                                    : `$${(price ? parseFloat(price) : (selectedMarket?.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
+                                    : `$${effectiveDisplayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
                                 }
                             </span>
                         </div>
@@ -1006,7 +1177,7 @@ const OrderForm: React.FC = () => {
                             <span className={styles.summaryValue}>
                                 {(() => {
                                     if (!authenticated || (summary?.account_value || 0) <= 0) return '—';
-                                    const entryPrice = price ? parseFloat(price) : (selectedMarket?.price || 0);
+                                    const entryPrice = effectiveDisplayPrice;
                                     if (!entryPrice) return '—';
                                     // Simple estimation: Long = Entry * (1 - 1/Lev), Short = Entry * (1 + 1/Lev)
                                     // Note: Real liq price depends on MMR. Using 1/Lev is a generic approximation for bankruptcy price.
@@ -1028,7 +1199,7 @@ const OrderForm: React.FC = () => {
                                 {(() => {
                                     if (!authenticated || (summary?.account_value || 0) <= 0) return ' —';
                                     const val = parseFloat(amount || '0');
-                                    const executePrice = price ? parseFloat(price) : (selectedMarket?.price || 0);
+                                    const executePrice = effectiveDisplayPrice;
                                     // If isAmountUSD is true, amount IS the value.
                                     // If false, amount is units, so Value = amount * price.
                                     const notional = isAmountUSD ? val : val * executePrice;
@@ -1043,7 +1214,7 @@ const OrderForm: React.FC = () => {
                                 {(() => {
                                     if (!authenticated || (summary?.account_value || 0) <= 0) return '—';
                                     const val = parseFloat(amount || '0');
-                                    const executePrice = price ? parseFloat(price) : (selectedMarket?.price || 0);
+                                    const executePrice = effectiveDisplayPrice;
                                     const notional = isAmountUSD ? val : val * executePrice;
                                     // Est taker fee 0.025% = 0.00025
                                     const fee = notional * 0.00025;
@@ -1061,7 +1232,7 @@ const OrderForm: React.FC = () => {
                                     if (!authenticated || (summary?.account_value || 0) <= 0) return '—';
                                     // Dummy points calc: 1 point per $100 volume?
                                     const val = parseFloat(amount || '0');
-                                    const executePrice = price ? parseFloat(price) : (selectedMarket?.price || 0);
+                                    const executePrice = effectiveDisplayPrice;
                                     const notional = isAmountUSD ? val : val * executePrice;
                                     const points = notional / 100;
                                     return points.toFixed(4);

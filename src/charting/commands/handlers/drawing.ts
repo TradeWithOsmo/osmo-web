@@ -27,6 +27,7 @@ export const DrawingHandler: CommandExecutor = {
 
         if (action === 'draw_shape') {
             const { type, style, text, id } = params;
+            const styleObj = style || {};
 
             // Normalize Points
             let rawPoints = params.points || [];
@@ -62,25 +63,25 @@ export const DrawingHandler: CommandExecutor = {
             const shapeType = TOOL_MAP[type] || type;
 
             // Style Overrides
-            let overrides = { ...style };
+            let overrides = { ...styleObj };
             if (text) overrides.text = text;
 
             // Specific Fixes
             if (['rectangle', 'circle', 'ellipse', 'triangle_pattern'].includes(shapeType)) {
                 overrides.filled = true;
-                if (style.backgroundColor || style.fillColor) {
-                    const c = style.backgroundColor || style.fillColor;
+                if (styleObj.backgroundColor || styleObj.fillColor) {
+                    const c = styleObj.backgroundColor || styleObj.fillColor;
                     overrides.backgroundColor = c;
                     overrides.fillColor = c;
                 }
             }
 
-            const mainColor = style.color || style.borderColor || style.lineColor || '#2962FF';
+            const mainColor = styleObj.color || styleObj.borderColor || styleObj.lineColor || '#2962FF';
             overrides.color = mainColor;
             overrides.linecolor = mainColor;
 
-            if (style.width || style.lineWidth || style.borderWidth) {
-                overrides.linewidth = style.width || style.lineWidth || style.borderWidth;
+            if (styleObj.width || styleObj.lineWidth || styleObj.borderWidth) {
+                overrides.linewidth = styleObj.width || styleObj.lineWidth || styleObj.borderWidth;
             }
 
             try {

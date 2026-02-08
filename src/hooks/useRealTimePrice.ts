@@ -1,8 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useMarketStore } from '../store/useMarketStore';
 
-const WS_URL = 'ws://localhost:8000/ws/hyperliquid'; // Base WS URL
-
 export const useRealTimePrice = (symbol: string | undefined) => {
     const { updateMarketData } = useMarketStore();
     const wsRef = useRef<WebSocket | null>(null);
@@ -15,8 +13,7 @@ export const useRealTimePrice = (symbol: string | undefined) => {
             wsRef.current.close();
         }
 
-        const coin = symbol.split('-')[0]; // Extract coin (BTC-USD -> BTC)
-        // Backend expects /ws/hyperliquid/{symbol} but let's check backend/websocket/main.py
+        // Backend expects /ws/hyperliquid/{symbol}
         // It says: @app.websocket("/ws/hyperliquid/{symbol}")
         // So for "BTC-USD", assuming we send "BTC-USD" or just "BTC"?
         // Looking at backend code from step 403: 

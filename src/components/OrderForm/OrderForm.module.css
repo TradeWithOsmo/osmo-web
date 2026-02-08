@@ -138,7 +138,8 @@
 /* 3. Main Tabs (Limit, Market, Stop Limit) */
 .tabs {
     display: flex;
-    border-bottom: 1px solid #3A2530;
+    border-bottom: 1px solid rgba(255, 145, 194, 0.25);
+    background: linear-gradient(180deg, rgba(18, 4, 13, 0.9) 0%, rgba(11, 2, 8, 0.94) 100%);
 }
 
 .tab {
@@ -146,21 +147,29 @@
     padding: 14px 0;
     text-align: center;
     font-size: 14px;
-    color: #A77590;
+    color: #B5849E;
     cursor: pointer;
     position: relative;
     background: none;
     border: none;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.tab:not(:last-child) {
+    border-right: 1px solid rgba(255, 145, 194, 0.2);
 }
 
 .tab:hover {
     color: #FFE1F2;
+    background: rgba(255, 142, 198, 0.08);
 }
 
 .tab.active {
-    color: #FFE1F2;
-    background-color: #240114;
-    /* Slight highlight */
+    color: #FFF5FB;
+    background: linear-gradient(180deg, rgba(54, 18, 42, 0.72) 0%, rgba(35, 8, 24, 0.92) 100%);
+    text-shadow: 0 0 10px rgba(255, 207, 233, 0.18);
+    border-bottom-color: #FFB5DF;
 }
 
 /* 4. Buy/Sell Toggle */
@@ -184,6 +193,10 @@
     background: transparent;
     color: #6a6d78;
     /* Inactive text color, similar to screenshot grey */
+}
+
+.tradeBtn:not(:last-child) {
+    border-right: 1px solid rgba(255, 145, 194, 0.2);
 }
 
 .tradeBtn.buy.active {
@@ -218,13 +231,22 @@
 }
 
 .inputWrapper {
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background: linear-gradient(140deg, rgba(28, 8, 20, 0.9) 0%, rgba(14, 2, 10, 0.92) 100%);
+    border: 1px solid rgba(255, 143, 195, 0.24);
     border-radius: 8px;
     padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.inputWrapper:hover,
+.inputWrapper:focus-within {
+    border-color: rgba(255, 174, 213, 0.48);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(255, 134, 192, 0.15);
+    background: linear-gradient(140deg, rgba(33, 10, 24, 0.94) 0%, rgba(17, 4, 12, 0.96) 100%);
 }
 
 .inputLabelRow {
@@ -243,10 +265,16 @@
 .inputMain {
     background: transparent;
     border: none;
-    color: #FFE1F2;
+    color: #FFF2FA;
     font-size: 16px;
     outline: none;
     width: 100%;
+    font-weight: 600;
+}
+
+.inputMain::placeholder {
+    color: #C793AE;
+    opacity: 0.92;
 }
 
 /* Helper Pills (Fill, Mid, etc) */
@@ -261,19 +289,30 @@
 }
 
 .pill {
-    background-color: #3A2530;
-    border: 1px solid #3A2530;
-    color: #A77590;
-    border-radius: 4px;
-    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.12) 0%, rgba(48, 23, 39, 0.45) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.28);
+    color: #F2B7D7;
+    border-radius: 8px;
+    padding: 4px 10px;
     font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
+    transition: none;
 }
 
 .pill:hover {
-    border-color: #A77590;
+    border-color: rgba(255, 174, 213, 0.52);
     color: #FFE1F2;
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.22) 0%, rgba(63, 28, 50, 0.5) 100%);
+}
+
+.pill:active {
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.22) 0%, rgba(63, 28, 50, 0.5) 100%);
 }
 
 /* Dual Inputs */
@@ -283,13 +322,21 @@
 }
 
 .badges {
-    background-color: #3A2530;
-    border: 1px solid #3A2530;
-    color: #A77590;
-    font-size: 10px;
-    padding: 2px 4px;
-    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 22px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 151, 199, 0.45);
+    background: linear-gradient(135deg, rgba(255, 116, 183, 0.2) 0%, rgba(84, 34, 62, 0.42) 100%);
+    color: #FFD9EC;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
+    line-height: 1;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 14px rgba(24, 0, 12, 0.28);
 }
 
 /* Advanced Accordion */
@@ -455,14 +502,15 @@
 
 /* Leverage Slider Section */
 .leverageContainer {
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background: linear-gradient(150deg, rgba(24, 7, 18, 0.9) 0%, rgba(11, 2, 8, 0.94) 100%);
+    border: 1px solid rgba(255, 143, 195, 0.24);
     border-radius: 8px;
     padding: 12px;
     margin: 0 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .leverageHeader {
@@ -480,61 +528,81 @@
 }
 
 .badgeNone {
-    background-color: #3A2530;
-    border: 1px solid #3A2530;
-    color: #A77590;
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.12) 0%, rgba(48, 23, 39, 0.45) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.3);
+    color: #F2B7D7;
     font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    transition: all 0.2s ease;
+}
+
+.badgeNone:hover {
+    border-color: rgba(255, 174, 213, 0.55);
+    color: #FFE1F2;
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.22) 0%, rgba(63, 28, 50, 0.5) 100%);
 }
 
 .leverageControls {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 12px;
+    column-gap: 12px;
+    min-width: 0;
 }
 
 .leverageInput {
-    background-color: #3A2530;
-    border: 1px solid #3A2530;
-    border-radius: 4px;
-    color: #FFE1F2;
-    width: 50px;
-    padding: 4px 6px;
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.18) 0%, rgba(60, 26, 47, 0.6) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.38);
+    border-radius: 8px;
+    color: #FFF2FA;
+    min-width: 64px;
+    padding: 6px 8px;
     text-align: center;
     font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
 }
 
 .sliderTrack {
     flex: 1;
-    height: 6px;
-    background-color: #3A2530;
-    border-radius: 3px;
+    min-width: 0;
+    height: 8px;
+    background-color: rgba(66, 40, 54, 0.88);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 145, 194, 0.2);
     position: relative;
     cursor: pointer;
     display: flex;
     align-items: center;
+    overflow: hidden;
 }
 
 .sliderFill {
     position: absolute;
     height: 100%;
-    background-color: #00E396;
-    border-radius: 3px;
+    background: linear-gradient(90deg, #00E396 0%, #38F4B3 100%);
+    border-radius: 999px;
     top: 0;
     left: 0;
+    box-shadow: 0 0 10px rgba(0, 227, 150, 0.45);
 }
 
 .sliderThumb {
-    width: 6px;
-    height: 6px;
-    background-color: #12000A;
-    border: 2px solid #00E396;
+    width: 11px;
+    height: 11px;
+    background-color: #160510;
+    border: 2px solid #50FFC2;
     border-radius: 50%;
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    z-index: 2;
+    z-index: 3;
+    box-shadow: 0 0 0 3px rgba(0, 227, 150, 0.25);
 }
 
 /* Dots on slider */
@@ -550,7 +618,7 @@
 .dot {
     width: 2px;
     height: 2px;
-    background-color: #3A2530;
+    background-color: rgba(255, 187, 224, 0.48);
     border-radius: 50%;
 }
 
@@ -584,40 +652,58 @@
     top: 100%;
     right: 0;
     margin-top: 4px;
-    background-color: #3A2530;
-    border: 1px solid #3A2530;
-    border-radius: 6px;
-    padding: 4px;
+    background: linear-gradient(180deg, rgba(40, 18, 32, 0.96) 0%, rgba(23, 8, 16, 0.98) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.35);
+    border-radius: 10px;
+    padding: 6px;
     display: flex;
     flex-direction: column;
     z-index: 20;
     min-width: 100px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(10px);
 }
 
 .dropdownItem {
+    min-height: 34px;
     padding: 8px 12px;
     font-size: 13px;
-    color: #A77590;
+    color: #D2A2BC;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 7px;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .dropdownItem:hover {
-    background-color: #3A2530;
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.18) 0%, rgba(65, 30, 52, 0.5) 100%);
+    color: #FFE1F2;
+}
+
+.dropdownItem.active {
+    background: linear-gradient(135deg, rgba(255, 157, 205, 0.22) 0%, rgba(73, 33, 58, 0.56) 100%);
+    border: 1px solid rgba(255, 182, 218, 0.36);
     color: #FFE1F2;
 }
 
 /* Market Order Input Styles */
 .marketInputContainer {
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background: linear-gradient(140deg, rgba(26, 8, 19, 0.9) 0%, rgba(13, 2, 9, 0.92) 100%);
+    border: 1px solid rgba(255, 143, 195, 0.24);
     border-radius: 8px;
     padding: 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.marketInputContainer:hover,
+.marketInputContainer:focus-within {
+    border-color: rgba(255, 174, 213, 0.48);
+    box-shadow: 0 0 0 1px rgba(255, 134, 192, 0.15);
 }
 
 .marketInputColumn {
@@ -630,18 +716,27 @@
 .swapButton {
     min-width: 40px;
     height: 40px;
-    background-color: #3A2530;
-    /* Darker tone */
-    border: 1px solid #3A2530;
-    /* Subtle border */
-    border-radius: 8px;
+    background: radial-gradient(90% 90% at 50% 20%, rgba(255, 144, 198, 0.22) 0%, rgba(43, 18, 34, 0.9) 100%);
+    border: 1px solid rgba(255, 151, 199, 0.4);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #FFE1F2;
+    color: #FFDDF0;
     transition: all 0.2s;
     margin-left: 12px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.swapButton:hover {
+    border-color: rgba(255, 186, 219, 0.58);
+    transform: translateY(-1px);
+    color: #FFE1F2;
+}
+
+.swapButton:active {
+    transform: translateY(0);
 }
 
 /* Advanced Section Content */
@@ -662,9 +757,9 @@
 }
 
 .advancedInputBox {
-    background-color: #3A2530;
-    border: 1px solid #3A2530;
-    border-radius: 6px;
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.12) 0%, rgba(48, 23, 39, 0.45) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.34);
+    border-radius: 10px;
     padding: 8px 12px;
     display: flex;
     flex-direction: column;
@@ -672,6 +767,17 @@
     position: relative;
     min-height: 52px;
     justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.advancedInputBox:hover {
+    border-color: rgba(255, 174, 213, 0.52);
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.22) 0%, rgba(63, 28, 50, 0.5) 100%);
+}
+
+.advancedInputBox:focus-within {
+    border-color: rgba(255, 196, 224, 0.64);
+    box-shadow: 0 0 0 1px rgba(255, 153, 204, 0.2);
 }
 
 .advancedLabel {
@@ -690,14 +796,21 @@
 }
 
 .daysSelector {
-    background-color: #3A2530;
-    border-radius: 4px;
-    padding: 2px 8px;
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.18) 0%, rgba(47, 21, 37, 0.58) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.36);
+    border-radius: 999px;
+    padding: 3px 10px;
     font-size: 12px;
-    color: #FFE1F2;
+    color: #FFDDF0;
     display: flex;
     align-items: center;
     gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.daysSelector:hover {
+    border-color: rgba(255, 174, 213, 0.52);
+    color: #FFE1F2;
 }
 
 .checkboxRow {
@@ -768,8 +881,8 @@
 }
 
 .tpslInput {
-    background-color: #0A0005;
-    border: 1px solid #3A2530;
+    background: linear-gradient(145deg, rgba(24, 8, 18, 0.94) 0%, rgba(11, 2, 8, 0.96) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.28);
     border-radius: 8px;
     padding: 10px 12px;
     display: flex;
@@ -777,6 +890,13 @@
     justify-content: center;
     min-height: 52px;
     cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tpslInput:hover,
+.tpslInput:focus-within {
+    border-color: rgba(255, 174, 213, 0.48);
+    box-shadow: 0 0 0 1px rgba(255, 134, 192, 0.15);
 }
 
 .tpslLabel {
@@ -789,34 +909,34 @@
     background: transparent;
     border: none;
     outline: none;
-    color: #FFE1F2;
+    color: #FFF2FA;
     /* Placeholder/Value color */
     font-size: 14px;
     width: 100%;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .tpslField::placeholder {
-    color: #A77590;
+    color: #C793AE;
     /* Muted placeholder */
 }
 
 .percentBadge {
-    background-color: #3A2530;
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.2) 0%, rgba(55, 24, 42, 0.58) 100%);
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 14px;
-    color: #FFE1F2;
+    color: #FFF2FA;
     display: flex;
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    border: 1px solid #50535E;
+    border: 1px solid rgba(255, 145, 194, 0.35);
 }
 
 .percentBadge:hover {
-    border-color: #A77590;
-    background-color: #3A2530;
+    border-color: rgba(255, 174, 213, 0.52);
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.24) 0%, rgba(66, 29, 53, 0.62) 100%);
 }
 
 @keyframes spin {

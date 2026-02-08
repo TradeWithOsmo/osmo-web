@@ -11,6 +11,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(dirname, './src'),
       '@charting': path.resolve(dirname, './src/charting'),
+      '__vite-optional-peer-dep:@solana-program/system:@privy-io/react-auth': path.resolve(dirname, './src/shims/solana-program-system.ts'),
     },
   },
   define: {
@@ -23,8 +24,5 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['buffer', 'process', 'util', 'stream', 'assert', 'url', 'https-browserify'],
-    rolldownOptions: {
-      // enhance compatibility with rolldown
-    },
   },
 })
