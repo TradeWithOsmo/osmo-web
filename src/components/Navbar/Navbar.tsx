@@ -158,7 +158,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         {navItems.length > 0 && (
           <div className={`${styles.navMenu} ${isMobileMenuOpen ? styles.mobileOpen : ''}`}>
             {navItems.map((item, index) => {
-              const isRestricted = (item.label === 'Portfolio' || item.label === 'Usage') && !authenticated;
+              const DIMMED_OPACITY = 0.5;
+              const isTrade = item.label === 'Trade';
+              const isDimmed = !authenticated && !isTrade;
 
               return (
                 <React.Fragment key={item.href}>
@@ -209,7 +211,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         )}
                       </div>
                       {/* Mobile: Two separate items */}
-                      <>
+                      <React.Fragment>
                         <a
                           href="/trade"
                           className={`${styles.navItem} ${styles.mobileOnly}`}
@@ -234,16 +236,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                         >
                           <span>Autonomus</span>
                         </a>
-                      </>
+                      </React.Fragment>
                     </>
                   ) : item.label === 'Portfolio' ? (
                     <>
                       {/* Mobile: Dropdown */}
                       <button
-                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly} ${isRestricted ? styles.disabled : ''}`}
-                        onClick={() => !isRestricted && togglePortfolioDropdown()}
-                        style={{ justifyContent: 'space-between', width: '100%' }}
-                        disabled={isRestricted}
+                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly}`}
+                        onClick={() => togglePortfolioDropdown()}
+                        style={{ justifyContent: 'space-between', width: '100%', opacity: isDimmed ? DIMMED_OPACITY : 1 }}
                       >
                         <span>{item.label}</span>
                         <svg
@@ -279,12 +280,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {/* Desktop: Simple Link */}
                       <a
                         href={item.href}
-                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly} ${isRestricted ? styles.disabled : ''}`}
+                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly}`}
                         onClick={(e) => {
                           e.preventDefault()
-                          if (isRestricted) return;
                           onNavClick?.(item.href)
                         }}
+                        style={{ opacity: isDimmed ? DIMMED_OPACITY : 1 }}
                         title={item.label}
                       >
                         <span>{item.label}</span>
@@ -294,10 +295,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <>
                       {/* Mobile: Dropdown */}
                       <button
-                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly} ${isRestricted ? styles.disabled : ''}`}
-                        onClick={() => !isRestricted && toggleUsageDropdown()}
-                        style={{ justifyContent: 'space-between', width: '100%' }}
-                        disabled={isRestricted}
+                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.mobileOnly}`}
+                        onClick={() => toggleUsageDropdown()}
+                        style={{ justifyContent: 'space-between', width: '100%', opacity: isDimmed ? DIMMED_OPACITY : 1 }}
                       >
                         <span>{item.label}</span>
                         <svg
@@ -333,19 +333,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {/* Desktop: Simple Link */}
                       <a
                         href={item.href}
-                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly} ${isRestricted ? styles.disabled : ''}`}
+                        className={`${styles.navItem} ${item.isActive ? styles.active : ''} ${styles.desktopOnly}`}
                         onClick={(e) => {
                           e.preventDefault()
-                          if (isRestricted) return;
                           onNavClick?.(item.href)
                         }}
+                        style={{ opacity: isDimmed ? DIMMED_OPACITY : 1 }}
                         title={item.label}
                       >
                         <span>{item.label}</span>
                       </a>
                     </>
                   ) : (
-
                     <a
                       href={item.href}
                       className={`${styles.navItem} ${item.isActive ? styles.active : ''}`}
@@ -354,6 +353,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onNavClick?.(item.href)
                         closeMobileMenu()
                       }}
+                      style={{ opacity: isDimmed ? DIMMED_OPACITY : 1 }}
                       title={item.label}
                     >
                       <span>{item.label}</span>
@@ -374,7 +374,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
           </div>
-
         )}
 
         {/* Right Section - Icons & Profile */}
