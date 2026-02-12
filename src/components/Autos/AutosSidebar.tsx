@@ -3,6 +3,10 @@ import styles from './Autos.module.css';
 import type { Workspace, Session } from '../../types/autos';
 import sidebarIcon from '../../assets/Icons/Sidebar.png';
 import WorkspaceModal from './WorkspaceModal';
+import { useUsageStore } from '../../store/useUsageStore';
+import { useUIStore } from '../../store/useUIStore';
+import { useWallets } from '@privy-io/react-auth';
+import { useEffect } from 'react';
 
 interface AutosSidebarProps {
     activeSessionId: string;
@@ -58,6 +62,8 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
     forceMobileMode,
     hideToggle = false
 }) => {
+    const { openDepositModal } = useUIStore();
+
     // UI State
     const [menu, setMenu] = useState<MenuState>({ visible: false, type: null, targetId: null, x: 0, y: 0 });
     const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
@@ -263,6 +269,13 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
             }
         }
     };
+
+    const { stats, fetchStats } = useUsageStore();
+    const { wallets } = useWallets();
+
+    useEffect(() => {
+        if (wallets[0]?.address) fetchStats(wallets[0].address);
+    }, [wallets, fetchStats]);
 
     return (
         <div className={`${styles.sidebar} ${isMinimized ? styles.sidebarMinimized : ''} ${forceMobileMode ? styles.sidebarMobile : ''}`}>
@@ -500,6 +513,24 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
                         </div>
                     </div>
                 </>
+            )}
+
+            {!isMinimized && (
+                <div className={styles.creditFooter}>
+                    <div style={{ fontSize: '11px', color: '#A77590', marginBottom: '4px' }}>AI Credit</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#FFE1F2' }}>
+                            ${stats.credit_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <button
+                            type="button"
+                            className={styles.creditRefillButton}
+                            onClick={() => openDepositModal('refill')}
+                        >
+                            Refill
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

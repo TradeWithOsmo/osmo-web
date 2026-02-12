@@ -1,5 +1,7 @@
 export { default as Trade } from './Trade';
 
+export { default as Arena } from './Arena';
+
 
 
 export { default as Portfolio } from './Portfolio';

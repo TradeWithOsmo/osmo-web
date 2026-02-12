@@ -21,6 +21,8 @@ interface UsageState {
     agentGroups: Record<string, string[]>;
     addAgentGroup: (name: string) => void;
     moveAgentToGroup: (agentId: string, fromGroup: string, toGroup: string) => void;
+    depositToCredit: (walletClient: any, address: string, amount: number) => Promise<void>;
+    withdrawFromCredit: (walletClient: any, address: string, amount: number) => Promise<void>;
 }
 
 export const useUsageStore = create<UsageState>((set, get) => ({
@@ -196,6 +198,32 @@ export const useUsageStore = create<UsageState>((set, get) => ({
             set({ chartData: data });
         } catch (error: any) {
             console.error("Failed to fetch chart data", error);
+        }
+    },
+
+    depositToCredit: async (walletClient: any, address: string, amount: number) => {
+        set({ isLoading: true, error: null });
+        try {
+            await onchainService.depositToAIVault(walletClient, address, amount);
+            await get().fetchStats(address); // Refresh stats
+            set({ isLoading: false });
+        } catch (error: any) {
+            console.error("Deposit failed:", error);
+            set({ error: error.message || "Deposit failed", isLoading: false });
+            throw error;
+        }
+    },
+
+    withdrawFromCredit: async (walletClient: any, address: string, amount: number) => {
+        set({ isLoading: true, error: null });
+        try {
+            await onchainService.withdrawFromAIVault(walletClient, address, amount);
+            await get().fetchStats(address); // Refresh stats
+            set({ isLoading: false });
+        } catch (error: any) {
+            console.error("Withdraw failed:", error);
+            set({ error: error.message || "Withdraw failed", isLoading: false });
+            throw error;
         }
     }
 }));

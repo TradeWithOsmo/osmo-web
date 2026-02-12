@@ -1926,19 +1926,26 @@
 }
 
 .loadingRow {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 10px;
-    margin: 6px 0 2px 0;
+    margin: 6px 0 4px 0;
     color: #A77590;
     font-size: 13px;
+    line-height: 1.35;
+    padding: 6px 10px;
+    border: 1px solid #3A2530;
+    border-radius: 999px;
+    background: rgba(18, 0, 10, 0.85);
+    max-width: 100%;
 }
 
 .loadingBars {
     display: inline-flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 3px;
     height: 14px;
+    flex-shrink: 0;
 }
 
 .loadingBar {
@@ -1955,12 +1962,31 @@
 .loadingBar:nth-child(4) { animation-delay: 0.3s; }
 
 .loadingText {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 1px;
     letter-spacing: 0.2px;
+    color: #C992AF;
+    font-weight: 500;
+}
+
+.loadingDots {
+    display: inline-block;
+    min-width: 16px;
+    color: #A77590;
 }
 
 @keyframes loadingWave {
     0%, 100% { height: 6px; opacity: 0.6; }
     50% { height: 14px; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loadingBar {
+        animation: none;
+        height: 10px;
+        opacity: 0.9;
+    }
 }
 
 .responseContent hr {
@@ -2289,6 +2315,18 @@
     flex: 1;
 }
 
+.toolItemCompact>span:nth-of-type(1) {
+    flex: 1;
+}
+
+.toolItemCompact .toolValue {
+    margin-left: auto;
+}
+
+.toolItemCompact .toolArrow {
+    margin-left: 14px;
+}
+
 .toolItem:last-child {
     border-bottom: none;
 }
@@ -2322,9 +2360,11 @@
 .toolValue {
     margin-left: auto;
     font-size: 12px;
-    color: #3B2030;
-    background: rgba(59, 32, 48, 0.1);
-    padding: 2px 6px;
+    font-weight: 600;
+    color: #F2D9E7;
+    background: rgba(167, 117, 144, 0.18);
+    border: 1px solid rgba(167, 117, 144, 0.35);
+    padding: 2px 7px;
     border-radius: 4px;
 }
 
@@ -2340,6 +2380,39 @@
 
 .toolItem:hover .toolArrow {
     color: #A77590;
+}
+
+.maxThinkingControl {
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.maxThinkingStepButton {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid #5B3750;
+    background: #1A0A12;
+    color: #FFEAF7;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.maxThinkingStepButton:hover {
+    border-color: #A77590;
+    background: #28121D;
+}
+
+.maxThinkingValue {
+    min-width: 34px;
+    text-align: center;
+    color: #F7D9EA;
+    font-weight: 600;
+    font-size: 14px;
 }
 
 /* Custom Toggle Switch for Write */

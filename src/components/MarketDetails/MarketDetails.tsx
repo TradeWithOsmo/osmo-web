@@ -4,12 +4,6 @@ import activeStar from '../../assets/Icons/start/active.png'
 import inactiveStar from '../../assets/Icons/start/inactive.png'
 import expandIcon from '../../assets/Icons/Arrow/Arrow-down-Bullet.png'
 import collapseIcon from '../../assets/Icons/Arrow/Arrow-up-Bullet.png'
-// Layout Icons - Standard
-import layoutStandardActive from '../../assets/layout/Layout trading active.png'
-import layoutStandardInactive from '../../assets/layout/Layout trading non active.png'
-// Layout Icons - Assist
-import layoutAssistActive from '../../assets/layout/Layout Trading + Asist active.png'
-import layoutAssistInactive from '../../assets/layout/Layout Trading + Asist non active.png'
 
 import MarketSelector from './MarketSelector'
 import TokenIcon from './TokenIcon'
@@ -241,11 +235,6 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                                 onClick={() => setLayoutMode('standard')}
                                 title="Standard Layout"
                             >
-                                <img
-                                    src={layoutMode === 'standard' ? layoutStandardActive : layoutStandardInactive}
-                                    alt="Standard"
-                                    className={styles.layoutIcon}
-                                />
                                 <span className={styles.layoutTabText}>Standard</span>
                             </button>
                             <button
@@ -253,11 +242,6 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                                 onClick={() => setLayoutMode('assist')}
                                 title="Trading Assist Layout"
                             >
-                                <img
-                                    src={layoutMode === 'assist' ? layoutAssistActive : layoutAssistInactive}
-                                    alt="Assist"
-                                    className={styles.layoutIcon}
-                                />
                                 <span className={styles.layoutTabText}>Assist</span>
                             </button>
                         </div>

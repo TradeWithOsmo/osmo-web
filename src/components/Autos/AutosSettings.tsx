@@ -210,10 +210,10 @@ const AutosSettings: React.FC<AutosSettingsProps> = ({ onBack }) => {
         toggleModel(id, userAddress);
     };
 
-    // Tab State: Simplified to just Active vs All vs Tested
-    const [activeTab, setActiveTab] = useState<'active' | 'all' | 'tested'>(() => {
+    // Tab State: Simplified to just Active vs All
+    const [activeTab, setActiveTab] = useState<'active' | 'all'>(() => {
         const saved = localStorage.getItem('autos_settings_active_tab_simple');
-        return (saved === 'active' || saved === 'all' || saved === 'tested') ? saved : 'active';
+        return (saved === 'active' || saved === 'all') ? saved : 'active';
     });
 
     useEffect(() => {
@@ -280,9 +280,6 @@ const AutosSettings: React.FC<AutosSettingsProps> = ({ onBack }) => {
                 const hasActive = models.some(m => enabledModels[m.id]);
                 if (!hasActive) return false;
             }
-            if (activeTab === 'tested') {
-                return p.toLowerCase() === 'groq';
-            }
             return true;
         });
 
@@ -332,13 +329,6 @@ const AutosSettings: React.FC<AutosSettingsProps> = ({ onBack }) => {
                     style={{ minWidth: '130px' }}
                 >
                     All Models
-                </div>
-                <div
-                    className={`${styles.tab} ${activeTab === 'tested' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('tested')}
-                    style={{ minWidth: '130px' }}
-                >
-                    Tested Models
                 </div>
             </div>
 

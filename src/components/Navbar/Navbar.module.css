@@ -326,6 +326,16 @@
   background-color: #3B0020;
 }
 
+.walletDropdownItemPrimary {
+  background-color: #2A1320;
+  color: #FFE1F2;
+  font-weight: 700;
+}
+
+.walletDropdownItemPrimary:hover {
+  background-color: #3A1A2B;
+}
+
 /* Disconnect Confirmation Modal */
 .modalOverlay {
   position: fixed;

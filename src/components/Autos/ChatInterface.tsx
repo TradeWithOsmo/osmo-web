@@ -1,15 +1,17 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import styles from './ChatInterface.module.css';
-import type { Workspace, Message, ChatAttachment } from '../../types/autos';
+import type { Workspace, Message, ChatAttachment, ThoughtStep } from '../../types/autos';
 import { usageService } from '../../api/usageService';
 import { useWallets, usePrivy } from '@privy-io/react-auth';
 import { useUsageStore } from '../../store/useUsageStore';
 import brainIcon from '../../assets/Icons/Brain.png';
+import gearIcon from '../../assets/Icons/Gear.png';
 import TokenIcon from '../MarketDetails/TokenIcon';
 import { useMarketStore } from '../../store/useMarketStore';
 import { agentService } from '../../api/agentService';
+import { useUIStore } from '../../store/useUIStore';
 
 
 
@@ -31,6 +33,7 @@ interface ChatInterfaceProps {
     onToggleMinimize?: () => void;
     isMinimized?: boolean;
     onNewChat?: () => void;
+    onStop?: () => void;
 }
 
 interface PlanStepItem {
@@ -56,7 +59,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onEditMessage,
     onRegenerateResponse,
     onFeedback,
-    currentSymbol
+
+    currentSymbol,
+    onStop
 }) => {
     const [inputValue, setInputValue] = useState('');
     const [inputLinks, setInputLinks] = useState<string[]>([]);
@@ -64,6 +69,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const [isPlanLoading, setIsPlanLoading] = useState(false);
     const [isPlanMinimized, setIsPlanMinimized] = useState(false);
     const [planActiveStep, setPlanActiveStep] = useState(0);
+    const [loadingDotCount, setLoadingDotCount] = useState(1);
     const planRequestSeqRef = useRef(0);
 
     const { markets, fetchMarkets, selectedMarket } = useMarketStore();
@@ -324,8 +330,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
 
     const { wallets } = useWallets();
-    const { getAccessToken } = usePrivy();
+    const { getAccessToken, authenticated } = usePrivy();
+    const { hasSession, isSessionChecking } = useUIStore();
     const userAddress = wallets[0]?.address;
+    const hasWalletConnection = Boolean(authenticated && userAddress);
+    const storedSessionKey = localStorage.getItem('osmo_session_key');
+    const storedSessionAddress = localStorage.getItem('osmo_session_address');
+    const hasStoredSessionForWallet = Boolean(
+        storedSessionKey &&
+        (
+            !storedSessionAddress ||
+            !userAddress ||
+            storedSessionAddress.toLowerCase() === userAddress.toLowerCase()
+        )
+    );
+    const hasValidSession = Boolean(hasSession || hasStoredSessionForWallet);
 
     // Model Selection State
     const [selectedModel, setSelectedModel] = useState('');
@@ -347,13 +366,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 const allModels = await usageService.getModels();
                 const enabledIds = Object.keys(enabledModels).filter(id => enabledModels[id]);
 
-                // Keep provider list strict: enabled models + Groq models only.
+                // Keep provider list strict: enabled models only.
                 let filtered = allModels.filter((m: any) =>
-                    enabledIds.includes(m.id) || m.id.startsWith('groq/')
+                    enabledIds.includes(m.id)
                 );
 
                 if (filtered.length === 0 && allModels.length > 0) {
-                    filtered = allModels.filter((m: any) => m.id.startsWith('groq/'));
+                    filtered = allModels.filter((m: any) => m.id.startsWith('nvidia/'));
                 }
 
                 if (filtered.length > 0) {
@@ -428,7 +447,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         timeframe: ['1D'],
         indicators: [] as string[],
         webObservation: true,
-        knowledgeEnabled: true,
         memoryEnabled: false,
         maxThinking: DEFAULT_MAX_THINKING
     });
@@ -538,7 +556,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ...(selectedModelId ? { planner_model_id: selectedModelId } : {}),
             reasoning_effort: reasoningEffort,
             web_observation_enabled: !!toolStates.webObservation,
-            knowledge_enabled: !!toolStates.knowledgeEnabled,
             memory_enabled: !!toolStates.memoryEnabled,
             strict_react: true,
             max_react_iterations: Number(toolStates.maxThinking || DEFAULT_MAX_THINKING),
@@ -579,7 +596,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     message: contentWithLinks || 'Plan based on current context.',
                     history,
                     tool_states: buildOutboundToolStates(),
-                    token: token || undefined
+                    token: token || undefined,
+                    wallet_address: userAddress
                 });
 
                 if (reqId !== planRequestSeqRef.current) return;
@@ -640,6 +658,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }, intervalMs);
         return () => clearInterval(timer);
     }, [isPlanLoading, isTyping, planPreview?.steps]);
+
+    useEffect(() => {
+        const hasActiveLoading = isPlanLoading || isTyping || isPreparingAttachments;
+        if (!hasActiveLoading) {
+            setLoadingDotCount(1);
+            return;
+        }
+        const timer = setInterval(() => {
+            setLoadingDotCount(prev => (prev % 3) + 1);
+        }, 420);
+        return () => clearInterval(timer);
+    }, [isPlanLoading, isTyping, isPreparingAttachments]);
 
     const handleSaveEdit = (msgId: string) => {
         if (onEditMessage && activeSessionId) {
@@ -710,6 +740,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         } catch {
             return url;
         }
+    };
+
+    const loadingDots = '.'.repeat(loadingDotCount);
+
+    const normalizeLoadingLabel = (raw: string) => {
+        const compact = raw
+            .replace(/_/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!compact) return '';
+        const withCapital = compact.charAt(0).toUpperCase() + compact.slice(1);
+        return /[.!?]$/.test(withCapital) ? withCapital : `${withCapital}.`;
+    };
+
+    const isPhaseActive = (statusRaw: string) => {
+        const status = statusRaw.trim().toLowerCase();
+        if (!status) return true;
+        return [
+            'running',
+            'in_progress',
+            'processing',
+            'pending',
+            'queued',
+            'started',
+            'streaming',
+            'active'
+        ].some(token => status.includes(token));
+    };
+
+    const getAssistantLoadingLabel = (msg: Message) => {
+        const runtimePhases = Array.isArray(msg.runtimePhases) ? msg.runtimePhases : [];
+        if (runtimePhases.length > 0) {
+            const runtimeActive = [...runtimePhases].reverse().find(phase => isPhaseActive(String(phase?.status || '')));
+            const runtimeLatest = runtimeActive || runtimePhases[runtimePhases.length - 1];
+            const runtimeLabel = normalizeLoadingLabel(
+                String(runtimeLatest?.detail || runtimeLatest?.name || '')
+            );
+            if (runtimeLabel) return runtimeLabel;
+        }
+
+        const thoughtObjects = (Array.isArray(msg.thoughts) ? msg.thoughts : [])
+            .filter((item): item is ThoughtStep => !!item && typeof item === 'object' && 'title' in item);
+        if (thoughtObjects.length > 0) {
+            const thoughtActive = [...thoughtObjects].reverse().find(item => isPhaseActive(String(item?.status || '')));
+            const thoughtLatest = thoughtActive || thoughtObjects[thoughtObjects.length - 1];
+            const thoughtLabel = normalizeLoadingLabel(
+                String(thoughtLatest?.title || thoughtLatest?.content || '')
+            );
+            if (thoughtLabel) return thoughtLabel;
+        }
+
+        const planSteps = planPreview?.steps || [];
+        if (planSteps.length > 0) {
+            const safeIndex = Math.max(0, Math.min(planActiveStep, planSteps.length - 1));
+            const planLabel = normalizeLoadingLabel(String(planSteps[safeIndex]?.label || ''));
+            if (planLabel) return planLabel;
+        }
+
+        if (isPlanLoading) return 'Preparing plan and runtime context.';
+        if (isTyping) return 'Running tools and composing final answer.';
+        return 'Loading.';
     };
 
     const linksInInput = useMemo(() => inputLinks, [inputLinks]);
@@ -921,6 +1012,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
 
     const handleSend = async () => {
+        if (!hasWalletConnection || !hasValidSession || isSessionChecking) return;
         if (!inputValue.trim() && attachments.length === 0 && inputLinks.length === 0) return;
         if (isPreparingAttachments) return;
 
@@ -967,6 +1059,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const inputFileAttachments = inputAttachmentItems.filter(item => !item.file.type.startsWith('image/'));
     const activeMarketLabel = (currentSymbol || selectedMarket?.symbol || '').replace(/-/g, '/');
     const selectedTimeframes = Array.isArray(toolStates.timeframe) ? toolStates.timeframe : [];
+    const hasDraftContent = Boolean(inputValue.trim() || attachments.length > 0 || inputLinks.length > 0);
+    const sendBlockedByPrerequisite = Boolean(!hasWalletConnection || !hasValidSession || isSessionChecking);
+    const isSendDisabled = !isTyping && (isPreparingAttachments || sendBlockedByPrerequisite || !hasDraftContent);
+    const sendButtonTitle = isTyping
+        ? 'Stop generation'
+        : isSessionChecking
+            ? 'Checking session key...'
+            : !hasWalletConnection
+                ? 'Connect wallet first'
+                : !hasValidSession
+                    ? 'Create session key first'
+                    : 'Send message';
 
 
 
@@ -975,7 +1079,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {/* Header Removed */}
 
             {/* Center Content */}
-                <div className={styles.centerContent}>
+            <div className={styles.centerContent}>
 
                 {/* Greeting - Only show if no messages */}
                 {messages.length === 0 && (
@@ -994,484 +1098,551 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         {messages.map((msg) => (
                             (() => {
                                 const thoughtsList = Array.isArray(msg.thoughts) ? msg.thoughts : [];
-                                const hasStructuredThoughts = thoughtsList.some(item => {
-                                    if (!item || typeof item !== 'object') return false;
-                                    const type = String((item as any).type || 'text');
-                                    return type === 'tool' || type === 'code' || type === 'browsing';
-                                });
-                                const shouldShowThoughtBlock = thoughtsList.length > 0 && (hasStructuredThoughts || !!msg.isThinking);
+                                const shouldShowThoughtBlock = thoughtsList.length > 0;
+                                const assistantLoadingLabel =
+                                    msg.role === 'assistant' ? getAssistantLoadingLabel(msg) : 'Loading.';
                                 return (
-                            <div key={msg.id} className={`${styles.messageItem} ${msg.role === 'user' ? styles.user : styles.assistant}`}>
-                                {msg.role === 'user' ? (
-                                    <div className={`${styles.userMessageGroup} ${msg.attachments && msg.attachments.length > 0 ? styles.userMessageWithAttachments : ''}`}>
-                                        {/* Edit Mode */}
-                                        {editingMessageId === msg.id ? (
-                                            <div className={styles.editMessageContainer}>
-                                                <textarea
-                                                    className={styles.editInput}
-                                                    value={editValue}
-                                                    onChange={(e) => setEditValue(e.target.value)}
-                                                    autoFocus
-                                                    spellCheck={false}
-                                                    autoComplete="off"
-                                                    autoCorrect="off"
-                                                />
-                                                <div className={styles.editFooter}>
-                                                    <div className={styles.editInfo}>
-                                                        <span style={{ border: '1px solid #3A2530', width: '14px', height: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: '10px' }}>i</span>
-                                                        Editing this message will create a new conversation branch.
+                                    <div key={msg.id} className={`${styles.messageItem} ${msg.role === 'user' ? styles.user : styles.assistant}`}>
+                                        {msg.role === 'user' ? (
+                                            <div className={`${styles.userMessageGroup} ${msg.attachments && msg.attachments.length > 0 ? styles.userMessageWithAttachments : ''}`}>
+                                                {/* Edit Mode */}
+                                                {editingMessageId === msg.id ? (
+                                                    <div className={styles.editMessageContainer}>
+                                                        <textarea
+                                                            className={styles.editInput}
+                                                            value={editValue}
+                                                            onChange={(e) => setEditValue(e.target.value)}
+                                                            autoFocus
+                                                            spellCheck={false}
+                                                            autoComplete="off"
+                                                            autoCorrect="off"
+                                                        />
+                                                        <div className={styles.editFooter}>
+                                                            <div className={styles.editInfo}>
+                                                                <span style={{ border: '1px solid #3A2530', width: '14px', height: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: '10px' }}>i</span>
+                                                                Editing this message will create a new conversation branch.
+                                                            </div>
+                                                            <div className={styles.editButtons}>
+                                                                <button className={styles.editCancelBtn} onClick={handleCancelEdit}>Cancel</button>
+                                                                <button className={styles.editSaveBtn} onClick={() => handleSaveEdit(msg.id)}>Save</button>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className={styles.editButtons}>
-                                                        <button className={styles.editCancelBtn} onClick={handleCancelEdit}>Cancel</button>
-                                                        <button className={styles.editSaveBtn} onClick={() => handleSaveEdit(msg.id)}>Save</button>
+                                                ) : (
+                                                    /* Normal Display Mode */
+                                                    <div className={styles.userBubbleWrapper}>
+                                                        {msg.attachments && msg.attachments.length > 0 && (
+                                                            <div className={styles.userAttachments}>
+                                                                {msg.attachments.map((att, idx) => (
+                                                                    isImageAttachment(att) ? (
+                                                                        <div key={`att-img-${idx}`} className={styles.userImageCard}>
+                                                                            <img
+                                                                                src={att.data}
+                                                                                alt={att.name}
+                                                                                className={styles.userAttachmentImage}
+                                                                                onClick={() => openAttachmentImage(att)}
+                                                                            />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div key={`att-file-${idx}`} className={styles.userFileCard}>
+                                                                            <div className={styles.userFileIcon}>
+                                                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                                                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                                                                </svg>
+                                                                            </div>
+                                                                            <div className={styles.userFileMeta}>
+                                                                                <div className={styles.userFileName}>{att.name}</div>
+                                                                                <div className={styles.userFileType}>{formatAttachmentType(att.type, att.name)}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    )
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <div className={`${styles.bubble} ${styles.userBubble}`}>
+                                                            {msg.content}
+                                                        </div>
+
+                                                        {/* Action Bar (Time + Icons) */}
+                                                        <div className={styles.userActionBar}>
+                                                            {msg.timestamp && (
+                                                                <span className={styles.messageTime}>{formatTime(msg.timestamp)}</span>
+                                                            )}
+
+                                                            {/* Regenerate */}
+                                                            <button className={styles.userActionBtn} title="Regenerate" onClick={() => handleRegenerate(msg.content)}>
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                    <path d="M23 4v6h-6" />
+                                                                    <path d="M1 20v-6h6" />
+                                                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                                                                </svg>
+                                                            </button>
+
+                                                            {/* Edit */}
+                                                            <button className={styles.userActionBtn} title="Edit Prompt" onClick={() => handleEditClick(msg)}>
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                                </svg>
+                                                            </button>
+
+                                                            {/* Copy */}
+                                                            <button className={styles.userActionBtn} title="Copy" onClick={() => handleCopy(msg.content, msg.id)}>
+                                                                {copiedId === msg.id ? (
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <polyline points="20 6 9 17 4 12" />
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                                                    </svg>
+                                                                )}
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                )}
                                             </div>
                                         ) : (
-                                            /* Normal Display Mode */
-                                            <div className={styles.userBubbleWrapper}>
-                                                {msg.attachments && msg.attachments.length > 0 && (
-                                                    <div className={styles.userAttachments}>
-                                                        {msg.attachments.map((att, idx) => (
-                                                            isImageAttachment(att) ? (
-                                                                <div key={`att-img-${idx}`} className={styles.userImageCard}>
-                                                                    <img
-                                                                        src={att.data}
-                                                                        alt={att.name}
-                                                                        className={styles.userAttachmentImage}
-                                                                        onClick={() => openAttachmentImage(att)}
-                                                                    />
-                                                                </div>
-                                                            ) : (
-                                                                <div key={`att-file-${idx}`} className={styles.userFileCard}>
-                                                                    <div className={styles.userFileIcon}>
-                                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                                                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <div className={`${styles.bubble} ${styles.assistantBubble}`}>
+                                                {/* Thinking Block */}
+                                                {shouldShowThoughtBlock && (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                                                        <div
+                                                            className={styles.thinkingBlock}
+                                                            onClick={() => toggleThoughts(msg.id)}
+                                                            style={expandedThoughtIds.has(msg.id) ? { borderRadius: '8px 8px 0 0', borderBottom: 'none' } : {}}
+                                                        >
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                {msg.isThinking ? (
+                                                                    <>
+                                                                        <svg className={styles.loadingSpinner} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                                                                         </svg>
-                                                                    </div>
-                                                                    <div className={styles.userFileMeta}>
-                                                                        <div className={styles.userFileName}>{att.name}</div>
-                                                                        <div className={styles.userFileType}>{formatAttachmentType(att.type, att.name)}</div>
-                                                                    </div>
-                                                                </div>
-                                                            )
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                <div className={`${styles.bubble} ${styles.userBubble}`}>
-                                                    {msg.content}
-                                                </div>
-
-                                                {/* Action Bar (Time + Icons) */}
-                                                <div className={styles.userActionBar}>
-                                                    {msg.timestamp && (
-                                                        <span className={styles.messageTime}>{formatTime(msg.timestamp)}</span>
-                                                    )}
-
-                                                    {/* Regenerate */}
-                                                    <button className={styles.userActionBtn} title="Regenerate" onClick={() => handleRegenerate(msg.content)}>
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <path d="M23 4v6h-6" />
-                                                            <path d="M1 20v-6h6" />
-                                                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                                                        </svg>
-                                                    </button>
-
-                                                    {/* Edit */}
-                                                    <button className={styles.userActionBtn} title="Edit Prompt" onClick={() => handleEditClick(msg)}>
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                                        </svg>
-                                                    </button>
-
-                                                    {/* Copy */}
-                                                    <button className={styles.userActionBtn} title="Copy" onClick={() => handleCopy(msg.content, msg.id)}>
-                                                        {copiedId === msg.id ? (
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <polyline points="20 6 9 17 4 12" />
+                                                                        <span style={{ color: '#A77590' }}>Thinking Process</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B2030" strokeWidth="2">
+                                                                            <path d="M12 2a10 10 0 1 0 10 10H12V2z" fill="#3B2030" />
+                                                                            <path d="M12 2a10 10 0 0 1 10 10" />
+                                                                            {/* Simple quarter circle or brain metaphor */}
+                                                                        </svg>
+                                                                        <span style={{ color: '#5B354C' }}>Thought Process</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                            <svg
+                                                                width="16"
+                                                                height="16"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke={msg.isThinking ? "#A77590" : "#3B2030"}
+                                                                strokeWidth="2"
+                                                                style={{ transform: expandedThoughtIds.has(msg.id) ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', marginLeft: 'auto' }}
+                                                            >
+                                                                <path d="M6 9l6 6 6-6" />
                                                             </svg>
-                                                        ) : (
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                                            </svg>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className={`${styles.bubble} ${styles.assistantBubble}`}>
-                                        {/* Thinking Block */}
-                                        {shouldShowThoughtBlock && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                                                <div
-                                                    className={styles.thinkingBlock}
-                                                    onClick={() => toggleThoughts(msg.id)}
-                                                    style={expandedThoughtIds.has(msg.id) ? { borderRadius: '8px 8px 0 0', borderBottom: 'none' } : {}}
-                                                >
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        {msg.isThinking ? (
-                                                            <>
-                                                                <svg className={styles.loadingSpinner} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                                                                </svg>
-                                                                <span style={{ color: '#A77590' }}>Thinking Process</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B2030" strokeWidth="2">
-                                                                    <path d="M12 2a10 10 0 1 0 10 10H12V2z" fill="#3B2030" />
-                                                                    <path d="M12 2a10 10 0 0 1 10 10" />
-                                                                    {/* Simple quarter circle or brain metaphor */}
-                                                                </svg>
-                                                                <span style={{ color: '#5B354C' }}>Thought Process</span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                    <svg
-                                                        width="16"
-                                                        height="16"
-                                                        viewBox="0 0 24 24"
-                                                        fill="none"
-                                                        stroke={msg.isThinking ? "#A77590" : "#3B2030"}
-                                                        strokeWidth="2"
-                                                        style={{ transform: expandedThoughtIds.has(msg.id) ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', marginLeft: 'auto' }}
-                                                    >
-                                                        <path d="M6 9l6 6 6-6" />
-                                                    </svg>
-                                                </div>
-                                                {expandedThoughtIds.has(msg.id) && (
-                                                    <div className={styles.thinkingContent}>
-                                                        {/* Tree Connector Line */}
-                                                        <div className={styles.stepTreeContainer}>
-                                                            <div className={styles.stepTreeLine}></div>
                                                         </div>
+                                                        {expandedThoughtIds.has(msg.id) && (
+                                                            <div className={styles.thinkingContent}>
+                                                                {/* Tree Connector Line */}
+                                                                <div className={styles.stepTreeContainer}>
+                                                                    <div className={styles.stepTreeLine}></div>
+                                                                </div>
 
-                                                        {thoughtsList.map((stepItem, idx) => {
-                                                            const stepKey = `${msg.id}-${idx}`;
-                                                            const isStepExpanded = expandedStepKeys.has(stepKey);
+                                                                {(msg.thoughts || []).map((stepItem, idx, arr) => {
+                                                                    const stepKey = `${msg.id}-${idx}`;
+                                                                    const isStepExpanded = expandedStepKeys.has(stepKey);
 
-                                                            // Handle legacy string steps or new object steps
-                                                            const isObject = typeof stepItem === 'object';
-                                                            const stepType = isObject ? stepItem.type : 'text';
-                                                            const stepTitle = isObject ? stepItem.title : String(stepItem);
-                                                            const stepContent = isObject ? String((stepItem as any).content || '') : '';
-                                                            const stepResults = isObject && stepItem.type === 'browsing' ? stepItem.results : undefined;
-                                                            const stepToolName = isObject ? (stepItem as any).toolName : '';
-                                                            const stepPhase = isObject ? String((stepItem as any).phase || '') : '';
-                                                            const stepStatus = isObject ? String((stepItem as any).status || '').toLowerCase() : '';
-                                                            const hasDetail =
-                                                                (stepType === 'browsing' && Array.isArray(stepResults) && stepResults.length > 0) ||
-                                                                (stepType === 'code' && !!stepContent.trim()) ||
-                                                                (stepType === 'tool' && !!stepContent.trim() && stepContent.trim() !== stepTitle.trim()) ||
-                                                                (stepType === 'text' && isObject && !!stepContent.trim() && stepContent.trim() !== stepTitle.trim());
+                                                                    // Handle legacy string steps or new object steps
+                                                                    const isObject = typeof stepItem === 'object';
+                                                                    const stepType = isObject ? stepItem.type : 'text';
+                                                                    const stepTitle = isObject ? stepItem.title : String(stepItem);
+                                                                    const stepContent = isObject ? String((stepItem as any).content || '') : '';
+                                                                    const stepResults = isObject && stepItem.type === 'browsing' ? stepItem.results : undefined;
+                                                                    const stepToolName = isObject ? (stepItem as any).toolName : '';
+                                                                    const stepPhase = isObject ? String((stepItem as any).phase || '') : '';
+                                                                    const stepStatus = isObject ? String((stepItem as any).status || '').toLowerCase() : '';
+                                                                    const stepMeta = isObject ? (stepItem as any).meta : {};
 
-                                                            return (
-                                                                <div key={idx} style={{ borderBottom: idx === thoughtsList.length - 1 ? 'none' : '1px solid #3A2530' }}>
-                                                                    <div
-                                                                        className={styles.thinkingStep}
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            if (hasDetail) {
-                                                                                toggleStep(msg.id, idx);
-                                                                            }
-                                                                        }}
-                                                                        role={hasDetail ? 'button' : undefined}
-                                                                        aria-expanded={hasDetail ? isStepExpanded : undefined}
-                                                                        style={{ borderBottom: 'none' }}
-                                                                    >
-                                                                        {stepType === 'browsing' ? (
-                                                                            <div className={styles.browsingHeader}>
-                                                                                <div className={styles.browsingLeft}>
-                                                                                    {/* Globe Icon for Browsing */}
-                                                                                    <div className={styles.stepIcon}>
-                                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                                            <circle cx="12" cy="12" r="10" />
-                                                                                            <path d="M2 12h20" />
-                                                                                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                                                                                        </svg>
-                                                                                    </div>
-                                                                                    <span>{stepTitle}</span>
+                                                                    // HITL: Check for trade proposal
+                                                                    if (stepToolName === 'place_order' && stepMeta?.status === 'proposal') {
+                                                                        const order = stepMeta.order || {};
+                                                                        return (
+                                                                            <div key={idx} style={{
+                                                                                border: '1px solid #3A2530',
+                                                                                borderRadius: 8,
+                                                                                padding: 12,
+                                                                                margin: '8px 0',
+                                                                                background: 'rgba(58, 37, 48, 0.3)'
+                                                                            }}>
+                                                                                <div style={{ fontWeight: 'bold', marginBottom: 8, color: '#FF9800' }}>Trade Proposal Requires Approval</div>
+                                                                                <div style={{ display: 'grid', gridTemplateColumns: 'min-content 1fr', gap: '4px 12px', fontSize: '0.9em', marginBottom: 12 }}>
+                                                                                    <span style={{ color: '#A77590' }}>Symbol:</span> <span>{order.symbol}</span>
+                                                                                    <span style={{ color: '#A77590' }}>Side:</span> <span style={{ textTransform: 'uppercase', color: order.side === 'buy' ? '#4CAF50' : '#F44336' }}>{order.side}</span>
+                                                                                    <span style={{ color: '#A77590' }}>Amount:</span> <span>${order.amount_usd}</span>
+                                                                                    <span style={{ color: '#A77590' }}>Lev:</span> <span>{order.leverage || 1}x</span>
                                                                                 </div>
-                                                                                <div className={styles.stepResultCount}>
-                                                                                    {stepResults ? `${stepResults.length} results` : ''}
-                                                                                    {hasDetail && (
-                                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                                                                                            <path d="M6 9l6 6 6-6" />
-                                                                                        </svg>
+                                                                                <div style={{ display: 'flex', gap: 8 }}>
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            const content = `Execute order for ${order.symbol} now.`;
+                                                                                            onSendMessage(content, getSelectedModelId() || '', [], {
+                                                                                                ...buildOutboundToolStates(),
+                                                                                                execution: true,
+                                                                                                policy_mode: 'auto_exec'
+                                                                                            });
+                                                                                        }}
+                                                                                        style={{
+                                                                                            background: '#4CAF50',
+                                                                                            color: 'white',
+                                                                                            border: 'none',
+                                                                                            padding: '6px 12px',
+                                                                                            borderRadius: 4,
+                                                                                            cursor: 'pointer',
+                                                                                            fontWeight: 500,
+                                                                                            fontSize: '0.9em'
+                                                                                        }}
+                                                                                    >
+                                                                                        Approve
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            onSendMessage("Cancel the proposed order.", getSelectedModelId() || '', [], buildOutboundToolStates());
+                                                                                        }}
+                                                                                        style={{
+                                                                                            background: 'transparent',
+                                                                                            color: '#F44336',
+                                                                                            border: '1px solid #F44336',
+                                                                                            padding: '6px 12px',
+                                                                                            borderRadius: 4,
+                                                                                            cursor: 'pointer',
+                                                                                            fontWeight: 500,
+                                                                                            fontSize: '0.9em'
+                                                                                        }}
+                                                                                    >
+                                                                                        Reject
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
+
+                                                                    const hasDetail =
+                                                                        (stepType === 'browsing' && Array.isArray(stepResults) && stepResults.length > 0) ||
+                                                                        (stepType === 'code' && !!stepContent.trim()) ||
+                                                                        (stepType === 'tool' && !!stepContent.trim() && stepContent.trim() !== stepTitle.trim()) ||
+                                                                        (stepType === 'text' && isObject && !!stepContent.trim() && stepContent.trim() !== stepTitle.trim());
+
+                                                                    return (
+                                                                        <div key={idx} style={{ borderBottom: idx === arr.length - 1 ? 'none' : '1px solid #3A2530' }}>
+                                                                            <div
+                                                                                className={styles.thinkingStep}
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (hasDetail) {
+                                                                                        toggleStep(msg.id, idx);
+                                                                                    }
+                                                                                }}
+                                                                                role={hasDetail ? 'button' : undefined}
+                                                                                aria-expanded={hasDetail ? isStepExpanded : undefined}
+                                                                                style={{ borderBottom: 'none' }}
+                                                                            >
+                                                                                {stepType === 'browsing' ? (
+                                                                                    <div className={styles.browsingHeader}>
+                                                                                        <div className={styles.browsingLeft}>
+                                                                                            {/* Globe Icon for Browsing */}
+                                                                                            <div className={styles.stepIcon}>
+                                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                                                    <circle cx="12" cy="12" r="10" />
+                                                                                                    <path d="M2 12h20" />
+                                                                                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                                                                                </svg>
+                                                                                            </div>
+                                                                                            <span>{stepTitle}</span>
+                                                                                        </div>
+                                                                                        <div className={styles.stepResultCount}>
+                                                                                            {stepResults ? `${stepResults.length} results` : ''}
+                                                                                            {hasDetail && (
+                                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                                                                                    <path d="M6 9l6 6 6-6" />
+                                                                                                </svg>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ) : stepType === 'code' ? (
+                                                                                    // Code Step
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+                                                                                        <div className={styles.stepIcon}>
+                                                                                            {/* Code Icon */}
+                                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B2030" strokeWidth="2">
+                                                                                                <polyline points="16 18 22 12 16 6" />
+                                                                                                <polyline points="8 6 2 12 8 18" />
+                                                                                            </svg>
+                                                                                        </div>
+                                                                                        <span style={{ flex: 1 }}>{stepTitle}</span>
+                                                                                        {hasDetail && (
+                                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                                                                                <path d="M6 9l6 6 6-6" />
+                                                                                            </svg>
+                                                                                        )}
+                                                                                    </div>
+                                                                                ) : stepType === 'tool' ? (
+                                                                                    <div className={styles.toolStepContent}>
+                                                                                        <div className={styles.stepIcon}>
+                                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A77590" strokeWidth="2">
+                                                                                                <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-3.2-3.2 2.4-2z" />
+                                                                                            </svg>
+                                                                                        </div>
+                                                                                        <span style={{ flex: 1 }}>{stepTitle}</span>
+                                                                                        <span className={`${styles.toolStepPill} ${stepStatus === 'error' ? styles.toolStepPillError : styles.toolStepPillOk}`}>
+                                                                                            {stepToolName || (stepPhase ? stepPhase.replace(/_/g, ' ') : 'tool')}
+                                                                                        </span>
+                                                                                        {hasDetail && (
+                                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                                                                                <path d="M6 9l6 6 6-6" />
+                                                                                            </svg>
+                                                                                        )}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    // Text Step
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+                                                                                        <div className={styles.stepIcon}>
+                                                                                            {/* Dot Icon for Text */}
+                                                                                            <div style={{ width: '6px', height: '6px', backgroundColor: '#3A2530', borderRadius: '50%' }}></div>
+                                                                                        </div>
+                                                                                        <span style={{ flex: 1 }}>{stepTitle}</span>
+                                                                                        {hasDetail && (
+                                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                                                                                                <path d="M6 9l6 6 6-6" />
+                                                                                            </svg>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {/* Expanded Content */}
+                                                                            {hasDetail && isStepExpanded && (
+                                                                                <div className={styles.stepDetail}>
+                                                                                    {stepType === 'browsing' && stepResults ? (
+                                                                                        <div className={styles.resultList}>
+                                                                                            {stepResults.map((result, rIdx) => (
+                                                                                                <a key={rIdx} href={result.url} className={styles.resultItem} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                                                                                                    <img src={result.icon || `https://www.google.com/s2/favicons?domain=${result.domain}`} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                                                                                                    <div className={styles.resultText}>
+                                                                                                        <div className={styles.resultTitle}>{result.title}</div>
+                                                                                                        <div className={styles.resultDomain}>{result.domain}</div>
+                                                                                                    </div>
+                                                                                                </a>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    ) : stepType === 'code' ? (
+                                                                                        <div style={{ marginLeft: '28px', marginTop: '8px', background: '#12000A', padding: '12px', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', color: '#A77590', border: '1px solid #3A2530' }}>
+                                                                                            <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{(typeof stepItem === 'object' && stepItem.content) || 'Writing code...'}</pre>
+                                                                                        </div>
+                                                                                    ) : stepType === 'tool' ? (
+                                                                                        <div className={styles.toolStepDetail}>
+                                                                                            {stepContent || 'Tool phase completed.'}
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div style={{ marginLeft: '28px' }}>
+                                                                                            {stepContent || stepTitle}
+                                                                                        </div>
                                                                                     )}
                                                                                 </div>
-                                                                            </div>
-                                                                        ) : stepType === 'code' ? (
-                                                                            // Code Step
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-                                                                                <div className={styles.stepIcon}>
-                                                                                    {/* Code Icon */}
-                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B2030" strokeWidth="2">
-                                                                                        <polyline points="16 18 22 12 16 6" />
-                                                                                        <polyline points="8 6 2 12 8 18" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <span style={{ flex: 1 }}>{stepTitle}</span>
-                                                                                {hasDetail && (
-                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                                                                                        <path d="M6 9l6 6 6-6" />
-                                                                                    </svg>
-                                                                                )}
-                                                                            </div>
-                                                                        ) : stepType === 'tool' ? (
-                                                                            <div className={styles.toolStepContent}>
-                                                                                <div className={styles.stepIcon}>
-                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A77590" strokeWidth="2">
-                                                                                        <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-3.2-3.2 2.4-2z" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <span style={{ flex: 1 }}>{stepTitle}</span>
-                                                                                <span className={`${styles.toolStepPill} ${stepStatus === 'error' ? styles.toolStepPillError : styles.toolStepPillOk}`}>
-                                                                                    {stepToolName || (stepPhase ? stepPhase.replace(/_/g, ' ') : 'tool')}
-                                                                                </span>
-                                                                                {hasDetail && (
-                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                                                                                        <path d="M6 9l6 6 6-6" />
-                                                                                    </svg>
-                                                                                )}
-                                                                            </div>
-                                                                        ) : (
-                                                                            // Text Step
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-                                                                                <div className={styles.stepIcon}>
-                                                                                    {/* Dot Icon for Text */}
-                                                                                    <div style={{ width: '6px', height: '6px', backgroundColor: '#3A2530', borderRadius: '50%' }}></div>
-                                                                                </div>
-                                                                                <span style={{ flex: 1 }}>{stepTitle}</span>
-                                                                                {hasDetail && (
-                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A2530" strokeWidth="2" style={{ transform: isStepExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                                                                                        <path d="M6 9l6 6 6-6" />
-                                                                                    </svg>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-
-                                                                    {/* Expanded Content */}
-                                                                    {hasDetail && isStepExpanded && (
-                                                                        <div className={styles.stepDetail}>
-                                                                            {stepType === 'browsing' && stepResults ? (
-                                                                                <div className={styles.resultList}>
-                                                                                    {stepResults.map((result, rIdx) => (
-                                                                                        <a key={rIdx} href={result.url} className={styles.resultItem} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                                                                                            <img src={result.icon || `https://www.google.com/s2/favicons?domain=${result.domain}`} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                                                                                            <div className={styles.resultText}>
-                                                                                                <div className={styles.resultTitle}>{result.title}</div>
-                                                                                                <div className={styles.resultDomain}>{result.domain}</div>
-                                                                                            </div>
-                                                                                        </a>
-                                                                                    ))}
-                                                                                </div>
-                                                                            ) : stepType === 'code' ? (
-                                                                                <div style={{ marginLeft: '28px', marginTop: '8px', background: '#12000A', padding: '12px', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', color: '#A77590', border: '1px solid #3A2530' }}>
-                                                                                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{(typeof stepItem === 'object' && stepItem.content) || 'Writing code...'}</pre>
-                                                                                </div>
-                                                                            ) : stepType === 'tool' ? (
-                                                                                <div className={styles.toolStepDetail}>
-                                                                                    {stepContent || 'Tool phase completed.'}
-                                                                                </div>
-                                                                              ) : (
-                                                                                  <div style={{ marginLeft: '28px' }}>
-                                                                                      {stepContent || stepTitle}
-                                                                                  </div>
-                                                                              )}
+                                                                            )}
                                                                         </div>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
                                                     </div>
+                                                )}
+
+                                                {/* Response Text */}
+                                                {msg.isThinking && (!msg.content || msg.content.trim().length === 0) && (
+                                                    <div className={styles.loadingRow} role="status" aria-live="polite">
+                                                        <div className={styles.loadingBars} aria-hidden="true">
+                                                            <span className={styles.loadingBar}></span>
+                                                            <span className={styles.loadingBar}></span>
+                                                            <span className={styles.loadingBar}></span>
+                                                            <span className={styles.loadingBar}></span>
+                                                        </div>
+                                                        <span className={styles.loadingText}>
+                                                            {assistantLoadingLabel}
+                                                            <span className={styles.loadingDots}>{loadingDots}</span>
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className={styles.responseContent}>
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={{
+                                                            text: ({ node, children }) => {
+                                                                const parentType = (node as any)?.parent?.type;
+                                                                if (parentType === 'link' || parentType === 'code' || parentType === 'inlineCode') {
+                                                                    return <>{children}</>;
+                                                                }
+                                                                const text = typeof children === 'string' ? children : String(children);
+                                                                return <>{renderTextWithTokens(text)}</>;
+                                                            },
+                                                            a: ({ href, children, ...props }) => {
+                                                                const domain = getLinkDomain(href);
+                                                                const showIcon = !!domain && (href?.startsWith('http://') || href?.startsWith('https://'));
+                                                                const favicon = showIcon ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : '';
+                                                                return (
+                                                                    <a
+                                                                        className={styles.linkWithIcon}
+                                                                        href={href}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        {...props}
+                                                                    >
+                                                                        {showIcon && (
+                                                                            <img
+                                                                                className={styles.linkIcon}
+                                                                                src={favicon}
+                                                                                alt=""
+                                                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                                            />
+                                                                        )}
+                                                                        <span className={styles.linkText}>{children}</span>
+                                                                    </a>
+                                                                );
+                                                            },
+                                                            pre: ({ children }) => (
+                                                                <pre className={styles.codeBlock}>{children}</pre>
+                                                            ),
+                                                            code: ({ className, children }) => (
+                                                                className
+                                                                    ? <code className={className}>{children}</code>
+                                                                    : <code className={styles.inlineCode}>{children}</code>
+                                                            ),
+                                                            table: ({ children }) => (
+                                                                <div className={styles.tableWrapper}>
+                                                                    <table className={styles.markdownTable}>{children}</table>
+                                                                </div>
+                                                            ),
+                                                            th: ({ children }) => (
+                                                                <th className={styles.tableHeader}>{children}</th>
+                                                            ),
+                                                            td: ({ children }) => (
+                                                                <td className={styles.tableCell}>{children}</td>
+                                                            ),
+                                                            blockquote: ({ children }) => (
+                                                                <blockquote className={styles.blockquote}>{children}</blockquote>
+                                                            )
+                                                        }}
+                                                    >
+                                                        {msg.content}
+                                                    </ReactMarkdown>
+                                                </div>
+
+                                                {/* Artifact Card (if present) */}
+                                                {msg.artifact && (
+                                                    <div className={styles.artifactCard} onClick={() => onOpenChart && onOpenChart(msg.artifact?.data?.symbol)}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div className={styles.artifactIcon}>
+                                                                {msg.artifact.type === 'chart' ? (
+                                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <line x1="18" y1="20" x2="18" y2="10" />
+                                                                        <line x1="12" y1="20" x2="12" y2="4" />
+                                                                        <line x1="6" y1="20" x2="6" y2="14" />
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                                        <polyline points="14 2 14 8 20 8" />
+                                                                    </svg>
+                                                                )}
+                                                            </div>
+                                                            <div className={styles.artifactInfo}>
+                                                                <span className={styles.artifactTitle}>
+                                                                    {msg.artifact.type === 'chart' && currentSymbol
+                                                                        ? `${currentSymbol} Analysis Chart`
+                                                                        : msg.artifact.title}
+                                                                </span>
+                                                                <span className={styles.artifactType}>Interactive {msg.artifact.type === 'chart' ? 'Chart' : 'Artifact'}</span>
+                                                            </div>
+                                                        </div>
+                                                        {/* Open Icon */}
+                                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A77590" strokeWidth="2">
+                                                            <path d="M15 3h6v6" />
+                                                            <path d="M10 14L21 3" />
+                                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                                        </svg>
+                                                    </div>
+                                                )}
+
+                                                {!msg.isThinking && (
+                                                    <>
+                                                        {/* Action Buttons */}
+                                                        <div className={styles.actionRow}>
+                                                            <button
+                                                                className={styles.actionBtn}
+                                                                title="Copy"
+                                                                onClick={() => handleCopy(msg.content, msg.id)}
+                                                            >
+                                                                {copiedId === msg.id ? (
+                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <polyline points="20 6 9 17 4 12" />
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                                                    </svg>
+                                                                )}
+                                                            </button>
+                                                            <button
+                                                                className={`${styles.actionBtn} ${msg.feedback === 'like' ? styles.activeFeedback : ''}`}
+                                                                title="Good response"
+                                                                onClick={() => onFeedback && onFeedback(msg.id, msg.feedback === 'like' ? null : 'like')}
+                                                            >
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={msg.feedback === 'like' ? "#3B2030" : "currentColor"} strokeWidth="2">
+                                                                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                className={`${styles.actionBtn} ${msg.feedback === 'dislike' ? styles.activeFeedback : ''}`}
+                                                                title="Bad response"
+                                                                onClick={() => onFeedback && onFeedback(msg.id, msg.feedback === 'dislike' ? null : 'dislike')}
+                                                            >
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={msg.feedback === 'dislike' ? "#FF4B4B" : "currentColor"} strokeWidth="2">
+                                                                    <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2 0 0 1-2.33 2H17" />
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                className={styles.actionBtn}
+                                                                title="Regenerate"
+                                                                onClick={() => handleAssistantRegenerate(msg.id)}
+                                                            >
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                    <path d="M1 4v6h6" />
+                                                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Assistant Logo (Star) */}
+                                                        <div className={styles.assistantLogo}>
+                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M12 2L15.09 9.26L22 12L15.09 14.74L12 22L8.91 14.74L2 12L8.91 9.26L12 2Z" />
+                                                            </svg>
+                                                        </div>
+                                                    </>
                                                 )}
                                             </div>
                                         )}
-
-                                        {/* Response Text */}
-                                        {msg.isThinking && (!msg.content || msg.content.trim().length === 0) && (
-                                            <div className={styles.loadingRow}>
-                                                <div className={styles.loadingBars}>
-                                                    <span className={styles.loadingBar}></span>
-                                                    <span className={styles.loadingBar}></span>
-                                                    <span className={styles.loadingBar}></span>
-                                                    <span className={styles.loadingBar}></span>
-                                                </div>
-                                                <span className={styles.loadingText}>Loading</span>
-                                            </div>
-                                        )}
-                                        <div className={styles.responseContent}>
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                components={{
-                                                    text: ({ node, children }) => {
-                                                        const parentType = (node as any)?.parent?.type;
-                                                        if (parentType === 'link' || parentType === 'code' || parentType === 'inlineCode') {
-                                                            return <>{children}</>;
-                                                        }
-                                                        const text = typeof children === 'string' ? children : String(children);
-                                                        return <>{renderTextWithTokens(text)}</>;
-                                                    },
-                                                    a: ({ href, children, ...props }) => {
-                                                        const domain = getLinkDomain(href);
-                                                        const showIcon = !!domain && (href?.startsWith('http://') || href?.startsWith('https://'));
-                                                        const favicon = showIcon ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : '';
-                                                        return (
-                                                            <a
-                                                                className={styles.linkWithIcon}
-                                                                href={href}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                {...props}
-                                                            >
-                                                                {showIcon && (
-                                                                    <img
-                                                                        className={styles.linkIcon}
-                                                                        src={favicon}
-                                                                        alt=""
-                                                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                                                    />
-                                                                )}
-                                                                <span className={styles.linkText}>{children}</span>
-                                                            </a>
-                                                        );
-                                                    },
-                                                    pre: ({ children }) => (
-                                                        <pre className={styles.codeBlock}>{children}</pre>
-                                                    ),
-                                                    code: ({ className, children }) => (
-                                                        className
-                                                            ? <code className={className}>{children}</code>
-                                                            : <code className={styles.inlineCode}>{children}</code>
-                                                    ),
-                                                    table: ({ children }) => (
-                                                        <div className={styles.tableWrapper}>
-                                                            <table className={styles.markdownTable}>{children}</table>
-                                                        </div>
-                                                    ),
-                                                    th: ({ children }) => (
-                                                        <th className={styles.tableHeader}>{children}</th>
-                                                    ),
-                                                    td: ({ children }) => (
-                                                        <td className={styles.tableCell}>{children}</td>
-                                                    ),
-                                                    blockquote: ({ children }) => (
-                                                        <blockquote className={styles.blockquote}>{children}</blockquote>
-                                                    )
-                                                }}
-                                            >
-                                                {msg.content}
-                                            </ReactMarkdown>
-                                        </div>
-
-                                        {/* Artifact Card (if present) */}
-                                        {msg.artifact && (
-                                            <div className={styles.artifactCard} onClick={() => onOpenChart && onOpenChart(msg.artifact?.data?.symbol)}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                    <div className={styles.artifactIcon}>
-                                                        {msg.artifact.type === 'chart' ? (
-                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <line x1="18" y1="20" x2="18" y2="10" />
-                                                                <line x1="12" y1="20" x2="12" y2="4" />
-                                                                <line x1="6" y1="20" x2="6" y2="14" />
-                                                            </svg>
-                                                        ) : (
-                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                                                <polyline points="14 2 14 8 20 8" />
-                                                            </svg>
-                                                        )}
-                                                    </div>
-                                                    <div className={styles.artifactInfo}>
-                                                        <span className={styles.artifactTitle}>
-                                                            {msg.artifact.type === 'chart' && currentSymbol
-                                                                ? `${currentSymbol} Analysis Chart`
-                                                                : msg.artifact.title}
-                                                        </span>
-                                                        <span className={styles.artifactType}>Interactive {msg.artifact.type === 'chart' ? 'Chart' : 'Artifact'}</span>
-                                                    </div>
-                                                </div>
-                                                {/* Open Icon */}
-                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A77590" strokeWidth="2">
-                                                    <path d="M15 3h6v6" />
-                                                    <path d="M10 14L21 3" />
-                                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                                </svg>
-                                            </div>
-                                        )}
-
-                                        {!msg.isThinking && (
-                                            <>
-                                                {/* Action Buttons */}
-                                                <div className={styles.actionRow}>
-                                                    <button
-                                                        className={styles.actionBtn}
-                                                        title="Copy"
-                                                        onClick={() => handleCopy(msg.content, msg.id)}
-                                                    >
-                                                        {copiedId === msg.id ? (
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <polyline points="20 6 9 17 4 12" />
-                                                            </svg>
-                                                        ) : (
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                                            </svg>
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        className={`${styles.actionBtn} ${msg.feedback === 'like' ? styles.activeFeedback : ''}`}
-                                                        title="Good response"
-                                                        onClick={() => onFeedback && onFeedback(msg.id, msg.feedback === 'like' ? null : 'like')}
-                                                    >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={msg.feedback === 'like' ? "#3B2030" : "currentColor"} strokeWidth="2">
-                                                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        className={`${styles.actionBtn} ${msg.feedback === 'dislike' ? styles.activeFeedback : ''}`}
-                                                        title="Bad response"
-                                                        onClick={() => onFeedback && onFeedback(msg.id, msg.feedback === 'dislike' ? null : 'dislike')}
-                                                    >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={msg.feedback === 'dislike' ? "#FF4B4B" : "currentColor"} strokeWidth="2">
-                                                            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2 0 0 1-2.33 2H17" />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        className={styles.actionBtn}
-                                                        title="Regenerate"
-                                                        onClick={() => handleAssistantRegenerate(msg.id)}
-                                                    >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <path d="M1 4v6h6" />
-                                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-
-                                                {/* Assistant Logo (Star) */}
-                                                <div className={styles.assistantLogo}>
-                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M12 2L15.09 9.26L22 12L15.09 14.74L12 22L8.91 14.74L2 12L8.91 9.26L12 2Z" />
-                                                    </svg>
-                                                </div>
-                                            </>
-                                        )}
                                     </div>
-                                )}
-                            </div>
                                 );
                             })()
                         ))}
-                          {isTyping && null}
+                        {isTyping && null}
                         <div ref={messagesEndRef} />
                     </div>
                 )}
@@ -1514,7 +1685,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 return (
                                                     <div className={styles.aiPlanStep}>
                                                         <span className={`${styles.aiPlanStatus} ${status === 'running' ? styles.aiPlanStatusRunning : styles.aiPlanStatusDone}`}>
-                                                            {status === 'running' ? <span className={styles.aiPlanSpinner}></span> : <span className={styles.aiPlanCheck}>✓</span>}
+                                                            {status === 'running' ? <span className={styles.aiPlanSpinner}></span> : <span className={styles.aiPlanCheck}>âœ“</span>}
                                                         </span>
                                                         <span className={styles.aiPlanStepIndex}>{activeIndex + 1}.</span>
                                                         <div className={styles.aiPlanStepBody}>
@@ -1542,7 +1713,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                             {status === 'running' ? (
                                                                 <span className={styles.aiPlanSpinner}></span>
                                                             ) : status === 'done' ? (
-                                                                <span className={styles.aiPlanCheck}>✓</span>
+                                                                <span className={styles.aiPlanCheck}>âœ“</span>
                                                             ) : (
                                                                 <span className={styles.aiPlanDot}></span>
                                                             )}
@@ -1566,7 +1737,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     planActiveStep,
                                                     Math.max(planPreview.steps.length - 1, 0)
                                                 );
-                                                return `Task ${activeIndex + 1} of ${planPreview.steps.length} · Scroll to see all`;
+                                                return `Task ${activeIndex + 1} of ${planPreview.steps.length} Â· Scroll to see all`;
                                             })()}
                                         </div>
                                     )}
@@ -1600,7 +1771,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         </svg>
                                         <span className={styles.linkChipText}>{getLinkLabel(link)}</span>
                                         <button className={styles.linkChipRemove} type="button" onClick={() => removeLinkFromInput(link)}>
-                                            ×
+                                            Ã—
                                         </button>
                                     </div>
                                 ))}
@@ -1618,7 +1789,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             type="button"
                                             onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
                                         >
-                                            ×
+                                            Ã—
                                         </button>
                                     </div>
                                 ))}
@@ -1645,7 +1816,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     type="button"
                                                     onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
                                                 >
-                                                    ×
+                                                    Ã—
                                                 </button>
                                             </div>
                                         ) : (
@@ -1665,7 +1836,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     type="button"
                                                     onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
                                                 >
-                                                    ×
+                                                    Ã—
                                                 </button>
                                             </div>
                                         )}
@@ -1673,7 +1844,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 ))}
                             </div>
                         )}
-                        {(activeMarketLabel || toolStates.indicators.length > 0 || selectedTimeframes.length > 0 || toolStates.webObservation || toolStates.knowledgeEnabled || toolStates.memoryEnabled || toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
+                        {(activeMarketLabel || toolStates.indicators.length > 0 || selectedTimeframes.length > 0 || toolStates.webObservation || toolStates.memoryEnabled || toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
                             <div className={styles.contextChipsRow}>
                                 {activeMarketLabel && (
                                     <button
@@ -1700,7 +1871,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 }));
                                             }}
                                         >
-                                            ×
+                                            Ã—
                                         </button>
                                     </div>
                                 ))}
@@ -1718,7 +1889,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 }));
                                             }}
                                         >
-                                            ×
+                                            Ã—
                                         </button>
                                     </div>
                                 ))}
@@ -1726,12 +1897,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     <div className={styles.contextChip}>
                                         <span className={styles.contextChipKey}>Web</span>
                                         <span className={styles.contextChipValue}>Search On</span>
-                                    </div>
-                                )}
-                                {toolStates.knowledgeEnabled && (
-                                    <div className={styles.contextChip}>
-                                        <span className={styles.contextChipKey}>Knowledge</span>
-                                        <span className={styles.contextChipValue}>RAG On</span>
                                     </div>
                                 )}
                                 {toolStates.memoryEnabled && (
@@ -1749,14 +1914,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             </div>
                         )}
                         {isPreparingAttachments && (
-                            <div className={styles.loadingRow}>
-                                <span className={styles.loadingBars}>
+                            <div className={styles.loadingRow} role="status" aria-live="polite">
+                                <span className={styles.loadingBars} aria-hidden="true">
                                     <span className={styles.loadingBar}></span>
                                     <span className={styles.loadingBar}></span>
                                     <span className={styles.loadingBar}></span>
                                     <span className={styles.loadingBar}></span>
                                 </span>
-                                <span className={styles.loadingText}>Uploading attachments...</span>
+                                <span className={styles.loadingText}>
+                                    Uploading attachments
+                                    <span className={styles.loadingDots}>{loadingDots}</span>
+                                </span>
                             </div>
                         )}
                         <textarea
@@ -1832,23 +2000,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             </div>
 
                                             {/* 3. Indicators (Nested Page) */}
-                                            <div className={styles.toolItem} onClick={() => setActiveToolView('indicators')}>
+                                            <div className={`${styles.toolItem} ${styles.toolItemCompact}`} onClick={() => setActiveToolView('indicators')}>
                                                 <div className={styles.toolIconWrapper}>
                                                     <img src="/src/assets/Icons/Indikator.png" alt="Indicators" width={18} height={18} />
                                                 </div>
                                                 <span>Indicators</span>
-                                                <span className={styles.toolValue}>{toolStates.indicators.length > 0 ? `${toolStates.indicators.length} Active` : ''}</span>
-                                                <span className={styles.toolArrow}>›</span>
+                                                <span className={styles.toolValue}>{toolStates.indicators.length > 0 ? `${toolStates.indicators.length}` : ''}</span>
+                                                <span className={styles.toolArrow}>{'>'}</span>
                                             </div>
 
                                             {/* 4. Timeframe */}
-                                            <div className={styles.toolItem} onClick={() => setActiveToolView('timeframe')}>
+                                            <div className={`${styles.toolItem} ${styles.toolItemCompact}`} onClick={() => setActiveToolView('timeframe')}>
                                                 <div className={styles.toolIconWrapper}>
                                                     <img src="/src/assets/Icons/Time frame.png" alt="Timeframe" width={18} height={18} />
                                                 </div>
                                                 <span>Timeframe</span>
-                                                <span className={styles.toolValue}>{Array.isArray(toolStates.timeframe) && toolStates.timeframe.length > 0 ? `${toolStates.timeframe.length} Active` : ''}</span>
-                                                <span className={styles.toolArrow}>›</span>
+                                                <span className={styles.toolValue}>{Array.isArray(toolStates.timeframe) && toolStates.timeframe.length > 0 ? `${toolStates.timeframe.length}` : ''}</span>
+                                                <span className={styles.toolArrow}>{'>'}</span>
                                             </div>
 
                                             {/* 5. Write Permission */}
@@ -1870,15 +2038,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             </div>
 
                                             {/* 7. More */}
-                                            <div className={styles.toolItem} onClick={() => setActiveToolView('more')}>
+                                            <div className={`${styles.toolItem} ${styles.toolItemCompact}`} onClick={() => setActiveToolView('more')}>
                                                 <div className={styles.toolIconWrapper}>
-                                                    <img src={brainIcon} alt="More" width={18} height={18} />
+                                                    <img src={gearIcon} alt="More" width={18} height={18} />
                                                 </div>
                                                 <span>More</span>
-                                                <span className={styles.toolValue}>
-                                                    {`${toolStates.webObservation ? 'Web On' : 'Web Off'} | ${toolStates.knowledgeEnabled ? 'Rag On' : 'Rag Off'} | ${toolStates.memoryEnabled ? 'Mem On' : 'Mem Off'} | Max ${toolStates.maxThinking}`}
-                                                </span>
-                                                <span className={styles.toolArrow}>â€º</span>
+                                                <span className={styles.toolArrow}>{'>'}</span>
                                             </div>
                                         </div>
                                     ) : activeToolView === 'indicators' ? (
@@ -1886,7 +2051,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         <div className={styles.toolSubPage}>
                                             <div className={styles.toolPageHeader}>
                                                 <button className={styles.backButton} onClick={() => setActiveToolView('main')}>
-                                                    ‹
+                                                    {'<'}
                                                 </button>
                                                 <span>Select Indicators</span>
                                             </div>
@@ -1929,7 +2094,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         <div className={styles.toolSubPage}>
                                             <div className={styles.toolPageHeader}>
                                                 <button className={styles.backButton} onClick={() => setActiveToolView('main')}>
-                                                    ‹
+                                                    {'<'}
                                                 </button>
                                                 <span>Select Timeframe</span>
                                             </div>
@@ -1964,7 +2129,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         <div className={styles.toolSubPage}>
                                             <div className={styles.toolPageHeader}>
                                                 <button className={styles.backButton} onClick={() => setActiveToolView('main')}>
-                                                    â€¹
+                                                    {'<'}
                                                 </button>
                                                 <span>More Settings</span>
                                             </div>
@@ -1991,23 +2156,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     <div className={`${styles.toggleSwitch} ${toolStates.memoryEnabled ? styles.checked : ''}`}></div>
                                                 </div>
 
-                                                <div
-                                                    className={styles.toolItem}
-                                                    onClick={() => setToolStates(prev => ({ ...prev, knowledgeEnabled: !prev.knowledgeEnabled }))}
-                                                >
-                                                    <div className={styles.toolIconWrapper}>
-                                                        <img src={brainIcon} alt="Knowledge" width={18} height={18} />
-                                                    </div>
-                                                    <span>Knowledge (RAG)</span>
-                                                    <div className={`${styles.toggleSwitch} ${toolStates.knowledgeEnabled ? styles.checked : ''}`}></div>
-                                                </div>
-
-                                                <div className={styles.toolItem}>
+                                                <div className={`${styles.toolItem} ${styles.toolItemCompact}`}>
                                                     <div className={styles.toolIconWrapper}>
                                                         <img src={brainIcon} alt="Max Thinking" width={18} height={18} />
                                                     </div>
                                                     <span>Max Thinking</span>
-                                                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div className={styles.maxThinkingControl}>
                                                         <button
                                                             type="button"
                                                             onClick={(e) => {
@@ -2017,19 +2171,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                     maxThinking: Math.max(MIN_MAX_THINKING, Number(prev.maxThinking || DEFAULT_MAX_THINKING) - 1)
                                                                 }));
                                                             }}
-                                                            style={{
-                                                                width: 24,
-                                                                height: 24,
-                                                                borderRadius: 6,
-                                                                border: '1px solid #3A2530',
-                                                                background: '#12000A',
-                                                                color: '#FFE1F2',
-                                                                cursor: 'pointer'
-                                                            }}
+                                                            className={styles.maxThinkingStepButton}
                                                         >
                                                             -
                                                         </button>
-                                                        <span className={styles.toolValue} style={{ minWidth: 34, textAlign: 'center' }}>
+                                                        <span className={styles.maxThinkingValue}>
                                                             {toolStates.maxThinking}
                                                         </span>
                                                         <button
@@ -2041,15 +2187,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                     maxThinking: Math.min(MAX_MAX_THINKING, Number(prev.maxThinking || DEFAULT_MAX_THINKING) + 1)
                                                                 }));
                                                             }}
-                                                            style={{
-                                                                width: 24,
-                                                                height: 24,
-                                                                borderRadius: 6,
-                                                                border: '1px solid #3A2530',
-                                                                background: '#12000A',
-                                                                color: '#FFE1F2',
-                                                                cursor: 'pointer'
-                                                            }}
+                                                            className={styles.maxThinkingStepButton}
                                                         >
                                                             +
                                                         </button>
@@ -2122,7 +2260,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     style={{ background: selectedModel === model.name ? '#1A0D15' : 'transparent' }}
                                                 >
                                                     <span>{model.name}</span>
-                                                    {selectedModel === model.name && <span style={{ color: '#3B2030', fontSize: '12px' }}>✓</span>}
+                                                    {selectedModel === model.name && <span style={{ color: '#3B2030', fontSize: '12px' }}>âœ“</span>}
                                                 </div>
                                             </div>
                                         </div>
@@ -2180,11 +2318,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                         <div className={styles.sendSection}>
                             <button
-                                className={`${styles.sendAction} ${inputValue.trim() || attachments.length > 0 || inputLinks.length > 0 ? styles.active : ''}`}
-                                onClick={handleSend}
-                                disabled={isPreparingAttachments || !(inputValue.trim() || attachments.length > 0 || inputLinks.length > 0)}
+                                className={`${styles.sendAction} ${isTyping || (hasDraftContent && !sendBlockedByPrerequisite && !isPreparingAttachments) ? styles.active : ''}`}
+                                onClick={isTyping ? onStop : handleSend}
+                                disabled={isSendDisabled}
+                                title={sendButtonTitle}
                             >
-                                <img src="/src/assets/Arrow.png" alt="Send" className={styles.arrowIcon} width={18} height={18} />
+                                {isTyping ? (
+                                    <div style={{ width: 10, height: 10, background: '#FFE1F2', borderRadius: 2 }}></div>
+                                ) : (
+                                    <img src="/src/assets/Arrow.png" alt="Send" className={styles.arrowIcon} width={18} height={18} />
+                                )}
                             </button>
                         </div>
                     </div>

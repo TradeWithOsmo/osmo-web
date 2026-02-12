@@ -1,5 +1,11 @@
 const BACKEND_URL = 'http://localhost:8000';
 
+const toMillis = (ts) => {
+  const n = Number(ts || 0);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return n < 1_000_000_000_000 ? n * 1000 : n;
+};
+
 export const getBars = async (
   symbolInfo,
   resolution,
@@ -9,9 +15,11 @@ export const getBars = async (
 ) => {
 
   try {
+    const fromMs = toMillis(periodParams?.from || 0);
+    const toMs = toMillis(periodParams?.to || 0);
     const symbol = symbolInfo.name.replace('/', '-');
     const limit = periodParams.countBack || 300;
-    const url = `${BACKEND_URL}/api/candles/${symbol}?limit=${limit}`;
+    const url = `${BACKEND_URL}/api/candles/${symbol}?limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
 
     const response = await fetch(url);
 
@@ -33,25 +41,24 @@ export const getBars = async (
     // Backend returns [{timestamp, open, high, low, close, volume}, ...] (Hyperliquid)
     // or [{t, o, h, l, c, i}, ...] (Ostium)
     // TradingView expects [{time, open, high, low, close, volume}, ...]
-    // IMPORTANT: TradingView expects time in SECONDS, not milliseconds!
     const bars = data.map(b => {
-      // Get timestamp (could be ms or s depending on source)
-      let timestamp = b.time || b.timestamp || b.t;
-
-      // Convert milliseconds to seconds if needed (timestamps > 10^10 are likely milliseconds)
-      if (timestamp > 10000000000) {
-        timestamp = Math.floor(timestamp / 1000);
-      }
-
       return {
-        time: timestamp,
+        // TradingView Charting Library expects epoch in milliseconds.
+        time: toMillis(b.time || b.timestamp || b.t),
         open: parseFloat(b.open || b.o),
         high: parseFloat(b.high || b.h),
         low: parseFloat(b.low || b.l),
         close: parseFloat(b.close || b.c),
         volume: parseFloat(b.volume || b.v || 0)
       };
-    }).sort((a, b) => a.time - b.time);
+    })
+      .filter((bar) => {
+        if (!fromMs && !toMs) return true;
+        if (fromMs && bar.time < fromMs) return false;
+        if (toMs && bar.time > toMs) return false;
+        return true;
+      })
+      .sort((a, b) => a.time - b.time);
 
     console.log(`[getBars]: Returning ${bars.length} bars, time range: ${bars[0]?.time} - ${bars[bars.length - 1]?.time}`);
     onHistoryCallback(bars, { noData: false });

@@ -525,6 +525,37 @@
     flex-direction: column;
 }
 
+.creditFooter {
+    padding: 16px 24px;
+    border-top: 1px solid #2A1721;
+    margin-top: auto;
+}
+
+.creditRefillButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 4px 10px;
+    border: 1px solid #36001E;
+    border-radius: 6px;
+    background-color: #660035;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.creditRefillButton:hover {
+    background-color: #800042;
+}
+
+.creditRefillButton:active {
+    transform: translateY(1px);
+}
+
 /* Minimized State Handling */
 .sidebarMinimized {
     width: 58px !important;

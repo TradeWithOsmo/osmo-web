@@ -1,6 +1,7 @@
 import React from 'react';
 import {
     Trade,
+    Arena,
 
 
 
@@ -22,6 +23,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({ route }) => {
     const currentPath = route.split('?')[0].toLowerCase();
 
     if (currentPath === '/trade' || currentPath === '/') return <Trade />;
+    if (currentPath === '/arena') return <Arena />;
 
 
 

@@ -65,7 +65,7 @@ const OrderForm: React.FC = () => {
     const { openDepositModal, hasSession, setHasSession, openSessionModal, isTradingSetupOpen, openTradingSetup, isSessionChecking } = useUIStore();
 
     // Get wallet from Privy
-    const { authenticated, walletAddress, handleConnect, wallets } = useWallet();
+    const { authenticated, walletAddress, handleConnect, handleSwitchToTargetChain } = useWallet();
     const { data: walletClient } = useWalletClient();
 
     // Setup Check
@@ -307,23 +307,14 @@ const OrderForm: React.FC = () => {
             return;
         }
 
-        // Get Wallet for Chain Check
-        const wallet = wallets[0];
-        if (wallet) {
-            const chainId = Number(wallet.chainId);
-            // arbitrumSepolia.id is 421614
-            const targetChainId = 421614;
-
-            if (chainId !== targetChainId) {
-                try {
-                    await wallet.switchChain(targetChainId);
-                } catch (switchError) {
-                    console.error('Failed to switch chain:', switchError);
-                    toast.error('Please switch to Arbitrum Sepolia');
-                    setIsSubmitting(false);
-                    return;
-                }
-            }
+        // Enforce Arbitrum Sepolia for all trading transactions
+        try {
+            await handleSwitchToTargetChain();
+        } catch (switchError) {
+            console.error('Failed to switch chain:', switchError);
+            toast.error('Please switch to Arbitrum Sepolia');
+            setIsSubmitting(false);
+            return;
         }
 
         if (!selectedMarket || !amount || parseFloat(amount) <= 0) {

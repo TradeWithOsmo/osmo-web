@@ -123,8 +123,9 @@ const PortfolioHistory: React.FC = () => {
 
     // Pagination Logic (Now filteredData is defined)
     const totalItems = filteredData.length;
+    const isPaginationNeeded = totalItems > 5;
     const itemsToShow = viewMode === 'preview' ? 5 : rowsPerPage;
-    const totalPages = viewMode === 'preview' ? 1 : Math.ceil(totalItems / rowsPerPage);
+    const totalPages = viewMode === 'preview' ? 1 : Math.max(1, Math.ceil(totalItems / rowsPerPage));
 
     // In preview mode, show first 5. In full mode, show paginated slice.
     const startIndex = viewMode === 'preview' ? 0 : (currentPage - 1) * rowsPerPage;
@@ -137,8 +138,18 @@ const PortfolioHistory: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
+
     // Footer Content Renderer
     const renderFooter = () => {
+        if (!isPaginationNeeded) {
+            return null;
+        }
+
         if (viewMode === 'preview') {
             return (
                 <div style={{ padding: '8px 16px', borderTop: '1px solid #3A2530' }}>
@@ -153,6 +164,8 @@ const PortfolioHistory: React.FC = () => {
         }
 
         // Full Pagination Controls (Reused Logic)
+        const shouldShowPagination = totalPages > 1;
+
         return (
             <div className={panelStyles.tableFooter}>
                 <div className={panelStyles.footerGrid}>
@@ -163,40 +176,44 @@ const PortfolioHistory: React.FC = () => {
 
                     {/* Center: Pagination Buttons */}
                     <div className={panelStyles.footerControls}>
-                        <button
-                            className={panelStyles.paginationButton}
-                            onClick={() => goToPage(currentPage - 1)}
-                            disabled={currentPage === 1}
-                        >
-                            &lt;
-                        </button>
-
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let startPage = Math.max(1, currentPage - 2);
-                            if (startPage + 4 > totalPages) {
-                                startPage = Math.max(1, totalPages - 4);
-                            }
-                            const p = startPage + i;
-                            if (p > totalPages) return null; // Safety
-
-                            return (
+                        {shouldShowPagination && (
+                            <>
                                 <button
-                                    key={p}
-                                    className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
-                                    onClick={() => goToPage(p)}
+                                    className={panelStyles.paginationButton}
+                                    onClick={() => goToPage(currentPage - 1)}
+                                    disabled={currentPage === 1}
                                 >
-                                    {p}
+                                    &lt;
                                 </button>
-                            );
-                        })}
 
-                        <button
-                            className={panelStyles.paginationButton}
-                            onClick={() => goToPage(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                        >
-                            &gt;
-                        </button>
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    let startPage = Math.max(1, currentPage - 2);
+                                    if (startPage + 4 > totalPages) {
+                                        startPage = Math.max(1, totalPages - 4);
+                                    }
+                                    const p = startPage + i;
+                                    if (p > totalPages) return null; // Safety
+
+                                    return (
+                                        <button
+                                            key={p}
+                                            className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
+                                            onClick={() => goToPage(p)}
+                                        >
+                                            {p}
+                                        </button>
+                                    );
+                                })}
+
+                                <button
+                                    className={panelStyles.paginationButton}
+                                    onClick={() => goToPage(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    &gt;
+                                </button>
+                            </>
+                        )}
                     </div>
 
                     {/* Right: Rows per page */}
@@ -248,7 +265,7 @@ const PortfolioHistory: React.FC = () => {
         <div style={{ paddingBottom: '32px' }}>
             <div className={styles.sectionTitle}>History</div>
 
-            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: 'calc(100vh - 220px)', minHeight: 0 }}>
+            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: 'calc(100vh - 220px)', minHeight: 0, flex: '0 0 auto' }}>
                 {/* Navbar Style Tabs */}
                 <div className={styles.tabsContainer}>
                     <button
