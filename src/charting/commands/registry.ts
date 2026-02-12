@@ -3,6 +3,7 @@ import type { CommandExecutor } from './types';
 import { NavHandler } from './handlers/nav';
 import { InputHandler } from './handlers/input';
 import { DrawingHandler } from './handlers/drawing';
+import { IndicatorHandler } from './handlers/indicator';
 
 /**
  * Registry to map action names to handlers.
@@ -11,11 +12,16 @@ import { DrawingHandler } from './handlers/drawing';
 
 const HANDLER_MAP_V3: Record<string, CommandExecutor> = {
     // Navigation
+    'focus_chart': NavHandler,
+    'ensure_mode': NavHandler,
     'pan': NavHandler,
     'zoom': NavHandler,
     'reset_view': NavHandler,
     'focus_latest': NavHandler,
     'set_symbol': NavHandler,
+    'set_timeframe': NavHandler,
+    'set_crosshair': NavHandler,
+    'move_crosshair': NavHandler,
 
     // Input & Awareness
     'press_key': InputHandler,
@@ -33,7 +39,12 @@ const HANDLER_MAP_V3: Record<string, CommandExecutor> = {
     // Drawing
     'draw_shape': DrawingHandler,
     'clear_drawings': DrawingHandler,
-    'update_drawing': DrawingHandler
+    'update_drawing': DrawingHandler,
+
+    // Indicators
+    'add_indicator': IndicatorHandler,
+    'remove_indicator': IndicatorHandler,
+    'clear_indicators': IndicatorHandler,
 };
 
 export class CommandRegistry {

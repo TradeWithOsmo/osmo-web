@@ -4,32 +4,6 @@ import panelStyles from '../Positions/PositionsPanel.module.css';
 import { useLeaderboardStore } from '../../store/useLeaderboardStore';
 import type { Timeframe } from '../../api/leaderboardService';
 
-// Import Logos
-import AnthropicLogo from '../../assets/Model logos/Anthropic.svg';
-import DeepSeekLogo from '../../assets/Model logos/DeepSeek.png';
-import GoogleGeminiLogo from '../../assets/Model logos/GoogleGemini.svg';
-import OpenAILogo from '../../assets/Model logos/OpenAI.svg';
-import QwenLogo from '../../assets/Model logos/Qwen.png';
-
-// Model logo mapping
-const MODEL_LOGOS: Record<string, string> = {
-    'gpt-4o': OpenAILogo,
-    'gpt-4-turbo': OpenAILogo,
-    'gpt-3.5-turbo': OpenAILogo,
-    'claude-3.5-sonnet': AnthropicLogo,
-    'claude-3-opus': AnthropicLogo,
-    'claude-3-haiku': AnthropicLogo,
-    'gemini-1.5-pro': GoogleGeminiLogo,
-    'gemini-1.0-pro': GoogleGeminiLogo,
-    'gemini-ultra': GoogleGeminiLogo,
-    'deepseek-v3': DeepSeekLogo,
-    'deepseek-coder': DeepSeekLogo,
-    'deepseek-lite': DeepSeekLogo,
-    'qwen-2.5': QwenLogo,
-    'qwen-1.5': QwenLogo,
-    'qwen-large': QwenLogo,
-};
-
 // Model provider mapping
 const MODEL_PROVIDERS: Record<string, string> = {
     'gpt-4o': 'OpenAI',
@@ -173,7 +147,6 @@ const AgentLeaderboardRow: React.FC<AgentLeaderboardRowProps> = ({ item, formatC
     const [isExpanded, setIsExpanded] = useState(false);
     const toggleExpand = () => setIsExpanded(!isExpanded);
 
-    const agentLogo = MODEL_LOGOS[item.agentName.toLowerCase()];
     const provider = MODEL_PROVIDERS[item.agentName.toLowerCase()];
 
     return (
@@ -183,7 +156,6 @@ const AgentLeaderboardRow: React.FC<AgentLeaderboardRowProps> = ({ item, formatC
                 <td className={panelStyles.td} style={{ width: '60px' }}>{item.rank}</td>
                 <td className={`${panelStyles.td} ${panelStyles.tdFirst}`}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {agentLogo && <img src={agentLogo} alt={item.agentName} style={{ width: '20px', height: '20px', borderRadius: '4px' }} />}
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                             <span style={{ color: '#FFE1F2', fontSize: '13px' }}>{item.agentName}</span>
                             {provider && <span style={{ color: '#A77590', fontSize: '11px' }}>{provider}</span>}
@@ -209,7 +181,6 @@ const AgentLeaderboardRow: React.FC<AgentLeaderboardRowProps> = ({ item, formatC
                     <div className={panelStyles.mobileCard}>
                         <div className={panelStyles.mobileHeader} onClick={toggleExpand}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                {agentLogo && <img src={agentLogo} alt={item.agentName} style={{ width: '24px', height: '24px', borderRadius: '4px' }} />}
                                 <div>
                                     <div style={{ fontSize: '12px', color: '#A77590' }}>Rank {item.rank}</div>
                                     <div style={{ fontWeight: 700, color: '#FFFFFF', fontSize: '14px' }}>{item.agentName}</div>
@@ -330,7 +301,7 @@ const PortfolioLeaderboard: React.FC = () => {
 
     const pagination = activeTab === 'model' ? agentPagination : traderPagination;
     const isLoading = activeTab === 'model' ? isLoadingAgents : isLoadingTraders;
-    const totalPages = pagination?.pages || 1;
+    const totalPages = Math.max(1, pagination?.pages || 1);
 
     const goToPage = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -338,11 +309,17 @@ const PortfolioLeaderboard: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
+
     return (
         <div style={{ paddingBottom: '32px' }}>
             <div className={styles.sectionTitle}>Leaderboard</div>
 
-            <div className={panelStyles.tableContainer} style={{ height: 'auto', maxHeight: 'calc(100vh - 140px)', display: 'flex', flexDirection: 'column', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden' }}>
+            <div className={panelStyles.tableContainer} style={{ height: 'auto', maxHeight: 'calc(100vh - 140px)', display: 'flex', flexDirection: 'column', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', flex: '0 0 auto' }}>
                 {/* Navbar Style Tabs */}
                 <div className={styles.tabsContainer}>
                     <button
@@ -517,39 +494,43 @@ const PortfolioLeaderboard: React.FC = () => {
                                 </div>
 
                                 <div className={panelStyles.footerControls}>
-                                    <button
-                                        className={panelStyles.paginationButton}
-                                        onClick={() => goToPage(currentPage - 1)}
-                                        disabled={currentPage === 1}
-                                    >
-                                        &lt;
-                                    </button>
-
-                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                        let startPage = Math.max(1, currentPage - 2);
-                                        if (startPage + 4 > totalPages) {
-                                            startPage = Math.max(1, totalPages - 4);
-                                        }
-                                        const p = startPage + i;
-
-                                        return (
+                                    {totalPages > 1 && (
+                                        <>
                                             <button
-                                                key={p}
-                                                className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
-                                                onClick={() => goToPage(p)}
+                                                className={panelStyles.paginationButton}
+                                                onClick={() => goToPage(currentPage - 1)}
+                                                disabled={currentPage === 1}
                                             >
-                                                {p}
+                                                &lt;
                                             </button>
-                                        );
-                                    })}
 
-                                    <button
-                                        className={panelStyles.paginationButton}
-                                        onClick={() => goToPage(currentPage + 1)}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        &gt;
-                                    </button>
+                                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                let startPage = Math.max(1, currentPage - 2);
+                                                if (startPage + 4 > totalPages) {
+                                                    startPage = Math.max(1, totalPages - 4);
+                                                }
+                                                const p = startPage + i;
+
+                                                return (
+                                                    <button
+                                                        key={p}
+                                                        className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
+                                                        onClick={() => goToPage(p)}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                );
+                                            })}
+
+                                            <button
+                                                className={panelStyles.paginationButton}
+                                                onClick={() => goToPage(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                            >
+                                                &gt;
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className={panelStyles.footerActions}>

@@ -13,7 +13,7 @@ import { arbitrumSepolia } from 'viem/chains';
 
 export const DepositModal: React.FC = () => {
     const { isDepositModalOpen, closeDepositModal, modalMode } = useUIStore();
-    const { walletAddress, wallets } = useWallet();
+    const { walletAddress, wallets, handleSwitchToTargetChain } = useWallet();
 
     // Internal tab state (Deposit/Withdraw in normal mode, Refill/Unrefill in refill mode)
     const [subTab, setSubTab] = useState<'in' | 'out'>('in');
@@ -99,6 +99,8 @@ export const DepositModal: React.FC = () => {
 
         setProcessing(true);
         try {
+            await handleSwitchToTargetChain();
+
             const provider = await wallet.getEthereumProvider();
             const walletClient = createWalletClient({
                 account: walletAddress as `0x${string}`,

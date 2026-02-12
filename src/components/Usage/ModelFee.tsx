@@ -235,10 +235,11 @@ const ModelFee: React.FC = () => {
 
     // Pagination
     const totalItems = filteredData.length;
-    const totalPages = Math.ceil(totalItems / rowsPerPage);
+    const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
     const displayedData = filteredData.slice(startIndex, endIndex);
+    const shouldShowPagination = totalPages > 1;
 
     const goToPage = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -246,11 +247,31 @@ const ModelFee: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
+
     return (
         <div style={{ paddingBottom: '32px' }}>
             <div className={styles.sectionTitle}>Model Fee</div>
 
-            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: 'calc(100vh - 220px)', minHeight: '500px' }}>
+            <div
+                className={panelStyles.tableContainer}
+                style={{
+                    background: '#12000A',
+                    border: '1px solid #3A2530',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: 'auto',
+                    maxHeight: activeTab === 'fee' ? 'calc(100vh - 220px)' : 'none',
+                    minHeight: activeTab === 'fee' ? '500px' : 'auto',
+                    flex: '0 0 auto'
+                }}
+            >
 
                 {/* Tabs */}
                 <div className={styles.tabsContainer}>
@@ -432,7 +453,7 @@ const ModelFee: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={activeTab === 'fee' ? 3 : 5} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
+                                        <td colSpan={activeTab === 'fee' ? 4 : 5} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
                                             No data found matching current criteria
                                         </td>
                                     </tr>
@@ -450,41 +471,45 @@ const ModelFee: React.FC = () => {
                                 </div>
 
                                 <div className={panelStyles.footerControls}>
-                                    <button
-                                        className={panelStyles.paginationButton}
-                                        onClick={() => goToPage(currentPage - 1)}
-                                        disabled={currentPage === 1}
-                                    >
-                                        &lt;
-                                    </button>
-
-                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                        let startPage = Math.max(1, currentPage - 2);
-                                        if (startPage + 4 > totalPages) {
-                                            startPage = Math.max(1, totalPages - 4);
-                                        }
-                                        const p = startPage + i;
-                                        if (p > totalPages) return null;
-                                        if (p < 1) return null;
-
-                                        return (
+                                    {shouldShowPagination && (
+                                        <>
                                             <button
-                                                key={p}
-                                                className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
-                                                onClick={() => goToPage(p)}
+                                                className={panelStyles.paginationButton}
+                                                onClick={() => goToPage(currentPage - 1)}
+                                                disabled={currentPage === 1}
                                             >
-                                                {p}
+                                                &lt;
                                             </button>
-                                        );
-                                    })}
 
-                                    <button
-                                        className={panelStyles.paginationButton}
-                                        onClick={() => goToPage(currentPage + 1)}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        &gt;
-                                    </button>
+                                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                let startPage = Math.max(1, currentPage - 2);
+                                                if (startPage + 4 > totalPages) {
+                                                    startPage = Math.max(1, totalPages - 4);
+                                                }
+                                                const p = startPage + i;
+                                                if (p > totalPages) return null;
+                                                if (p < 1) return null;
+
+                                                return (
+                                                    <button
+                                                        key={p}
+                                                        className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
+                                                        onClick={() => goToPage(p)}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                );
+                                            })}
+
+                                            <button
+                                                className={panelStyles.paginationButton}
+                                                onClick={() => goToPage(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                            >
+                                                &gt;
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className={panelStyles.footerActions}>

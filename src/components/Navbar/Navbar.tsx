@@ -35,10 +35,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     authenticated,
     truncatedAddress,
     isWalletDropdownOpen,
+    isWrongChain,
     showDisconnectConfirm,
     setIsWalletDropdownOpen,
     setShowDisconnectConfirm,
     handleConnect,
+    handleSwitchToTargetChain,
     handleDisconnect,
     handleCopyAddress,
   } = useWallet()
@@ -407,6 +409,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             {authenticated && isWalletDropdownOpen && (
               <div className={styles.walletDropdownMenu}>
+                {isWrongChain && (
+                  <button
+                    className={`${styles.walletDropdownItem} ${styles.walletDropdownItemPrimary}`}
+                    onClick={async () => {
+                      try {
+                        await handleSwitchToTargetChain()
+                        setIsWalletDropdownOpen(false)
+                      } catch (error) {
+                        console.error('Failed to switch chain:', error)
+                      }
+                    }}
+                  >
+                    Switch to Arbitrum Sepolia
+                  </button>
+                )}
                 <button
                   className={styles.walletDropdownItem}
                   onClick={handleCopyAddress}

@@ -24,6 +24,14 @@ const UsageChart: React.FC = () => {
         }
     }, [walletAddress, timeframe, fetchChartData]);
 
+    useEffect(() => {
+        if (!walletAddress) return;
+        const id = window.setInterval(() => {
+            void fetchChartData(walletAddress, timeframe);
+        }, 15000);
+        return () => window.clearInterval(id);
+    }, [walletAddress, timeframe, fetchChartData]);
+
     // Format data for chart
     const formattedData = useMemo(() => {
         let data = [...chartData].map(d => ({

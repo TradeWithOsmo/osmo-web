@@ -1,6 +1,7 @@
 
 import { useEffect, useRef } from 'react';
 import { commandRegistry } from '../charting/commands/registry';
+import { useMarketStore } from '../store/useMarketStore';
 
 export type TradeDecisionTriggerEvent = {
     symbol: string;
@@ -440,6 +441,29 @@ export const useTradingViewConnector = (
                             }
                         };
 
+                        const normalizeResolution = (value: any): string => {
+                            const raw = String(value || '').trim().toUpperCase();
+                            if (!raw) return '';
+                            const mapping: Record<string, string> = {
+                                '1M': '1',
+                                '3M': '3',
+                                '5M': '5',
+                                '15M': '15',
+                                '30M': '30',
+                                '45M': '45',
+                                '1H': '60',
+                                '2H': '120',
+                                '3H': '180',
+                                '4H': '240',
+                                '6H': '360',
+                                '8H': '480',
+                                '12H': '720',
+                                '1D': 'D',
+                                '1W': 'W',
+                            };
+                            return mapping[raw] || raw;
+                        };
+
                         const getStateEvidence = () => {
                             let activeSymbol = '';
                             let activeTimeframe = '';
@@ -464,21 +488,21 @@ export const useTradingViewConnector = (
                             params: Record<string, any> | undefined,
                             message: string
                         ): Record<string, any> => {
-                                    const state = getStateEvidence();
-                                    if (cmd.action === 'setup_trade') {
-                                        upsertActiveTradeTrigger(symbol, cmd.params || {}, state);
-                                    }
-                                    const payload: Record<string, any> = {
-                                        message,
-                                        state,
-                                        symbol: state.symbol,
+                            const state = getStateEvidence();
+                            if (action === 'setup_trade') {
+                                upsertActiveTradeTrigger(state.symbol || symbol, params || {}, state);
+                            }
+                            const payload: Record<string, any> = {
+                                message,
+                                state,
+                                symbol: state.symbol,
                                 timeframe: state.timeframe,
                             };
 
                             if (action === 'set_symbol') {
-                                payload.applied_symbol = params?.symbol || state.symbol;
+                                payload.applied_symbol = state.symbol || params?.symbol;
                             } else if (action === 'set_timeframe') {
-                                payload.applied_timeframe = params?.timeframe || state.timeframe;
+                                payload.applied_timeframe = state.timeframe || params?.timeframe;
                             } else if (action === 'add_indicator') {
                                 payload.applied_indicator = params?.name || '';
                             } else if (action === 'setup_trade') {
@@ -500,15 +524,62 @@ export const useTradingViewConnector = (
                             let cmdResult: Record<string, any> = {};
                             let cmdError: string | undefined;
                             try {
+                                if (cmd.action === 'set_symbol' && cmd?.params?.symbol && cmd?.params?.target_source) {
+                                    const targetSourceRaw = String(cmd.params.target_source || '').trim().toLowerCase();
+                                    const targetSource = targetSourceRaw === 'ostium' ? 'ostium' : (
+                                        targetSourceRaw === 'hyperliquid' ? 'hyperliquid' : undefined
+                                    );
+                                    const beforeMarket = useMarketStore.getState().selectedMarket;
+                                    useMarketStore.getState().setMarket(String(cmd.params.symbol), targetSource);
+                                    const afterMarket = useMarketStore.getState().selectedMarket;
+                                    if (!afterMarket) {
+                                        throw new Error(`Unable to switch market to ${String(cmd.params.symbol)} (${targetSourceRaw})`);
+                                    }
+                                    if (targetSource && afterMarket.source !== targetSource) {
+                                        throw new Error(
+                                            `Market source switch failed: expected ${targetSource}, got ${String(afterMarket.source)}`
+                                        );
+                                    }
+                                    if (!String(afterMarket.symbol || '').toUpperCase().includes(String(cmd.params.symbol || '').split('/')[0].toUpperCase())) {
+                                        console.warn('[TradingViewConnector] set_symbol source-switch used closest market match', {
+                                            before: beforeMarket?.symbol,
+                                            after: afterMarket.symbol,
+                                            requested: cmd.params.symbol,
+                                        });
+                                    }
+                                    cmdResult = buildCommandResult(
+                                        cmd.action,
+                                        cmd.params,
+                                        `Requested source switch to ${targetSourceRaw} and symbol ${String(cmd.params.symbol)}.`
+                                    );
+                                    cmdResult.applied_symbol = String(cmd.params.symbol);
+                                    cmdResult.source_switch = targetSourceRaw || null;
+                                    continue;
+                                }
+
                                 const handler = commandRegistry.get(cmd.action);
                                 if (handler) {
                                     console.log(`[TradingViewConnector] Dispatching ${cmd.action} to handler`);
                                     // Force HMR Refresh Check
                                     // Inject action_type so handlers like NavHandler know what to do
                                     await handler.execute(widget.activeChart(), { ...cmd.params, action_type: cmd.action });
+                                    if (cmd.action === 'set_symbol' && cmd?.params?.symbol) {
+                                        // Keep global market store in sync so Trade props don't revert chart symbol.
+                                        const targetSourceRaw = String(
+                                            cmd?.params?.target_source ||
+                                            cmd?.params?.source ||
+                                            cmd?.params?.exchange ||
+                                            ''
+                                        ).trim().toLowerCase();
+                                        const targetSource = targetSourceRaw === 'ostium' ? 'ostium' : (
+                                            targetSourceRaw === 'hyperliquid' ? 'hyperliquid' : undefined
+                                        );
+                                        useMarketStore.getState().setMarket(String(cmd.params.symbol), targetSource);
+                                    }
                                     cmdResult = buildCommandResult(cmd.action, cmd.params, `Handler '${cmd.action}' executed.`);
                                 } else if (cmd.action === 'set_timeframe') {
                                     const tf = cmd.params.timeframe;
+                                    const resolvedTf = normalizeResolution(tf);
                                     console.log(`[TradingViewConnector] Executing Legacy: Set Timeframe to ${tf}`);
                                     await new Promise<void>((resolve, reject) => {
                                         let finished = false;
@@ -519,7 +590,7 @@ export const useTradingViewConnector = (
                                             }
                                         }, 7000);
                                         try {
-                                            chart.setResolution(tf, () => {
+                                            chart.setResolution(resolvedTf, () => {
                                                 if (finished) return;
                                                 finished = true;
                                                 clearTimeout(timer);
@@ -539,6 +610,32 @@ export const useTradingViewConnector = (
                                     console.log(`[TradingViewConnector] Executing Legacy: Add Indicator ${name}`);
                                     chart.createStudy(name, forceOverlay, false, inputs);
                                     cmdResult = buildCommandResult(cmd.action, cmd.params, `Indicator '${name}' added.`);
+                                } else if (cmd.action === 'clear_indicators') {
+                                    const keepVolume = Boolean(cmd?.params?.keep_volume || cmd?.params?.keepVolume);
+                                    const studies = chart.getAllStudies?.() || [];
+                                    for (const study of studies) {
+                                        const studyName = String(study?.name || '').trim().toLowerCase();
+                                        if (keepVolume && studyName === 'volume') {
+                                            continue;
+                                        }
+                                        chart.removeEntity(study.id);
+                                    }
+                                    cmdResult = buildCommandResult(cmd.action, cmd.params, 'All indicators cleared.');
+                                } else if (cmd.action === 'remove_indicator') {
+                                    const targetName = String(cmd?.params?.name || '').trim().toLowerCase();
+                                    const studies = chart.getAllStudies?.() || [];
+                                    const matches = studies.filter((study: any) => {
+                                        const current = String(study?.name || '').trim().toLowerCase();
+                                        if (!targetName) return false;
+                                        return current === targetName || current.includes(targetName) || targetName.includes(current);
+                                    });
+                                    if (matches.length === 0) {
+                                        throw new Error(`Indicator '${cmd?.params?.name || ''}' not found`);
+                                    }
+                                    for (const study of matches) {
+                                        chart.removeEntity(study.id);
+                                    }
+                                    cmdResult = buildCommandResult(cmd.action, cmd.params, `Indicator '${cmd?.params?.name || ''}' removed.`);
                                 }
                                 // === NEW: Trade Setup (Visual Only) ===
                                 else if (cmd.action === 'setup_trade') {

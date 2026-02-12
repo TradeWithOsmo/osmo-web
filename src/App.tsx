@@ -125,14 +125,11 @@ function App() {
   }, [authenticated, walletAddress]);
 
   const navItems = [
-    { label: 'Trade', href: '/trade', isActive: currentRoute === '/trade' },
-
+    { label: 'Trade', href: '/trade', isActive: currentRoute.startsWith('/trade') },
     { label: 'Portfolio', href: '/portfolio', isActive: currentRoute.startsWith('/portfolio') },
     { label: 'Usage', href: '/usage', isActive: currentRoute.startsWith('/usage') },
+    { label: 'Arena', href: '/arena', isActive: currentRoute === '/arena' },
     { label: 'Faucet', href: '/faucet', isActive: currentRoute.startsWith('/faucet') },
-
-    // { label: 'Points', href: '/points', isActive: currentRoute === '/points' },
-
     { label: 'Leaderboard', href: '/leaderboard', isActive: currentRoute === '/leaderboard' },
   ];
 

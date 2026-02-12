@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import styles from './Autos.module.css';
 import AutosSidebar from './AutosSidebar';
 import ChatInterface from './ChatInterface';
@@ -30,6 +30,8 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     const [isMinimized, setIsMinimized] = useState(true); // Default closed
     const [showSettings, setShowSettings] = useState(false);
     const { getAccessToken } = usePrivy();
+    const { wallets } = useWallets();
+    const walletAddress = wallets[0]?.address;
 
     useEffect(() => {
         const handleResize = () => {
@@ -49,6 +51,26 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     const [chartTabs, setChartTabs] = useState<{ symbol: string; interval: string; indicators: string[] }[]>([]);
     const [activeArtifact, setActiveArtifact] = useState<{ type: 'chart' | 'other', data?: any } | null>(null);
     const pendingTitleRef = useRef<Record<string, string>>({});
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const generationSessionRef = useRef<string | null>(null);
+
+    const handleStopGeneration = () => {
+        const sessionId = generationSessionRef.current;
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        if (sessionId && !sessionId.startsWith('new-chat')) {
+            void (async () => {
+                try {
+                    const token = await getAccessToken();
+                    await agentService.interruptSession(sessionId, token || undefined, walletAddress);
+                } catch (err) {
+                    console.debug('Interrupt request failed:', err);
+                }
+            })();
+        }
+    };
 
     // Sync Active Chart Artifact with Main Chart State
     useEffect(() => {
@@ -178,10 +200,10 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 if (!token) return;
 
                 // 1. Fetch Workspaces
-                const wsData = await agentService.getWorkspaces(token);
+                const wsData = await agentService.getWorkspaces(token, walletAddress);
 
                 // 2. Fetch All Sessions
-                const sessions = await agentService.getSessions(token);
+                const sessions = await agentService.getSessions(token, walletAddress);
                 const uniqueSessions = Array.from(
                     new Map((sessions || []).map((s: any) => [s.id, s])).values()
                 );
@@ -228,7 +250,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 const token = await getAccessToken();
                 if (!token) return;
 
-                const history = await agentService.getHistory(activeSessionId, token);
+                const history = await agentService.getHistory(activeSessionId, token, walletAddress);
                 if (history) {
                     const formattedMessages: Message[] = history.map((m: any, idx: number) => ({
                         id: `msg-${idx}`,
@@ -289,6 +311,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         attachments: ChatAttachment[] = []
     ) => {
         let currentSessionId = sessionId;
+        generationSessionRef.current = currentSessionId;
         const responseId = `assistant-${Date.now()}`;
         const isProviderFallbackMessage = (text: string) => {
             if (!text) return false;
@@ -383,9 +406,6 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             const phaseLoop = Number.isFinite(Number(loopRaw)) ? Number(loopRaw) : null;
             const normalizedDetail = detail.toLowerCase();
 
-            // Keep reasoning UI clean:
-            // only surface runtime events when a real tool is involved.
-            if (!phaseTool) return;
             if (status.toLowerCase() === 'skipped') return;
             if (normalizedDetail.includes('not triggered for this request')) return;
 
@@ -407,10 +427,10 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                     ? `Loop ${phaseLoop}: ${baseTitle}`
                     : baseTitle;
 
-            const contentParts = [
-                `tool=${phaseTool}`,
-                `status=${status}`
-            ];
+            const contentParts = [`status=${status}`];
+            if (phaseTool) {
+                contentParts.push(`tool=${phaseTool}`);
+            }
             if (phaseLoop && phaseLoop > 0) {
                 contentParts.push(`loop=${phaseLoop}`);
             }
@@ -418,7 +438,8 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 contentParts.push(`stage=${stageLabel}`);
             }
             const content = contentParts.join(', ');
-            const toolLabel = phaseLoop && phaseLoop > 0 ? `${phaseTool} · L${phaseLoop}` : phaseTool;
+            const baseLabel = phaseTool || stageLabel || 'runtime';
+            const toolLabel = phaseLoop && phaseLoop > 0 ? `${baseLabel} - L${phaseLoop}` : baseLabel;
 
             setSessionMessages(prev => {
                 const existing = prev[currentSessionId] || [];
@@ -452,83 +473,10 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             });
         };
 
-        const MIN_TYPING_INTERVAL_MS = 80;
-        const MAX_TYPING_INTERVAL_MS = 180;
-        let pendingText = '';
-        let displayedText = '';
-        let typingTimer: ReturnType<typeof setTimeout> | null = null;
-        let firstWordDisplayed = false;
+        let streamedText = '';
+        const stopTyping = () => { };
 
-        const getChunkSize = () => {
-            const backlog = pendingText.length;
-            if (backlog > 1600) return 96;
-            if (backlog > 1200) return 72;
-            if (backlog > 800) return 52;
-            if (backlog > 500) return 36;
-            if (backlog > 260) return 24;
-            if (backlog > 120) return 14;
-            if (backlog > 60) return 8;
-            if (backlog > 20) return 4;
-            return 2;
-        };
-
-        const getTypingIntervalMs = () => {
-            const backlog = pendingText.length;
-            if (backlog > 1600) return MIN_TYPING_INTERVAL_MS;
-            if (backlog > 1200) return 7;
-            if (backlog > 800) return 8;
-            if (backlog > 500) return 9;
-            if (backlog > 260) return 10;
-            if (backlog > 120) return 12;
-            if (backlog > 60) return 14;
-            if (backlog > 20) return 16;
-            return MAX_TYPING_INTERVAL_MS;
-        };
-
-        const stopTyping = () => {
-            if (typingTimer) {
-                clearTimeout(typingTimer);
-                typingTimer = null;
-            }
-        };
-
-        const pumpTyping = () => {
-            if (!pendingText) {
-                stopTyping();
-                return;
-            }
-            const chunkSize = getChunkSize();
-            const chunk = pendingText.slice(0, chunkSize);
-            pendingText = pendingText.slice(chunkSize);
-            displayedText += chunk;
-            appendAssistantMessage(displayedText, undefined, true);
-            typingTimer = setTimeout(pumpTyping, getTypingIntervalMs());
-        };
-
-        const startTyping = () => {
-            if (typingTimer) return;
-            pumpTyping();
-        };
-
-        const tryDisplayFirstChunk = () => {
-            if (firstWordDisplayed || !pendingText) return;
-            const firstNonWhitespace = pendingText.search(/\S/);
-            if (firstNonWhitespace === -1) return;
-
-            const visibleTail = pendingText.slice(firstNonWhitespace);
-            const firstWordMatch = visibleTail.match(/^\S+/);
-            const firstWordLength = firstWordMatch?.[0]?.length || 1;
-            const firstChunkLength = Math.min(pendingText.length, firstNonWhitespace + Math.min(16, firstWordLength));
-            const firstChunk = pendingText.slice(0, firstChunkLength);
-            pendingText = pendingText.slice(firstChunkLength);
-            displayedText += firstChunk;
-            firstWordDisplayed = true;
-
-            // Ensure loading ends immediately on first visible token.
-            appendAssistantMessage(displayedText, undefined, true);
-        };
-
-        const THOUGHT_DELAY_MS = 140;
+        const THOUGHT_DELAY_MS = 35;
         let thoughtQueue: any[] = [];
         let thoughtTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -570,6 +518,9 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             setInboxSessions(prev => dedupeSessionsById(
                 prev.map(s => s.id === currentSessionId ? { ...s, id: newSessionId } : s)
             ));
+            if (generationSessionRef.current === currentSessionId) {
+                generationSessionRef.current = newSessionId;
+            }
             currentSessionId = newSessionId;
             setActiveSessionId(newSessionId);
         };
@@ -582,7 +533,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             try {
                 const token = await getAccessToken();
                 if (token) {
-                    await agentService.renameSession(sessionId, title, token);
+                    await agentService.renameSession(sessionId, title, token, walletAddress);
                 }
             } catch (err) {
                 console.error("Failed to persist session title", err);
@@ -607,6 +558,9 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             ]
         }));
 
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         try {
             const apiHistory = history.map(m => ({
                 role: m.role,
@@ -623,9 +577,11 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 session_id: apiSessionId,
                 history: apiHistory,
                 token: token || undefined,
+                wallet_address: walletAddress,
                 reasoning_effort: reasoningEffort,
                 tool_states: toolStates,
-                attachments
+                attachments,
+                signal: controller.signal
             }, {
                 onMeta: (event) => {
                     if (event.session_id && event.session_id !== currentSessionId) {
@@ -641,9 +597,8 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 onDelta: (delta) => {
                     if (!delta) return;
                     contentBuffer += delta;
-                    pendingText += delta;
-                    tryDisplayFirstChunk();
-                    startTyping();
+                    streamedText = contentBuffer;
+                    appendAssistantMessage(streamedText, undefined, true);
                 },
                 onThoughts: (thoughts) => {
                     mergeAssistantThoughts(thoughts);
@@ -663,9 +618,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                         mergeAssistantThoughts(finalThoughts);
                     }
                     flushThoughtQueue();
-                    pendingText = '';
-                    displayedText = finalContent;
-                    firstWordDisplayed = true;
+                    streamedText = finalContent;
                     stopTyping();
                     if (isProviderFallbackMessage(finalContent)) {
                         appendAssistantMessage("Maaf, chat gagal. Provider error. Silakan coba lagi.", undefined, false);
@@ -678,12 +631,22 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                     appendAssistantMessage(`Maaf, chat gagal. ${message}`, undefined, false);
                 }
             });
-        } catch (error) {
+        } catch (error: any) {
+            if (error.name === 'AbortError' || error.message === 'Aborted') {
+                console.log("Generation aborted by user");
+                stopTyping();
+                appendAssistantMessage(streamedText + " [Dibatalkan]", undefined, false);
+                return;
+            }
             console.error("Chat Error:", error);
             const errorMessage = formatChatError(error);
             stopTyping();
             appendAssistantMessage(`Maaf, chat gagal. ${errorMessage}`, undefined, false);
         } finally {
+            if (abortControllerRef.current === controller) {
+                abortControllerRef.current = null;
+            }
+            generationSessionRef.current = null;
             setTypingStatus(prev => ({ ...prev, [currentSessionId]: false }));
         }
     };
@@ -716,7 +679,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                         pendingTitleRef.current[currentSessionId] = newTitle;
                         return;
                     }
-                    await agentService.renameSession(currentSessionId, newTitle, token);
+                    await agentService.renameSession(currentSessionId, newTitle, token, walletAddress);
                 } catch (err) {
                     console.error("Failed to persist auto-title", err);
                 }
@@ -749,7 +712,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 return msg.modelId;
             }
         }
-        return 'groq/openai/gpt-oss-120b';
+        return 'nvidia/moonshotai/kimi-k2.5';
     };
 
     const handleTradeDecisionTrigger = async (event: TradeDecisionTriggerEvent) => {
@@ -775,7 +738,6 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             execution: false,
             write: false,
             memory_enabled: true,
-            knowledge_enabled: true,
             market_symbol: event.symbol,
             timeframe: [event.timeframe],
             auto_trigger_source: 'tradingview'
@@ -800,7 +762,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             try {
                 const token = await getAccessToken();
                 if (token) {
-                    await agentService.renameSession(sessionId, newName, token);
+                    await agentService.renameSession(sessionId, newName, token, walletAddress);
                 }
             } catch (err) {
                 console.error("Failed to rename session in backend", err);
@@ -831,7 +793,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             try {
                 const token = await getAccessToken();
                 if (token) {
-                    await agentService.deleteSession(sessionId, token);
+                    await agentService.deleteSession(sessionId, token, walletAddress);
                 }
             } catch (err) {
                 console.error("Failed to delete session", err);
@@ -850,7 +812,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             if (!token) return;
 
             const tempId = `ws-${Date.now()}`;
-            const result = await agentService.createWorkspace(name.trim(), token, tempId);
+            const result = await agentService.createWorkspace(name.trim(), token, tempId, walletAddress);
 
             if (result.status === 'success') {
                 const newWs: Workspace = {
@@ -879,7 +841,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         try {
             const token = await getAccessToken();
             if (token) {
-                await agentService.updateWorkspace(workspaceId, { is_expanded: expanded }, token);
+                await agentService.updateWorkspace(workspaceId, { is_expanded: expanded }, token, walletAddress);
             }
         } catch (err) {
             console.error("Failed to toggle workspace", err);
@@ -939,7 +901,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         try {
             const token = await getAccessToken();
             if (token) {
-                await agentService.moveSession(sessionId, targetId, token);
+                await agentService.moveSession(sessionId, targetId, token, walletAddress);
             }
         } catch (err) {
             console.error("Failed to move session", err);
@@ -958,7 +920,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         try {
             const token = await getAccessToken();
             if (token) {
-                await agentService.updateWorkspace(workspaceId, data, token);
+                await agentService.updateWorkspace(workspaceId, data, token, walletAddress);
             }
         } catch (err) {
             console.error("Failed to update workspace", err);
@@ -1362,6 +1324,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                                 onToggleMinimize={() => setIsMinimized(!isMinimized)}
                                 isMinimized={isMinimized}
                                 onNewChat={handleNewChat}
+                                onStop={handleStopGeneration}
                             />
                         )}
                     </div>
@@ -1373,3 +1336,5 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
 };
 
 export default Autos;
+
+

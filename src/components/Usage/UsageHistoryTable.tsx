@@ -1,13 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import panelStyles from '../Positions/PositionsPanel.module.css';
-
-// Import logos
-import anthropicLogo from '../../assets/Model logos/Anthropic.svg';
-import deepseekLogo from '../../assets/Model logos/DeepSeek.png';
-import openaiLogo from '../../assets/Model logos/OpenAI.svg';
-import googleLogo from '../../assets/Model logos/GoogleGemini.svg';
-
-
+import { useWallet } from '../../hooks/useWallet';
+import { useUsageStore } from '../../store/useUsageStore';
 
 const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -18,21 +12,7 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
             <tr className={`${panelStyles.row} ${panelStyles.desktopRow}`}>
                 <td className={`${panelStyles.td} ${panelStyles.tdFirst}`} style={{ color: '#A77590' }}>{item.timestamp}</td>
                 <td className={panelStyles.td}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {/* Dynamic Logo Logic */}
-                        <img
-                            src={
-                                item.model.toLowerCase().includes('gpt') ? openaiLogo :
-                                    item.model.toLowerCase().includes('claude') ? anthropicLogo :
-                                        item.model.toLowerCase().includes('gemini') ? googleLogo :
-                                            item.model.toLowerCase().includes('deepseek') ? deepseekLogo :
-                                                openaiLogo // Default
-                            }
-                            alt={item.model}
-                            style={{ width: '18px', height: '18px', borderRadius: '4px' }}
-                        />
-                        <span>{item.model}</span>
-                    </div>
+                    <span>{item.model}</span>
                 </td>
                 <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{item.tokens}</td>
                 <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{item.cost}</td>
@@ -57,18 +37,7 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
                         <div className={panelStyles.mobileHeader} onClick={() => setIsExpanded(!isExpanded)}>
                             <div className={panelStyles.mobileHeaderContent} style={{ gridTemplateColumns: '1fr 1fr' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <img
-                                            src={
-                                                item.model.toLowerCase().includes('gpt') ? openaiLogo :
-                                                    item.model.toLowerCase().includes('claude') ? anthropicLogo :
-                                                        item.model.toLowerCase().includes('gemini') ? googleLogo :
-                                                            item.model.toLowerCase().includes('deepseek') ? deepseekLogo :
-                                                                openaiLogo // Default
-                                            }
-                                            alt={item.model}
-                                            style={{ width: '16px', height: '16px' }}
-                                        />
+                                    <div>
                                         <span style={{ color: '#FFE1F2', fontSize: '14px', fontWeight: 600 }}>{item.model}</span>
                                     </div>
                                     <span style={{ color: '#A77590', fontSize: '11px' }}>{item.timestamp}</span>
@@ -103,12 +72,6 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
     );
 };
 
-import { useWallet } from '../../hooks/useWallet';
-import { useUsageStore } from '../../store/useUsageStore';
-import { useEffect } from 'react';
-
-// ... (imports remain)
-
 const UsageHistoryTable: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -123,13 +86,23 @@ const UsageHistoryTable: React.FC = () => {
         }
     }, [walletAddress, fetchHistory]);
 
+    useEffect(() => {
+        if (!walletAddress) return;
+        const id = window.setInterval(() => {
+            void fetchHistory(walletAddress);
+        }, 10000);
+        return () => window.clearInterval(id);
+    }, [walletAddress, fetchHistory]);
+
     const toggleRowsDropdown = () => setIsRowsDropdownOpen(!isRowsDropdownOpen);
 
     const totalItems = history.length;
-    const totalPages = Math.ceil(totalItems / rowsPerPage);
+    const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
     const displayedData = history.slice(startIndex, endIndex);
+    const showingFrom = totalItems === 0 ? 0 : startIndex + 1;
+    const showingTo = totalItems === 0 ? 0 : Math.min(endIndex, totalItems);
 
     const goToPage = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -137,9 +110,15 @@ const UsageHistoryTable: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
+
     return (
         <div style={{ marginTop: '0px' }}>
-            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: 'calc(100vh - 220px)', minHeight: '500px' }}>
+            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', flex: '0 0 auto' }}>
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid #3A2530', fontSize: '16px', fontWeight: 500, color: '#FFE1F2' }}>
                     Usage
                 </div>
@@ -179,47 +158,52 @@ const UsageHistoryTable: React.FC = () => {
                     </table>
 
                     {/* Footer */}
+                    {totalItems > 0 && (
                     <div className={panelStyles.tableFooter}>
                         <div className={panelStyles.footerGrid}>
                             <div className={panelStyles.footerMessage}>
-                                Showing {startIndex + 1} - {Math.min(endIndex, totalItems)} out of {totalItems}
+                                Showing {showingFrom} - {showingTo} out of {totalItems}
                             </div>
 
                             <div className={panelStyles.footerControls}>
-                                <button
-                                    className={panelStyles.paginationButton}
-                                    onClick={() => goToPage(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                >
-                                    &lt;
-                                </button>
-
-                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                    let startPage = Math.max(1, currentPage - 2);
-                                    if (startPage + 4 > totalPages) {
-                                        startPage = Math.max(1, totalPages - 4);
-                                    }
-                                    const p = startPage + i;
-                                    if (p > totalPages) return null;
-
-                                    return (
+                                {totalPages > 1 && (
+                                    <>
                                         <button
-                                            key={p}
-                                            className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
-                                            onClick={() => goToPage(p)}
+                                            className={panelStyles.paginationButton}
+                                            onClick={() => goToPage(currentPage - 1)}
+                                            disabled={currentPage === 1}
                                         >
-                                            {p}
+                                            &lt;
                                         </button>
-                                    );
-                                })}
 
-                                <button
-                                    className={panelStyles.paginationButton}
-                                    onClick={() => goToPage(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                >
-                                    &gt;
-                                </button>
+                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                            let startPage = Math.max(1, currentPage - 2);
+                                            if (startPage + 4 > totalPages) {
+                                                startPage = Math.max(1, totalPages - 4);
+                                            }
+                                            const p = startPage + i;
+                                            if (p > totalPages) return null;
+
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
+                                                    onClick={() => goToPage(p)}
+                                                >
+                                                    {p}
+                                                </button>
+                                            );
+                                        })}
+
+                                        <button
+                                            className={panelStyles.paginationButton}
+                                            onClick={() => goToPage(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            &gt;
+                                        </button>
+                                    </>
+                                )}
                             </div>
 
                             <div className={panelStyles.footerActions}>
@@ -263,6 +247,7 @@ const UsageHistoryTable: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -1,5 +1,11 @@
 const BACKEND_URL = 'http://localhost:8000';
 
+const toMillis = (ts) => {
+    const n = Number(ts || 0);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return n < 1_000_000_000_000 ? n * 1000 : n;
+};
+
 export const getBars = async (
     symbolInfo,
     resolution,
@@ -8,11 +14,13 @@ export const getBars = async (
     onErrorCallback
 ) => {
     const { from, to, firstDataRequest } = periodParams;
+    const fromMs = toMillis(from || 0);
+    const toMs = toMillis(to || 0);
 
     try {
         const symbol = symbolInfo.name.replace('/', '-');
         const limit = periodParams.countBack || 500;
-        const url = `${BACKEND_URL}/api/candles/${symbol}?exchange=ostium&limit=${limit}`;
+        const url = `${BACKEND_URL}/api/candles/${symbol}?exchange=ostium&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
 
         const response = await fetch(url);
 
@@ -29,20 +37,20 @@ export const getBars = async (
         }
 
         const bars = data.map(b => {
-            let timestamp = b.t || b.time || b.timestamp;
-            if (timestamp > 10000000000) {
-                timestamp = Math.floor(timestamp / 1000);
-            }
-
             return {
-                time: timestamp,
+                time: toMillis(b.t || b.time || b.timestamp),
                 open: parseFloat(b.o || b.open),
                 high: parseFloat(b.h || b.high),
                 low: parseFloat(b.l || b.low),
                 close: parseFloat(b.c || b.close),
                 volume: 0
             };
-        }).filter(bar => bar.time >= from && bar.time <= to)
+        }).filter(bar => {
+            if (!fromMs && !toMs) return true;
+            if (fromMs && bar.time < fromMs) return false;
+            if (toMs && bar.time > toMs) return false;
+            return true;
+        })
             .sort((a, b) => a.time - b.time);
 
         if (bars.length === 0 && !firstDataRequest) {

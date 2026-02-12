@@ -10,7 +10,7 @@ import { arbitrumSepolia } from 'viem/chains';
 
 export const FaucetModal: React.FC = () => {
     const { isFaucetModalOpen, closeFaucetModal } = useUIStore();
-    const { authenticated, walletAddress, wallets } = useWallet();
+    const { authenticated, walletAddress, wallets, handleSwitchToTargetChain } = useWallet();
     const [amount, setAmount] = useState('1000');
     const [isClaiming, setIsClaiming] = useState(false);
     const [destination, setDestination] = useState<'wallet' | 'ai_vault'>('wallet');
@@ -152,6 +152,8 @@ export const FaucetModal: React.FC = () => {
 
                             setIsClaiming(true);
                             try {
+                                await handleSwitchToTargetChain();
+
                                 const provider = await wallet.getEthereumProvider();
                                 const walletClient = createWalletClient({
                                     account: walletAddress as `0x${string}`,

@@ -190,6 +190,12 @@ const PortfolioPositions: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
+
     const renderFooter = () => {
         if (!isPaginationNeeded) return null;
 
@@ -207,6 +213,8 @@ const PortfolioPositions: React.FC = () => {
         }
 
         // Full Pagination Footer
+        const shouldShowPagination = totalPages > 1;
+
         return (
             <div className={panelStyles.tableFooter}>
                 <div className={panelStyles.footerGrid}>
@@ -215,40 +223,44 @@ const PortfolioPositions: React.FC = () => {
                     </div>
 
                     <div className={panelStyles.footerControls}>
-                        <button
-                            className={panelStyles.paginationButton}
-                            onClick={() => goToPage(currentPage - 1)}
-                            disabled={currentPage === 1}
-                        >
-                            &lt;
-                        </button>
-
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let startPage = Math.max(1, currentPage - 2);
-                            if (startPage + 4 > totalPages) {
-                                startPage = Math.max(1, totalPages - 4);
-                            }
-                            const p = startPage + i;
-                            if (p > totalPages) return null;
-
-                            return (
+                        {shouldShowPagination && (
+                            <>
                                 <button
-                                    key={p}
-                                    className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
-                                    onClick={() => goToPage(p)}
+                                    className={panelStyles.paginationButton}
+                                    onClick={() => goToPage(currentPage - 1)}
+                                    disabled={currentPage === 1}
                                 >
-                                    {p}
+                                    &lt;
                                 </button>
-                            );
-                        })}
 
-                        <button
-                            className={panelStyles.paginationButton}
-                            onClick={() => goToPage(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                        >
-                            &gt;
-                        </button>
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    let startPage = Math.max(1, currentPage - 2);
+                                    if (startPage + 4 > totalPages) {
+                                        startPage = Math.max(1, totalPages - 4);
+                                    }
+                                    const p = startPage + i;
+                                    if (p > totalPages) return null;
+
+                                    return (
+                                        <button
+                                            key={p}
+                                            className={`${panelStyles.paginationButton} ${currentPage === p ? panelStyles.active : ''}`}
+                                            onClick={() => goToPage(p)}
+                                        >
+                                            {p}
+                                        </button>
+                                    );
+                                })}
+
+                                <button
+                                    className={panelStyles.paginationButton}
+                                    onClick={() => goToPage(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    &gt;
+                                </button>
+                            </>
+                        )}
                     </div>
 
                     <div className={panelStyles.footerActions}>
@@ -308,7 +320,8 @@ const PortfolioPositions: React.FC = () => {
                 flexDirection: 'column',
                 height: 'auto',
                 maxHeight: 'calc(100vh - 220px)',
-                minHeight: 0
+                minHeight: 0,
+                flex: '0 0 auto'
             }}>
                 {/* Navbar Style Tabs */}
                 <div className={styles.tabsContainer}>
