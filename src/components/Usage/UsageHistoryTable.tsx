@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import panelStyles from '../Positions/PositionsPanel.module.css';
-import { useWallet } from '../../hooks/useWallet';
 import { useUsageStore } from '../../store/useUsageStore';
+
+const formatUsd6 = (raw: unknown) => {
+    const n = Number(String(raw ?? '').replace(/[^0-9.\\-]/g, ''));
+    if (!Number.isFinite(n)) return String(raw ?? '');
+    return `$${n.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 })}`;
+};
 
 const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -15,7 +20,7 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
                     <span>{item.model}</span>
                 </td>
                 <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{item.tokens}</td>
-                <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{item.cost}</td>
+                <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>{formatUsd6(item.cost)}</td>
                 <td className={`${panelStyles.td} ${panelStyles.tdRight}`} style={{ color: '#A77590' }}>{item.speed}</td>
                 <td className={`${panelStyles.td} ${panelStyles.tdRight}`}>
                     <span style={{
@@ -43,7 +48,7 @@ const UsageHistoryRow: React.FC<{ item: any }> = ({ item }) => {
                                     <span style={{ color: '#A77590', fontSize: '11px' }}>{item.timestamp}</span>
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                                    <span style={{ color: '#FFE1F2' }}>{item.cost}</span>
+                                    <span style={{ color: '#FFE1F2' }}>{formatUsd6(item.cost)}</span>
                                     <span style={{
                                         color: item.finish === 'Complete' ? '#00E396' : '#FF4560',
                                         fontSize: '10px'
@@ -77,22 +82,7 @@ const UsageHistoryTable: React.FC = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
 
-    const { walletAddress } = useWallet();
-    const { history, fetchHistory } = useUsageStore();
-
-    useEffect(() => {
-        if (walletAddress) {
-            fetchHistory(walletAddress);
-        }
-    }, [walletAddress, fetchHistory]);
-
-    useEffect(() => {
-        if (!walletAddress) return;
-        const id = window.setInterval(() => {
-            void fetchHistory(walletAddress);
-        }, 10000);
-        return () => window.clearInterval(id);
-    }, [walletAddress, fetchHistory]);
+    const { history } = useUsageStore();
 
     const toggleRowsDropdown = () => setIsRowsDropdownOpen(!isRowsDropdownOpen);
 

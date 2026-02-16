@@ -1,76 +1,52 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import styles from './Portfolio.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import OrdersTable from '../Positions/OrdersTable';
 import type { OrderData as UIOrderData } from '../Positions/OrderRow';
-// import { useWallet } from '../../hooks';
-// import type { OrderData as APIOrderData } from '../../api/orderService';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
 
-// Mapper function to convert backend data to UI format
-/*
-const mapAPIOrderToUI = (apiOrder: APIOrderData): UIOrderData => {
-    ...
+const mapOrderToUI = (apiOrder: any): UIOrderData => {
+    return {
+        id: apiOrder.id,
+        time: apiOrder.created_at ? new Date(apiOrder.created_at).toLocaleString() : 'Just now',
+        type: (apiOrder.order_type?.charAt(0).toUpperCase() + apiOrder.order_type?.slice(1).replace('_', ' ')) as any,
+        symbol: apiOrder.symbol,
+        direction: String(apiOrder.side || '').toLowerCase() === 'buy' ? 'Long' : 'Short',
+        size: apiOrder.size,
+        originalSize: apiOrder.size,
+        orderValue: apiOrder.notional_usd,
+        price: apiOrder.price || 0,
+        reduceOnly: apiOrder.reduce_only || false,
+        triggerConditions: apiOrder.stop_price ? `>= ${apiOrder.stop_price}` : 'N/A',
+        tp: '--',
+        sl: '--',
+    };
 };
-*/
 
 const PortfolioOrders: React.FC = () => {
-    // const { openOrders, fetchOrders } = usePortfolioStore();
-    // const { walletAddress, authenticated } = useWallet();
-    const authenticated = true;
-    const walletAddress = "0xDemo...1234";
+    const { openOrders } = usePortfolioStore();
 
     const [sortBy, setSortBy] = React.useState<'value' | 'coin'>('value');
     const [filterBy, setFilterBy] = React.useState<'all' | 'active' | 'long' | 'short'>('all');
     const [isSortOpen, setIsSortOpen] = React.useState(false);
     const [isFilterOpen, setIsFilterOpen] = React.useState(false);
 
-    useEffect(() => {
-        // DISCONNECTED FROM BACKEND
-    }, [authenticated, walletAddress]);
-
     const filteredOrders = React.useMemo(() => {
-        // DISCONNECTED FROM BACKEND - Using Mock Data
-        const mockOrders: UIOrderData[] = [
-            {
-                id: '1',
-                time: '30/12/2025 - 16.04.22',
-                type: 'Limit',
-                symbol: 'SOL',
-                direction: 'Long',
-                size: 9.85,
-                originalSize: 9.85,
-                orderValue: 1222.78,
-                price: 124.14,
-                reduceOnly: false,
-                triggerConditions: 'N/A',
-                tp: '--',
-                sl: '--'
-            }
-        ];
+        let result = openOrders.map(mapOrderToUI);
 
-        let result = [...mockOrders];
-
-        // Filter
-        if (filterBy !== 'all') {
-            if (filterBy === 'long') {
-                result = result.filter(o => o.direction === 'Long');
-            } else if (filterBy === 'short') {
-                result = result.filter(o => o.direction === 'Short');
-            }
-        }
+        // Filter (openOrders are already "active", keep option for UI consistency)
+        if (filterBy === 'long') result = result.filter(o => o.direction === 'Long');
+        if (filterBy === 'short') result = result.filter(o => o.direction === 'Short');
 
         // Sort
         result.sort((a, b) => {
-            if (sortBy === 'value') {
-                return b.orderValue - a.orderValue;
-            } else if (sortBy === 'coin') {
-                return a.symbol.localeCompare(b.symbol);
-            }
+            if (sortBy === 'value') return (b.orderValue || 0) - (a.orderValue || 0);
+            if (sortBy === 'coin') return String(a.symbol || '').localeCompare(String(b.symbol || ''));
             return 0;
         });
 
         return result;
-    }, [filterBy, sortBy, authenticated, walletAddress]);
+    }, [openOrders, filterBy, sortBy]);
 
     const toggleSort = () => {
         setIsSortOpen(!isSortOpen);
@@ -86,7 +62,20 @@ const PortfolioOrders: React.FC = () => {
         <div style={{ paddingBottom: '32px' }}>
             <div className={styles.sectionTitle}>Open Orders</div>
 
-            <div className={panelStyles.tableContainer} style={{ background: '#12000A', border: '1px solid #3A2530', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: 'calc(100vh - 220px)', minHeight: 0 }}>
+            <div
+                className={panelStyles.tableContainer}
+                style={{
+                    background: '#12000A',
+                    border: '1px solid #3A2530',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: 'auto',
+                    maxHeight: 'calc(100vh - 220px)',
+                    minHeight: 0
+                }}
+            >
                 <div className={panelStyles.controlsContainer} style={{ padding: '16px', borderBottom: '1px solid #3A2530', marginBottom: 0 }}>
                     <div className={panelStyles.controlsLeft}>
                         {/* Sort Dropdown */}
@@ -96,7 +85,14 @@ const PortfolioOrders: React.FC = () => {
                                 onClick={toggleSort}
                             >
                                 Sort by <span style={{ color: '#FFE1F2' }}>{sortBy === 'value' ? 'Order Value' : 'Coin'}</span>
-                                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transition: 'transform 0.2s', marginLeft: '6px', transform: isSortOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                                <svg
+                                    width="10"
+                                    height="6"
+                                    viewBox="0 0 10 6"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{ transition: 'transform 0.2s', marginLeft: '6px', transform: isSortOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                                >
                                     <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                             </button>
@@ -125,17 +121,24 @@ const PortfolioOrders: React.FC = () => {
                                 onClick={toggleFilter}
                             >
                                 Filter <span style={{ color: '#FFE1F2' }}>{filterBy.charAt(0).toUpperCase() + filterBy.slice(1)}</span>
-                                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transition: 'transform 0.2s', marginLeft: '6px', transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                                <svg
+                                    width="10"
+                                    height="6"
+                                    viewBox="0 0 10 6"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{ transition: 'transform 0.2s', marginLeft: '6px', transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                                >
                                     <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                             </button>
                             {isFilterOpen && (
                                 <div className={panelStyles.dropdownMenu}>
-                                    {['all', 'active', 'long', 'short'].map((filter) => (
+                                    {(['all', 'active', 'long', 'short'] as const).map((filter) => (
                                         <button
                                             key={filter}
                                             className={`${panelStyles.dropdownItem} ${filterBy === filter ? panelStyles.selected : ''}`}
-                                            onClick={() => { setFilterBy(filter as any); setIsFilterOpen(false); }}
+                                            onClick={() => { setFilterBy(filter); setIsFilterOpen(false); }}
                                         >
                                             {filter.charAt(0).toUpperCase() + filter.slice(1)}
                                         </button>
@@ -157,3 +160,4 @@ const PortfolioOrders: React.FC = () => {
 };
 
 export default PortfolioOrders;
+

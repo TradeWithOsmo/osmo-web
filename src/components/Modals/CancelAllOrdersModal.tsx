@@ -33,8 +33,17 @@ export const CancelAllOrdersModal: React.FC = () => {
         if (!walletAddress) return;
         setIsSubmitting(true);
         try {
-            await cancelAllOrders(walletAddress);
-            toast.success('All orders cancelled successfully');
+            const result = await cancelAllOrders(walletAddress);
+            const total = result.cancelled + result.failed + result.skipped;
+            if (total === 0) {
+                toast.success('No open orders to cancel');
+            } else if (result.failed === 0) {
+                toast.success(`Cancelled ${result.cancelled} order(s)`);
+            } else if (result.cancelled > 0) {
+                toast.error(`Cancelled ${result.cancelled}/${total}. Failed: ${result.failed}`);
+            } else {
+                toast.error(`Failed to cancel ${result.failed} order(s)`);
+            }
             closeCancelAllOrdersModal();
         } catch (error: any) {
             console.error('Cancel All failed', error);

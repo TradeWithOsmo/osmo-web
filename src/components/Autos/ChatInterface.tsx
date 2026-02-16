@@ -26,10 +26,24 @@ interface ChatInterfaceProps {
     onDeleteSession?: (sessionId: string) => void;
     onMoveSessionToWorkspace?: (sessionId: string, workspaceId: string) => void;
     onOpenChart?: (symbol?: string, indicators?: string[], timeframe?: string) => void;
-    onEditMessage?: (sessionId: string, messageId: string, newContent: string, modelId?: string, reasoningEffort?: string) => void;
-    onRegenerateResponse?: (messageId: string, modelId?: string, reasoningEffort?: string) => void;
+    onEditMessage?: (
+        sessionId: string,
+        messageId: string,
+        newContent: string,
+        modelId?: string,
+        reasoningEffort?: string,
+        toolStates?: any
+    ) => void;
+    onRegenerateResponse?: (
+        messageId: string,
+        modelId?: string,
+        reasoningEffort?: string,
+        toolStates?: any
+    ) => void;
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike' | null) => void;
     currentSymbol?: string;
+    currentTimeframe?: string;
+    currentIndicators?: string[];
     onToggleMinimize?: () => void;
     isMinimized?: boolean;
     onNewChat?: () => void;
@@ -61,6 +75,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onFeedback,
 
     currentSymbol,
+    currentTimeframe,
+    currentIndicators,
     onStop
 }) => {
     const [inputValue, setInputValue] = useState('');
@@ -119,7 +135,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const timeframes = ['1m', '5m', '15m', '1H', '4H', '1D', '1W'];
     const MIN_MAX_THINKING = 1;
     const MAX_MAX_THINKING = 32;
-    const DEFAULT_MAX_THINKING = 6;
+    const DEFAULT_MAX_THINKING = 11;
 
     const indicatorAliases: Record<string, { label: string; study: string }> = {
         RSI: { label: 'RSI', study: 'RSI' },
@@ -167,6 +183,38 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         timeframes.forEach(tf => map.set(tf.toLowerCase(), tf));
         return map;
     }, [timeframes]);
+
+    const normalizeTimeframeLabel = (value?: string | null): string => {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+
+        const byMap = timeframeMap.get(raw.toLowerCase());
+        if (byMap) return byMap;
+
+        const upper = raw.toUpperCase();
+        const directMap: Record<string, string> = {
+            '1': '1m',
+            '3': '3m',
+            '5': '5m',
+            '15': '15m',
+            '30': '30m',
+            '60': '1H',
+            '240': '4H',
+            'D': '1D',
+            '1D': '1D',
+            'W': '1W',
+            '1W': '1W',
+        };
+        if (directMap[upper]) return directMap[upper];
+
+        if (/^\d+$/.test(raw)) {
+            const minutes = Number(raw);
+            if (minutes > 0 && minutes < 60) return `${minutes}m`;
+            if (minutes % 60 === 0 && minutes < 1440) return `${minutes / 60}H`;
+            return `${minutes}m`;
+        }
+        return raw;
+    };
 
     const renderToolNameNodes = (text: string, keyPrefix: string) => {
         const regex = /\b(?:get|add|set|place|open|close|fetch|update|list|create|delete|remove|capture|draw|write)_[a-z0-9_]{2,}\b/g;
@@ -372,7 +420,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 );
 
                 if (filtered.length === 0 && allModels.length > 0) {
-                    filtered = allModels.filter((m: any) => m.id.startsWith('nvidia/'));
+                    filtered = allModels;
                 }
 
                 if (filtered.length > 0) {
@@ -442,15 +490,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
     const [toolStates, setToolStates] = useState({
         execution: false,
-        write: false,
+        write: true,
         planMode: false,
-        timeframe: ['1D'],
+        timeframe: [] as string[],
         indicators: [] as string[],
-        webObservation: true,
+        conversation_style: 'normal' as 'normal' | 'learning' | 'concise' | 'explanatory' | 'formal',
+        trading_style_profile: 'off' as
+            | 'off'
+            | 'jesse_livermore'
+            | 'paul_tudor_jones'
+            | 'mark_minervini'
+            | 'nicolas_darvas'
+            | 'william_oneil'
+            | 'stan_weinstein'
+            | 'willy_woo'
+            | 'rekt_capital'
+            | 'benjamin_cowen',
+        webObservation: false,
         memoryEnabled: false,
         maxThinking: DEFAULT_MAX_THINKING
     });
-    const [activeToolView, setActiveToolView] = useState<'main' | 'indicators' | 'timeframe' | 'more'>('main');
+    const [activeToolView, setActiveToolView] = useState<'main' | 'indicators' | 'timeframe' | 'more' | 'style'>('main');
+    const [openStyleSection, setOpenStyleSection] = useState<null | 'conversation' | 'trading'>('conversation');
     const [indicatorSearch, setIndicatorSearch] = useState('');
     const toolsRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -473,6 +534,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             });
         };
     }, [attachmentPreviews]);
+
+    // Persist style settings (keep runtime tool_states stable across reloads)
+    useEffect(() => {
+        const rawConv = localStorage.getItem('chat_conversation_style');
+        const rawProfile = localStorage.getItem('chat_trading_style_profile');
+        const allowedConv = new Set(['normal', 'learning', 'concise', 'explanatory', 'formal']);
+        const allowedProfile = new Set([
+            'off',
+            'jesse_livermore',
+            'paul_tudor_jones',
+            'mark_minervini',
+            'nicolas_darvas',
+            'william_oneil',
+            'stan_weinstein',
+            'willy_woo',
+            'rekt_capital',
+            'benjamin_cowen',
+        ]);
+
+        setToolStates(prev => ({
+            ...prev,
+            conversation_style: allowedConv.has(String(rawConv)) ? (rawConv as any) : prev.conversation_style,
+            trading_style_profile: allowedProfile.has(String(rawProfile)) ? (rawProfile as any) : prev.trading_style_profile,
+        }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('chat_conversation_style', toolStates.conversation_style);
+            localStorage.setItem('chat_trading_style_profile', toolStates.trading_style_profile);
+        } catch {
+            // Ignore persistence failures (private mode, quota, etc.)
+        }
+    }, [toolStates.conversation_style, toolStates.trading_style_profile]);
 
     const readFileAsDataUrl = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -543,13 +639,66 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         const normalizedMarket = marketRaw
             ? marketRaw.replace('/', '-').toUpperCase()
             : '';
+        const normalizedChartTimeframe = normalizeTimeframeLabel(currentTimeframe);
+        const marketActiveIndicators = Array.from(
+            new Set(
+                (Array.isArray(currentIndicators) ? currentIndicators : [])
+                    .map((item) => String(item || '').trim())
+                    .filter(Boolean)
+            )
+        );
         const selectedModelId = getSelectedModelId();
-        const timeframeList = Array.isArray(toolStates.timeframe)
+        const timeframeCandidates = Array.isArray(toolStates.timeframe)
             ? toolStates.timeframe
             : (toolStates.timeframe ? [toolStates.timeframe] : []);
+        const timeframeList = Array.from(
+            new Set(
+                timeframeCandidates
+                    .map((item) => normalizeTimeframeLabel(String(item || '').trim()))
+                    .filter(Boolean)
+            )
+        );
+        const indicatorList = Array.isArray(toolStates.indicators)
+            ? toolStates.indicators
+            : [];
+
+        const styleProfile = toolStates.trading_style_profile;
+        const STYLE_PROMPTS: Record<string, string> = {
+            jesse_livermore:
+                "Use pivotal points + trend confirmation. Prefer breakouts to new highs with volume expansion; add only as trend proves (pyramiding). Cut losses fast; never average down.",
+            paul_tudor_jones:
+                "Use 200D MA as primary regime filter; align direction with the regime. Keep risk tiny per trade; exit quickly when regime breaks. Prioritize defense and asymmetry.",
+            mark_minervini:
+                "Use trend-template alignment (price above rising MAs) and contraction/VCP patterns with volume dry-up. Enter on pivot breakout with volume. Use tight invalidation; avoid late entries.",
+            nicolas_darvas:
+                "Use box/range structure: define box high/low, trade breakouts with volume confirmation, and trail risk to the bottom of the current box. Prefer new highs; avoid chop.",
+            william_oneil:
+                "Use base-breakout logic with relative strength and volume confirmation. Prefer leading strength; avoid weak/lagging names. Use strict stops and focus on clean setups.",
+            stan_weinstein:
+                "Use stage analysis with a long MA (e.g., 30-week/200D) slope. Favor stage-2 breakouts, avoid stage-4 downtrends, and reduce/exit in stage-3 topping behavior.",
+            willy_woo:
+                "Combine on-chain regime signals (flows, valuation bands, holder behavior) with price action to set bias. Prefer higher timeframes for bias; use risk controls for perps volatility.",
+            rekt_capital:
+                "Use cycle/phase awareness and range re-accumulation structure. Focus on key range levels and post-event phase shifts; avoid forcing trades mid-range without confirmation.",
+            benjamin_cowen:
+                "Use macro + dominance/regime framing and long-term support-band logic to set risk-on/off posture. Prefer probabilistic, risk-managed positioning over precise predictions.",
+        };
+
+        const commonStylePrefix =
+            "Apply only for trading/TA. Prioritize selected timeframe+indicators. Do not mention trader/style names. Output: Context, Signals, Levels, Risk.";
+        const stylePromptCore = STYLE_PROMPTS[styleProfile] || '';
+        const tradingStylePrompt = stylePromptCore
+            ? `${commonStylePrefix} ${stylePromptCore}`
+            : '';
 
         return {
             ...toolStates,
+            execution: !!toolStates.execution,
+            write: !!toolStates.write,
+            // Execution policy:
+            // - execution=false => execution tools are not exposed to the agent
+            // - execution=true => allow execution tools, with policy_mode=auto_exec for immediate execution
+            policy_mode: toolStates.execution ? 'auto_exec' : 'advice_only',
             plan_mode: toolStates.planMode,
             planner_source: 'ai',
             planner_fallback: 'none',
@@ -559,10 +708,49 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             memory_enabled: !!toolStates.memoryEnabled,
             strict_react: true,
             max_react_iterations: Number(toolStates.maxThinking || DEFAULT_MAX_THINKING),
+            max_tool_actions: Number(toolStates.maxThinking || DEFAULT_MAX_THINKING),
+            tool_retry_max: 1,
+            tool_profile: 'compact',
+            model_timeout_sec: 90,
             market_symbol: normalizedMarket,
             market_display: marketRaw ? marketRaw.replace(/-/g, '/') : normalizedMarket.replace(/-/g, '/'),
-            timeframe: timeframeList
+            ...(normalizedChartTimeframe ? { market_timeframe: normalizedChartTimeframe } : {}),
+            market_active_indicators: marketActiveIndicators,
+            preferred_timeframes: timeframeList,
+            preferred_indicators: indicatorList,
+            timeframe: normalizedChartTimeframe ? [normalizedChartTimeframe] : timeframeList,
+            ...(tradingStylePrompt ? { trading_style: 'profile', trading_style_prompt: tradingStylePrompt } : {}),
         };
+    };
+
+    const resolveDispatchToolStates = async () => {
+        const outbound = buildOutboundToolStates();
+        if (!outbound.write) {
+            return outbound;
+        }
+
+        const marketRaw = currentSymbol || selectedMarket?.symbol || '';
+        const symbolQuery = marketRaw ? marketRaw.replace('/', '-').toUpperCase() : undefined;
+        try {
+            const status = await agentService.getTradingViewConsumerStatus(symbolQuery, 6);
+            if (status && status.consumer_online === false) {
+                setToolStates(prev => (prev.write ? { ...prev, write: false } : prev));
+                alert(
+                    'Allow Write dimatikan otomatis untuk request ini karena TradingView chart belum aktif. ' +
+                    'Buka chart dulu lalu coba lagi.'
+                );
+                return {
+                    ...outbound,
+                    write: false,
+                    write_auto_disabled_reason: 'tradingview_consumer_offline',
+                };
+            }
+        } catch (error) {
+            // Keep backward-compatible behavior when the status endpoint is unavailable.
+            console.warn('TradingView consumer status check failed, continuing with current write flag.', error);
+        }
+
+        return outbound;
     };
 
     useEffect(() => {
@@ -630,6 +818,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         inputLinks,
         toolStates,
         currentSymbol,
+        currentTimeframe,
+        currentIndicators,
         selectedMarket?.symbol,
         messages,
         getAccessToken
@@ -671,37 +861,40 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         return () => clearInterval(timer);
     }, [isPlanLoading, isTyping, isPreparingAttachments]);
 
-    const handleSaveEdit = (msgId: string) => {
+    const handleSaveEdit = async (msgId: string) => {
         if (onEditMessage && activeSessionId) {
             const modelId = getSelectedModelId();
             if (!modelId) {
                 alert('Model belum dipilih. Pilih model dulu.');
                 return;
             }
-            onEditMessage(activeSessionId, msgId, editValue, modelId, reasoningEffort);
+            const outboundToolStates = await resolveDispatchToolStates();
+            onEditMessage(activeSessionId, msgId, editValue, modelId, reasoningEffort, outboundToolStates);
             // Optionally trigger regeneration here if desired, but for now just edit
         }
         setEditingMessageId(null);
         setEditValue('');
     };
 
-    const handleRegenerate = (content: string) => {
+    const handleRegenerate = async (content: string) => {
         const modelId = getSelectedModelId();
         if (!modelId) {
             alert('Model belum dipilih. Pilih model dulu.');
             return;
         }
-        onSendMessage(content, modelId, [], buildOutboundToolStates());
+        const outboundToolStates = await resolveDispatchToolStates();
+        onSendMessage(content, modelId, [], outboundToolStates);
     };
 
-    const handleAssistantRegenerate = (messageId: string) => {
+    const handleAssistantRegenerate = async (messageId: string) => {
         if (!onRegenerateResponse) return;
         const modelId = getSelectedModelId();
         if (!modelId) {
             alert('Model belum dipilih. Pilih model dulu.');
             return;
         }
-        onRegenerateResponse(messageId, modelId, reasoningEffort);
+        const outboundToolStates = await resolveDispatchToolStates();
+        onRegenerateResponse(messageId, modelId, reasoningEffort, outboundToolStates);
     };
 
     const handleCopy = (content: string, id: string) => {
@@ -1037,7 +1230,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         if (!contentWithLinks && attachmentPayloads.length === 0) {
             return;
         }
-        onSendMessage(contentWithLinks, finalModelId, attachmentPayloads, buildOutboundToolStates());
+        const outboundToolStates = await resolveDispatchToolStates();
+        onSendMessage(contentWithLinks, finalModelId, attachmentPayloads, outboundToolStates);
         setInputValue('');
         setInputLinks([]);
         setAttachments([]);
@@ -1059,6 +1253,42 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const inputFileAttachments = inputAttachmentItems.filter(item => !item.file.type.startsWith('image/'));
     const activeMarketLabel = (currentSymbol || selectedMarket?.symbol || '').replace(/-/g, '/');
     const selectedTimeframes = Array.isArray(toolStates.timeframe) ? toolStates.timeframe : [];
+    const activeMarketTimeframe = useMemo(() => {
+        return normalizeTimeframeLabel(currentTimeframe);
+    }, [currentTimeframe, timeframeMap]);
+    const activeMarketIndicators = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    (Array.isArray(currentIndicators) ? currentIndicators : [])
+                        .map((item) => String(item || '').trim())
+                        .filter(Boolean)
+                )
+            ),
+        [currentIndicators]
+    );
+    const activeMarketIndicatorsLabel = useMemo(
+        () => activeMarketIndicators.join(', '),
+        [activeMarketIndicators]
+    );
+    const hintedTimeframes = Array.from(
+        new Set(
+            selectedTimeframes
+                .map((tf) => normalizeTimeframeLabel(tf))
+                .filter((tf) => tf && tf !== activeMarketTimeframe)
+        )
+    );
+    const combinedHintValues = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    [...hintedTimeframes, ...(Array.isArray(toolStates.indicators) ? toolStates.indicators : [])]
+                        .map((item) => String(item || '').trim())
+                        .filter(Boolean)
+                )
+            ),
+        [hintedTimeframes, toolStates.indicators]
+    );
     const hasDraftContent = Boolean(inputValue.trim() || attachments.length > 0 || inputLinks.length > 0);
     const sendBlockedByPrerequisite = Boolean(!hasWalletConnection || !hasValidSession || isSessionChecking);
     const isSendDisabled = !isTyping && (isPreparingAttachments || sendBlockedByPrerequisite || !hasDraftContent);
@@ -1286,33 +1516,38 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                                                     <span style={{ color: '#A77590' }}>Lev:</span> <span>{order.leverage || 1}x</span>
                                                                                 </div>
                                                                                 <div style={{ display: 'flex', gap: 8 }}>
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            const content = `Execute order for ${order.symbol} now.`;
-                                                                                            onSendMessage(content, getSelectedModelId() || '', [], {
-                                                                                                ...buildOutboundToolStates(),
-                                                                                                execution: true,
-                                                                                                policy_mode: 'auto_exec'
-                                                                                            });
-                                                                                        }}
-                                                                                        style={{
-                                                                                            background: '#4CAF50',
-                                                                                            color: 'white',
-                                                                                            border: 'none',
-                                                                                            padding: '6px 12px',
-                                                                                            borderRadius: 4,
-                                                                                            cursor: 'pointer',
-                                                                                            fontWeight: 500,
-                                                                                            fontSize: '0.9em'
-                                                                                        }}
-                                                                                    >
-                                                                                        Approve
+                                                                                     <button
+                                                                                              disabled={!toolStates.execution}
+                                                                                              onClick={async (e) => {
+                                                                                                  e.stopPropagation();
+                                                                                                  if (!toolStates.execution) return;
+                                                                                                  const content = `Execute order for ${order.symbol} now.`;
+                                                                                                  const modelId = getSelectedModelId();
+                                                                                                  if (!modelId) return;
+                                                                                                  const outboundToolStates = await resolveDispatchToolStates();
+                                                                                                  onSendMessage(content, modelId, [], outboundToolStates);
+                                                                                              }}
+                                                                                              style={{
+                                                                                                  background: '#4CAF50',
+                                                                                                  color: 'white',
+                                                                                             border: 'none',
+                                                                                             padding: '6px 12px',
+                                                                                             borderRadius: 4,
+                                                                                             cursor: toolStates.execution ? 'pointer' : 'not-allowed',
+                                                                                             opacity: toolStates.execution ? 1 : 0.6,
+                                                                                             fontWeight: 500,
+                                                                                             fontSize: '0.9em'
+                                                                                         }}
+                                                                                     >
+                                                                                         Approve
                                                                                     </button>
                                                                                     <button
-                                                                                        onClick={(e) => {
+                                                                                        onClick={async (e) => {
                                                                                             e.stopPropagation();
-                                                                                            onSendMessage("Cancel the proposed order.", getSelectedModelId() || '', [], buildOutboundToolStates());
+                                                                                            const modelId = getSelectedModelId();
+                                                                                            if (!modelId) return;
+                                                                                            const outboundToolStates = await resolveDispatchToolStates();
+                                                                                            onSendMessage("Cancel the proposed order.", modelId, [], outboundToolStates);
                                                                                         }}
                                                                                         style={{
                                                                                             background: 'transparent',
@@ -1464,7 +1699,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 )}
 
                                                 {/* Response Text */}
-                                                {msg.isThinking && (!msg.content || msg.content.trim().length === 0) && (
+                                                {msg.isThinking && (!msg.content || msg.content.trim().length === 0) && !shouldShowThoughtBlock && (
                                                     <div className={styles.loadingRow} role="status" aria-live="polite">
                                                         <div className={styles.loadingBars} aria-hidden="true">
                                                             <span className={styles.loadingBar}></span>
@@ -1771,7 +2006,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         </svg>
                                         <span className={styles.linkChipText}>{getLinkLabel(link)}</span>
                                         <button className={styles.linkChipRemove} type="button" onClick={() => removeLinkFromInput(link)}>
-                                            Ã—
+                                            x
                                         </button>
                                     </div>
                                 ))}
@@ -1789,7 +2024,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             type="button"
                                             onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
                                         >
-                                            Ã—
+                                            x
                                         </button>
                                     </div>
                                 ))}
@@ -1816,7 +2051,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     type="button"
                                                     onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
                                                 >
-                                                    Ã—
+                                                    x
                                                 </button>
                                             </div>
                                         ) : (
@@ -1836,7 +2071,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     type="button"
                                                     onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
                                                 >
-                                                    Ã—
+                                                    x
                                                 </button>
                                             </div>
                                         )}
@@ -1844,7 +2079,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 ))}
                             </div>
                         )}
-                        {(activeMarketLabel || toolStates.indicators.length > 0 || selectedTimeframes.length > 0 || toolStates.webObservation || toolStates.memoryEnabled || toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
+                        {(activeMarketLabel || activeMarketTimeframe || activeMarketIndicators.length > 0 || combinedHintValues.length > 0 || toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
                             <div className={styles.contextChipsRow}>
                                 {activeMarketLabel && (
                                     <button
@@ -1857,52 +2092,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         <span className={styles.contextChipValue}>{activeMarketLabel}</span>
                                     </button>
                                 )}
-                                {selectedTimeframes.map((tf) => (
-                                    <div key={`tf-${tf}`} className={`${styles.contextChip} ${styles.timeframeContextChip}`}>
+                                {activeMarketTimeframe && (
+                                    <div className={`${styles.contextChip} ${styles.timeframeContextChip}`}>
                                         <span className={styles.contextChipKey}>Timeframe</span>
-                                        <span className={styles.contextChipValue}>{tf}</span>
-                                        <button
-                                            type="button"
-                                            className={styles.contextChipRemove}
-                                            onClick={() => {
-                                                setToolStates(prev => ({
-                                                    ...prev,
-                                                    timeframe: prev.timeframe.filter(item => item !== tf)
-                                                }));
-                                            }}
-                                        >
-                                            Ã—
-                                        </button>
-                                    </div>
-                                ))}
-                                {toolStates.indicators.map((indicator) => (
-                                    <div key={`ind-${indicator}`} className={`${styles.contextChip} ${styles.indicatorContextChip}`}>
-                                        <span className={styles.contextChipKey}>Indicator</span>
-                                        <span className={styles.contextChipValue}>{indicator}</span>
-                                        <button
-                                            type="button"
-                                            className={styles.contextChipRemove}
-                                            onClick={() => {
-                                                setToolStates(prev => ({
-                                                    ...prev,
-                                                    indicators: prev.indicators.filter(item => item !== indicator)
-                                                }));
-                                            }}
-                                        >
-                                            Ã—
-                                        </button>
-                                    </div>
-                                ))}
-                                {toolStates.webObservation && (
-                                    <div className={styles.contextChip}>
-                                        <span className={styles.contextChipKey}>Web</span>
-                                        <span className={styles.contextChipValue}>Search On</span>
+                                        <span className={styles.contextChipValue}>{activeMarketTimeframe}</span>
                                     </div>
                                 )}
-                                {toolStates.memoryEnabled && (
-                                    <div className={styles.contextChip}>
-                                        <span className={styles.contextChipKey}>Memory</span>
-                                        <span className={styles.contextChipValue}>On</span>
+                                {activeMarketIndicators.length > 0 && (
+                                    <div className={`${styles.contextChip} ${styles.indicatorContextChip}`}>
+                                        <span className={styles.contextChipKey}>
+                                            {activeMarketIndicators.length > 1 ? 'Active Indicators' : 'Active Indicator'}
+                                        </span>
+                                        <span className={styles.contextChipValue}>{activeMarketIndicatorsLabel}</span>
+                                    </div>
+                                )}
+                                {combinedHintValues.length > 0 && (
+                                    <div className={`${styles.contextChip} ${styles.indicatorContextChip}`}>
+                                        <span className={styles.contextChipKey}>Hint</span>
+                                        <span className={styles.contextChipValue}>{combinedHintValues.join(', ')}</span>
+                                        <button
+                                            type="button"
+                                            className={styles.contextChipRemove}
+                                            onClick={() => {
+                                                setToolStates(prev => ({
+                                                    ...prev,
+                                                    timeframe: [],
+                                                    indicators: []
+                                                }));
+                                            }}
+                                        >
+                                            x
+                                        </button>
                                     </div>
                                 )}
                                 {toolStates.maxThinking !== DEFAULT_MAX_THINKING && (
@@ -2089,61 +2309,214 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                     ))}
                                             </div>
                                         </div>
-                                    ) : activeToolView === 'timeframe' ? (
-                                        /* TIMEFRAME SUB-PAGE */
-                                        <div className={styles.toolSubPage}>
-                                            <div className={styles.toolPageHeader}>
-                                                <button className={styles.backButton} onClick={() => setActiveToolView('main')}>
-                                                    {'<'}
-                                                </button>
-                                                <span>Select Timeframe</span>
-                                            </div>
-                                            <div className={styles.toolList}>
-                                                {timeframes.map(tf => (
-                                                    <div
-                                                        key={tf}
-                                                        className={styles.toolItem}
-                                                        onClick={() => {
-                                                            // Multi-select logic for timeframe
-                                                            setToolStates(prev => {
-                                                                const current = Array.isArray(prev.timeframe) ? prev.timeframe : [prev.timeframe];
-                                                                const isSelected = current.includes(tf);
-                                                                const newTimeframes = isSelected
-                                                                    ? current.filter(t => t !== tf)
-                                                                    : [...current, tf];
-                                                                return { ...prev, timeframe: newTimeframes };
-                                                            });
-                                                            // e.stopPropagation(); // Keep menu open for multi-select
-                                                        }}
-                                                    >
-                                                        <span>{tf}</span>
-                                                        {(Array.isArray(toolStates.timeframe) ? toolStates.timeframe.includes(tf) : toolStates.timeframe === tf) && (
-                                                            <img src="/src/assets/Icons/Check.png" alt="Selected" width={14} height={14} style={{ marginLeft: 'auto' }} />
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        /* MORE SUB-PAGE */
-                                        <div className={styles.toolSubPage}>
-                                            <div className={styles.toolPageHeader}>
-                                                <button className={styles.backButton} onClick={() => setActiveToolView('main')}>
-                                                    {'<'}
-                                                </button>
-                                                <span>More Settings</span>
-                                            </div>
-                                            <div className={styles.toolList}>
-                                                <div
-                                                    className={styles.toolItem}
-                                                    onClick={() => setToolStates(prev => ({ ...prev, webObservation: !prev.webObservation }))}
-                                                >
-                                                    <div className={styles.toolIconWrapper}>
-                                                        <img src={brainIcon} alt="Web Search" width={18} height={18} />
-                                                    </div>
-                                                    <span>Web Search</span>
-                                                    <div className={`${styles.toggleSwitch} ${toolStates.webObservation ? styles.checked : ''}`}></div>
-                                                </div>
+                                     ) : activeToolView === 'timeframe' ? (
+                                         /* TIMEFRAME SUB-PAGE */
+                                         <div className={styles.toolSubPage}>
+                                             <div className={styles.toolPageHeader}>
+                                                 <button className={styles.backButton} onClick={() => setActiveToolView('main')}>
+                                                     {'<'}
+                                                 </button>
+                                                 <span>Select Timeframe</span>
+                                             </div>
+                                             <div className={styles.toolList}>
+                                                 {timeframes.map(tf => (
+                                                     <div
+                                                         key={tf}
+                                                         className={styles.toolItem}
+                                                         onClick={() => {
+                                                             // Multi-select logic for timeframe
+                                                             setToolStates(prev => {
+                                                                 const current = Array.isArray(prev.timeframe) ? prev.timeframe : [prev.timeframe];
+                                                                 const isSelected = current.includes(tf);
+                                                                 const newTimeframes = isSelected
+                                                                     ? current.filter(t => t !== tf)
+                                                                     : [...current, tf];
+                                                                 return { ...prev, timeframe: newTimeframes };
+                                                             });
+                                                             // e.stopPropagation(); // Keep menu open for multi-select
+                                                         }}
+                                                     >
+                                                         <span>{tf}</span>
+                                                         {(Array.isArray(toolStates.timeframe) ? toolStates.timeframe.includes(tf) : toolStates.timeframe === tf) && (
+                                                             <img src="/src/assets/Icons/Check.png" alt="Selected" width={14} height={14} style={{ marginLeft: 'auto' }} />
+                                                         )}
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                         </div>
+                                     ) : activeToolView === 'style' ? (
+                                         /* STYLE SUB-PAGE */
+                                         <div className={styles.toolSubPage}>
+                                             <div className={styles.toolPageHeader}>
+                                                 <button className={styles.backButton} onClick={() => setActiveToolView('more')}>
+                                                     {'<'}
+                                                 </button>
+                                                 <span>Style</span>
+                                             </div>
+                                             <div className={styles.toolList}>
+                                                 {(() => {
+                                                     const convIndex: Record<string, number> = {
+                                                         normal: 1,
+                                                         learning: 2,
+                                                         concise: 3,
+                                                         explanatory: 4,
+                                                         formal: 5,
+                                                     };
+                                                     const tradingIndex: Record<string, number> = {
+                                                         off: 0,
+                                                         jesse_livermore: 1,
+                                                         paul_tudor_jones: 2,
+                                                         mark_minervini: 3,
+                                                         nicolas_darvas: 4,
+                                                         william_oneil: 5,
+                                                         stan_weinstein: 6,
+                                                         willy_woo: 7,
+                                                         rekt_capital: 8,
+                                                         benjamin_cowen: 9,
+                                                     };
+
+                                                     const convOptions = [
+                                                         { id: 'normal', label: 'Normal' },
+                                                         { id: 'learning', label: 'Learning' },
+                                                         { id: 'concise', label: 'Concise' },
+                                                         { id: 'explanatory', label: 'Explanatory' },
+                                                         { id: 'formal', label: 'Formal' },
+                                                     ] as const;
+
+                                                     const tradingOptions = [
+                                                         { id: 'off', label: 'Off' },
+                                                         { id: 'jesse_livermore', label: 'Jesse Livermore' },
+                                                         { id: 'paul_tudor_jones', label: 'Paul Tudor Jones' },
+                                                         { id: 'mark_minervini', label: 'Mark Minervini' },
+                                                         { id: 'nicolas_darvas', label: 'Nicolas Darvas' },
+                                                         { id: 'william_oneil', label: "William O'Neil" },
+                                                         { id: 'stan_weinstein', label: 'Stan Weinstein' },
+                                                         { id: 'willy_woo', label: 'Willy Woo' },
+                                                         { id: 'rekt_capital', label: 'Rekt Capital' },
+                                                         { id: 'benjamin_cowen', label: 'Benjamin Cowen' },
+                                                     ] as const;
+
+                                                     const isConvOpen = openStyleSection === 'conversation';
+                                                     const isTradingOpen = openStyleSection === 'trading';
+
+                                                     return (
+                                                         <>
+                                                             <details className={styles.styleDetails} open={isConvOpen}>
+                                                                 <summary
+                                                                     className={`${styles.toolItem} ${styles.styleSummary}`}
+                                                                     onClick={(e) => {
+                                                                         e.preventDefault();
+                                                                         setOpenStyleSection(prev => (prev === 'conversation' ? null : 'conversation'));
+                                                                     }}
+                                                                 >
+                                                                     <div className={styles.toolIconWrapper}>
+                                                                         <img src="/src/assets/Style/User.png" alt="Conversation" width={18} height={18} />
+                                                                     </div>
+                                                                     <span>Conversation Style</span>
+                                                                     <span className={styles.toolValue}>
+                                                                         {String(convIndex[String(toolStates.conversation_style)] ?? 1)}
+                                                                     </span>
+                                                                     <img
+                                                                         className={`${styles.styleChevron} ${isConvOpen ? styles.styleChevronOpen : ''}`}
+                                                                         src="/src/assets/Icons/Arrow/Arrow-down-Bullet.png"
+                                                                         alt=""
+                                                                         aria-hidden="true"
+                                                                     />
+                                                                 </summary>
+                                                                 <div className={styles.stylePanel}>
+                                                                     {convOptions.map((opt, idx) => (
+                                                                         <div
+                                                                             key={opt.id}
+                                                                             className={styles.toolItem}
+                                                                             onClick={() => {
+                                                                                 setToolStates(prev => ({ ...prev, conversation_style: opt.id as any }));
+                                                                                 setOpenStyleSection(null);
+                                                                             }}
+                                                                         >
+                                                                             <div className={styles.styleIndexPill}>{idx + 1}</div>
+                                                                             <span>{opt.label}</span>
+                                                                             {toolStates.conversation_style === opt.id && (
+                                                                                 <img src="/src/assets/Icons/Check.png" alt="Selected" width={14} height={14} style={{ marginLeft: 'auto' }} />
+                                                                             )}
+                                                                         </div>
+                                                                     ))}
+                                                                 </div>
+                                                             </details>
+
+                                                             <details className={styles.styleDetails} open={isTradingOpen}>
+                                                                 <summary
+                                                                     className={`${styles.toolItem} ${styles.styleSummary}`}
+                                                                     onClick={(e) => {
+                                                                         e.preventDefault();
+                                                                         setOpenStyleSection(prev => (prev === 'trading' ? null : 'trading'));
+                                                                     }}
+                                                                 >
+                                                                     <div className={styles.toolIconWrapper}>
+                                                                         <img src="/src/assets/Style/Student.png" alt="Trading Style" width={18} height={18} />
+                                                                     </div>
+                                                                     <span>Trading Styles</span>
+                                                                     <span className={styles.toolValue}>
+                                                                         {String(tradingIndex[String(toolStates.trading_style_profile)] ?? 0)}
+                                                                     </span>
+                                                                     <img
+                                                                         className={`${styles.styleChevron} ${isTradingOpen ? styles.styleChevronOpen : ''}`}
+                                                                         src="/src/assets/Icons/Arrow/Arrow-down-Bullet.png"
+                                                                         alt=""
+                                                                         aria-hidden="true"
+                                                                     />
+                                                                 </summary>
+                                                                 <div className={styles.stylePanel}>
+                                                                     {tradingOptions.map((opt, idx) => (
+                                                                         <div
+                                                                             key={opt.id}
+                                                                             className={styles.toolItem}
+                                                                             onClick={() => {
+                                                                                 setToolStates(prev => ({ ...prev, trading_style_profile: opt.id as any }));
+                                                                                 setOpenStyleSection(null);
+                                                                             }}
+                                                                         >
+                                                                             <div className={styles.styleIndexPill}>{opt.id === 'off' ? 0 : idx}</div>
+                                                                             <span>{opt.label}</span>
+                                                                             {toolStates.trading_style_profile === opt.id && (
+                                                                                 <img src="/src/assets/Icons/Check.png" alt="Selected" width={14} height={14} style={{ marginLeft: 'auto' }} />
+                                                                             )}
+                                                                         </div>
+                                                                     ))}
+                                                                 </div>
+                                                             </details>
+                                                         </>
+                                                     );
+                                                 })()}
+                                             </div>
+                                         </div>
+                                     ) : (
+                                         /* MORE SUB-PAGE */
+                                         <div className={styles.toolSubPage}>
+                                             <div className={styles.toolPageHeader}>
+                                                 <button className={styles.backButton} onClick={() => setActiveToolView('main')}>
+                                                     {'<'}
+                                                 </button>
+                                                 <span>More Settings</span>
+                                             </div>
+                                             <div className={styles.toolList}>
+                                                 <div className={`${styles.toolItem} ${styles.toolItemCompact}`} onClick={() => setActiveToolView('style')}>
+                                                     <div className={styles.toolIconWrapper}>
+                                                         <img src="/src/assets/Style/PencilSimple.png" alt="Style" width={18} height={18} />
+                                                     </div>
+                                                      <span>Style</span>
+                                                      <span className={styles.toolArrow}>{'>'}</span>
+                                                  </div>
+
+                                                 <div
+                                                     className={styles.toolItem}
+                                                     onClick={() => setToolStates(prev => ({ ...prev, webObservation: !prev.webObservation }))}
+                                                 >
+                                                     <div className={styles.toolIconWrapper}>
+                                                         <img src={brainIcon} alt="Web Search" width={18} height={18} />
+                                                     </div>
+                                                     <span>Web Search</span>
+                                                     <div className={`${styles.toggleSwitch} ${toolStates.webObservation ? styles.checked : ''}`}></div>
+                                                 </div>
 
                                                 <div
                                                     className={styles.toolItem}

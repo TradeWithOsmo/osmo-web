@@ -5,11 +5,13 @@ import { useUIStore } from '../../store/useUIStore';
 import { useWallet } from '../../hooks/useWallet';
 import { orderService } from '../../api/orderService';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useMarketStore } from '../../store/useMarketStore';
 import toast from 'react-hot-toast';
 
 export const CloseAllModal: React.FC = () => {
     const { isCloseAllModalOpen, closeCloseAllModal } = useUIStore();
     const { positions, refreshAll } = usePortfolioStore();
+    const { getPrice } = useMarketStore();
     const { walletAddress } = useWallet() as any;
     const [closeMode, setCloseMode] = useState<'market' | 'limit'>('limit');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,15 +34,51 @@ export const CloseAllModal: React.FC = () => {
 
     const isFormValid = true;
 
+    const resolveMidPrice = (position: any): number | undefined => {
+        const fromStore = getPrice?.(position?.symbol);
+        const candidate =
+            fromStore ??
+            position?.mark_price ??
+            position?.markPrice ??
+            position?.mark ??
+            position?.entry_price ??
+            position?.entryPrice;
+        const num = Number(candidate);
+        return Number.isFinite(num) && num > 0 ? num : undefined;
+    };
+
     const handleConfirm = async () => {
-        if (!walletAddress || positions.length === 0) return;
+        if (!walletAddress) {
+            toast.error('Connect your wallet first');
+            return;
+        }
+        if (!positions || positions.length === 0) {
+            toast.error('No open positions to close');
+            return;
+        }
         setIsSubmitting(true);
-        const toastId = toast.loading('Closing all positions...');
+        const toastId = toast.loading(
+            closeMode === 'limit'
+                ? 'Closing all positions (limit @ mid)...'
+                : 'Closing all positions (market)...'
+        );
 
         try {
-            await orderService.closeAllPositions(
-                walletAddress
-            );
+            // Always close sequentially so each position can pass its `exchange` (simulation/onchain/etc).
+            // This also avoids backend "close all" ambiguity across exchanges.
+            for (const p of positions) {
+                const priceHint = resolveMidPrice(p);
+                const ex = String((p as any)?.exchange || '').trim().toLowerCase();
+
+                // For onchain: passing `price` turns market close into a limit close (can sit unfilled).
+                // For simulation/others: passing a price hint is safe and avoids slow/fragile price fetches.
+                const price =
+                    closeMode === 'limit'
+                        ? priceHint
+                        : (ex && ex !== 'onchain' ? priceHint : undefined);
+
+                await orderService.closePosition(walletAddress, p.symbol, price, 1.0, (p as any)?.exchange);
+            }
 
             toast.success('All positions closed', { id: toastId });
             closeCloseAllModal();
@@ -54,7 +92,7 @@ export const CloseAllModal: React.FC = () => {
 
         } catch (error: any) {
             console.error(error);
-            toast.error('Failed to close some positions', { id: toastId });
+            toast.error(error?.message ? `Failed to close some positions: ${error.message}` : 'Failed to close some positions', { id: toastId });
         } finally {
             setIsSubmitting(false);
         }
@@ -85,7 +123,7 @@ export const CloseAllModal: React.FC = () => {
                                     {p.side}
                                 </span>
                                 <span className={styles.positionDetail}>
-                                    {p.size.toLocaleString('en-US', { maximumFractionDigits: 8 })} {p.symbol.split('-')[0]}
+                                    {Number(p.size || 0).toLocaleString('en-US', { maximumFractionDigits: 8 })} {String(p.symbol || '').split('-')[0]}
                                 </span>
                             </div>
                         ))}

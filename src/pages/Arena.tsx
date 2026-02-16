@@ -1,9 +1,10 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styles from './Arena.module.css';
 import panelStyles from '../components/Positions/PositionsPanel.module.css';
-import type { TraderLeaderboardEntry } from '../api/leaderboardService';
+import { type TraderLeaderboardEntry } from '../api/leaderboardService';
 import { onchainService, API_URL } from '../api/onchainService';
 import { useWallet } from '../hooks/useWallet';
+import { useArenaStore } from '../store/useArenaStore';
 import toast from 'react-hot-toast';
 import { createWalletClient, custom } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
@@ -23,24 +24,6 @@ type StoredPick = {
 
 const PICK_STORAGE_KEY = 'osmo_arena_pick_v1';
 const PICK_LOCK_MS = 7 * 24 * 60 * 60 * 1000;
-
-const safeParsePick = (raw: string | null): StoredPick | null => {
-  if (!raw) return null;
-  try {
-    const obj = JSON.parse(raw);
-    const side: ArenaSide | null = obj?.side === 'ai' ? 'ai' : obj?.side === 'human' ? 'human' : null;
-    const pickedAtMs = Number(obj?.pickedAtMs);
-    const lockUntilMs = Number(obj?.lockUntilMs);
-    const wager = Number(obj?.wager || 0);
-
-    if (!side) return null;
-    if (!Number.isFinite(pickedAtMs) || !Number.isFinite(lockUntilMs)) return null;
-    if (pickedAtMs <= 0 || lockUntilMs <= 0) return null;
-    return { side, pickedAtMs, lockUntilMs, wager };
-  } catch {
-    return null;
-  }
-};
 
 const pad2 = (n: number) => String(Math.max(0, Math.floor(n))).padStart(2, '0');
 
@@ -144,7 +127,7 @@ const ArenaLeaderboardRow: React.FC<{
                 <span style={{ fontSize: '12px', color: '#A77590' }}>Rank {item.rank}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontWeight: 700, color: '#FFFFFF', fontSize: '14px' }}>{shortenAddress(item.trader)}</span>
-                  {item.agentModel && <span style={{ fontSize: '10px', color: '#F2C94C' }}>🤖</span>}
+                  {item.agentModel && <span style={{ fontSize: '10px', color: '#F2C94C' }}>??</span>}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -195,20 +178,27 @@ const ArenaLeaderboardRow: React.FC<{
 
 const Arena: React.FC = () => {
   const { wallets, walletAddress } = useWallet();
-  const [picked, setPicked] = useState<StoredPick | null>(() => safeParsePick(localStorage.getItem(PICK_STORAGE_KEY)));
-  const [viewSide, setViewSide] = useState<ArenaSide>(() => (picked?.side === 'ai' ? 'ai' : 'human'));
+  const {
+    picked,
+    userPoints,
+    userLockedPoints,
+    leaderboardSide: viewSide,
+    leaderboardPage: currentPage,
+    leaderboardLimit: rowsPerPage,
+    leaderboardRows: rows,
+    leaderboardPagination: pagination,
+    isLoadingLeaderboard: isLoading,
+    leaderboardError: error,
+    setLeaderboardParams,
+  } = useArenaStore();
   const [isChooseOpen, setIsChooseOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
   const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
 
   // Wager State
   const [isWagerModalOpen, setIsWagerModalOpen] = useState(false);
   const [pendingSide, setPendingSide] = useState<ArenaSide | null>(null);
   const [isProcessingPick, setIsProcessingPick] = useState(false);
-  const [userPoints, setUserPoints] = useState(0);
-  const [userLockedPoints, setUserLockedPoints] = useState(0);
 
   const eventEndMs = useMemo(() => {
     const raw = import.meta.env.VITE_ARENA_END_ISO;
@@ -230,41 +220,7 @@ const Arena: React.FC = () => {
   // "sebelum 24 jam terakhir bkal di buka" -> it is OPEN until the last 24h.
   const isBlindPhase = (eventEndMs - nowMs) <= (24 * 60 * 60 * 1000);
 
-  // Keep view in sync on first pick; after that user can switch tabs freely.
-  useEffect(() => {
-    if (!picked) return;
-    setViewSide((prev) => (prev ? prev : picked.side));
-  }, [picked?.side]);
-
-  // Fetch real on-chain data
-  useEffect(() => {
-    const fetchArenaData = async () => {
-      if (!walletAddress) return;
-      try {
-        const onchainPick = await onchainService.getArenaUserPick(walletAddress);
-        if (onchainPick && onchainPick.side) {
-          const data: StoredPick = {
-            side: onchainPick.side as ArenaSide,
-            pickedAtMs: onchainPick.pickedAt * 1000,
-            lockUntilMs: onchainPick.lockUntil * 1000,
-            wager: onchainPick.wager
-          };
-          localStorage.setItem(PICK_STORAGE_KEY, JSON.stringify(data));
-          setPicked(data);
-        }
-
-        const rewards = await onchainService.getArenaPendingReward(walletAddress);
-        setUserPoints(rewards);
-
-        const locked = await onchainService.getArenaLockedPoints(walletAddress);
-        setUserLockedPoints(locked);
-      } catch (e) {
-        console.error('Failed to fetch arena data:', e);
-      }
-    };
-
-    fetchArenaData();
-  }, [walletAddress]);
+  // Arena data + leaderboard are kept fresh by global store polling started from root App.
 
   const initiatePick = (side: ArenaSide) => {
     setPendingSide(side);
@@ -298,8 +254,8 @@ const Arena: React.FC = () => {
         const lockUntilMs = pickedAtMs + PICK_LOCK_MS;
         const data: StoredPick = { side: pendingSide, pickedAtMs, lockUntilMs, wager: amount };
         localStorage.setItem(PICK_STORAGE_KEY, JSON.stringify(data));
-        setPicked(data);
-        setViewSide(pendingSide);
+        useArenaStore.setState({ picked: data });
+        setLeaderboardParams({ leaderboardSide: pendingSide, leaderboardPage: 1 });
         setIsWagerModalOpen(false);
         setPendingSide(null);
         // Sync with backend
@@ -354,11 +310,6 @@ const Arena: React.FC = () => {
     }
   };
 
-  const [rows, setRows] = useState<TraderLeaderboardEntry[]>([]);
-  const [pagination, setPagination] = useState<{ page: number; limit: number; total: number; pages: number } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   // Mock User Row
   const userRow = useMemo<TraderLeaderboardEntry | null>(() => {
     if (!picked || viewSide !== picked.side) return null;
@@ -374,60 +325,6 @@ const Arena: React.FC = () => {
       agentModel: null
     };
   }, [picked, viewSide]);
-
-  const requestSeq = useRef(0);
-  useEffect(() => {
-    const run = async () => {
-      const seq = ++requestSeq.current;
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // Event format: 7 day trade
-        // const timeframe: Timeframe = '7d';
-        // const aiOnly = viewSide === 'ai';
-        // const resp = await leaderboardService.getTraderLeaderboard(timeframe, currentPage, rowsPerPage, aiOnly);
-
-        // DUMMY DATA MODE
-        await new Promise(r => setTimeout(r, 600)); // simulate delay
-
-        const dummyBase = Array.from({ length: 45 }).map((_, i) => ({
-          rank: i + 1,
-          trader: viewSide === 'ai' ? `osmo1ai${i}x...${i}ab` : `osmo1human${i}z...${i}cd`,
-          accountValue: 10000 + Math.random() * 50000,
-          pnl: (Math.random() - 0.3) * 5000,
-          roi: (Math.random() - 0.2) * 120,
-          volume: 50000 + Math.random() * 500000,
-          tradeCount: Math.floor(Math.random() * 100),
-          winRate: 40 + Math.random() * 50,
-          agentModel: viewSide === 'ai' ? ['gpt-4o', 'claude-3.5-sonnet', 'deepseek-v3'][i % 3] : null
-        }));
-
-        const start = (currentPage - 1) * rowsPerPage;
-        const end = start + rowsPerPage;
-        const sliced = dummyBase.slice(start, end);
-
-        if (seq !== requestSeq.current) return;
-        setRows(sliced);
-        setPagination({
-          page: currentPage,
-          limit: rowsPerPage,
-          total: dummyBase.length,
-          pages: Math.ceil(dummyBase.length / rowsPerPage)
-        });
-      } catch (e: any) {
-        if (seq !== requestSeq.current) return;
-        setRows([]);
-        setPagination(null);
-        setError(e?.message || 'Failed to load arena leaderboard');
-      } finally {
-        if (seq !== requestSeq.current) return;
-        setIsLoading(false);
-      }
-    };
-
-    run();
-  }, [viewSide, currentPage, rowsPerPage]);
 
   const headerKicker = 'Weekly Trading Competition';
   const headerTitle = 'Arena Humans vs AI';
@@ -448,17 +345,12 @@ const Arena: React.FC = () => {
 
   const totalPages = Math.max(1, pagination?.pages || 1);
   const goToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+    if (page >= 1 && page <= totalPages) setLeaderboardParams({ leaderboardPage: page });
   };
 
   useEffect(() => {
-    setCurrentPage(1);
-    setIsRowsDropdownOpen(false);
-  }, [viewSide]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [currentPage, totalPages]);
+    if (currentPage > totalPages) setLeaderboardParams({ leaderboardPage: totalPages });
+  }, [currentPage, totalPages, setLeaderboardParams]);
 
   const toggleRowsDropdown = () => setIsRowsDropdownOpen((v) => !v);
 
@@ -529,14 +421,14 @@ const Arena: React.FC = () => {
               <button
                 type="button"
                 className={`${styles.tabButton} ${viewSide === 'human' ? styles.activeTab : ''}`}
-                onClick={() => setViewSide('human')}
+                onClick={() => setLeaderboardParams({ leaderboardSide: 'human', leaderboardPage: 1 })}
               >
                 Humans
               </button>
               <button
                 type="button"
                 className={`${styles.tabButton} ${viewSide === 'ai' ? styles.activeTab : ''}`}
-                onClick={() => setViewSide('ai')}
+                onClick={() => setLeaderboardParams({ leaderboardSide: 'ai', leaderboardPage: 1 })}
               >
                 AI
               </button>
@@ -696,13 +588,13 @@ const Arena: React.FC = () => {
                       {isRowsDropdownOpen && (
                         <div className={panelStyles.dropdownMenu} style={{ minWidth: '60px', bottom: '100%', top: 'auto', marginBottom: '4px' }}>
                           {[10, 20, 50, 100].map((rowsCount) => (
-                            <button
-                              key={rowsCount}
-                              className={`${panelStyles.dropdownItem} ${rowsPerPage === rowsCount ? panelStyles.selected : ''}`}
-                              onClick={() => { setRowsPerPage(rowsCount); setCurrentPage(1); setIsRowsDropdownOpen(false); }}
-                            >
-                              {rowsCount}
-                            </button>
+                              <button
+                                key={rowsCount}
+                                className={`${panelStyles.dropdownItem} ${rowsPerPage === rowsCount ? panelStyles.selected : ''}`}
+                                onClick={() => { setLeaderboardParams({ leaderboardLimit: rowsCount, leaderboardPage: 1 }); setIsRowsDropdownOpen(false); }}
+                              >
+                                {rowsCount}
+                              </button>
                           ))}
                         </div>
                       )}

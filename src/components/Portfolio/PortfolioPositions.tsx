@@ -7,7 +7,6 @@ import OrdersTable from '../Positions/OrdersTable';
 import type { OrderData } from '../Positions/OrderRow';
 import { useUIStore } from '../../store/useUIStore';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
-import { useWallet } from '../../hooks/useWallet';
 
 // Map API data to UI format (Keep for future use)
 /*
@@ -24,28 +23,10 @@ const PortfolioPositions: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'Positions' | 'Orders'>('Positions');
 
     // Get data from store
-    const { positions, openOrders, fetchPositions, fetchOrders, isLoading, error } = usePortfolioStore();
+    const { positions, openOrders, isLoading, error } = usePortfolioStore();
     const { openCloseAllModal } = useUIStore();
 
-    // Get wallet from Privy
-    const { authenticated, walletAddress } = useWallet();
-
-    // Fetch data on mount and tab change
-    useEffect(() => {
-        if (!authenticated || !walletAddress) return;
-
-        // Poll every 5 seconds or fetch once
-        const fetchData = () => {
-            fetchPositions(walletAddress); // Always fetch positions for counts
-            if (activeTab === 'Orders') {
-                fetchOrders(walletAddress, 'pending');
-            }
-        };
-
-        fetchData();
-        const interval = setInterval(fetchData, 3000); // Poll every 3 seconds for faster updates
-        return () => clearInterval(interval);
-    }, [activeTab, authenticated, walletAddress]); // Removed fetchReferences to avoid re-triggering
+    // Data is kept fresh by global store polling started from the root App.
 
     // Error Toast
     useEffect(() => {
@@ -466,8 +447,15 @@ const PortfolioPositions: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={10} style={{ textAlign: 'center', padding: '48px', color: '#A77590' }}>
-                                            No open positions
+                                        <td colSpan={10} style={{ textAlign: 'center', padding: '48px 0' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#5D4050" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                                                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                                                </svg>
+                                                <span style={{ color: '#A77590', fontSize: '14px' }}>No open positions</span>
+                                            </div>
                                         </td>
                                     </tr>
                                 )}

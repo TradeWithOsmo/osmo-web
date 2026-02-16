@@ -77,7 +77,8 @@ export const LimitCloseModal: React.FC = () => {
                 walletAddress,
                 selectedPosition.symbol,
                 parseFloat(limitPrice),
-                percentage / 100
+                percentage / 100,
+                (selectedPosition as any)?.exchange
             );
 
             toast.success('Limit close order placed');

@@ -5,6 +5,20 @@ import type { CommandExecutor } from '../types';
 // e.g. "stop_loss_1" -> "754IFm"
 const ID_MAP = new Map<string, string>();
 
+declare global {
+    interface Window {
+        __tvDrawingTags?: string[];
+    }
+}
+
+const _publishDrawingTags = () => {
+    try {
+        window.__tvDrawingTags = Array.from(ID_MAP.keys());
+    } catch {
+        // ignore
+    }
+};
+
 export const DrawingHandler: CommandExecutor = {
     execute: async (chart: any, params: any) => {
         const action = params.action_type || params.action;
@@ -13,6 +27,7 @@ export const DrawingHandler: CommandExecutor = {
             console.log("[DrawingHandler] Clearing all drawings...");
             chart.removeAllShapes();
             ID_MAP.clear();
+            _publishDrawingTags();
             return;
         }
 
@@ -40,8 +55,7 @@ export const DrawingHandler: CommandExecutor = {
             const points = rawPoints.map(resolvePoint).filter((p: any) => p !== null);
 
             if (points.length === 0) {
-                console.warn("[DrawingHandler] No valid points for shape:", type);
-                return;
+                throw new Error(`[DrawingHandler] No valid points for shape: ${String(type || '')}`);
             }
 
             // Tool Map
@@ -98,16 +112,21 @@ export const DrawingHandler: CommandExecutor = {
                     lock: false,
                     disableSelection: false
                 });
+                if (!entityId) {
+                    throw new Error(`[DrawingHandler] createMultipointShape returned empty entityId for ${shapeType}`);
+                }
 
                 if (id) {
                     ID_MAP.set(id, entityId);
                     console.log(`[DrawingHandler] Registered Tag '${id}' -> Entity '${entityId}'`);
+                    _publishDrawingTags();
                 } else {
                     console.log(`[DrawingHandler] Created Untagged Entity '${entityId}'`);
                 }
 
             } catch (e) {
                 console.error(`[DrawingHandler] Error creating ${shapeType}:`, e);
+                throw e;
             }
             return;
         }
@@ -115,14 +134,12 @@ export const DrawingHandler: CommandExecutor = {
         if (action === 'update_drawing') {
             const { id, points, style, text } = params;
             if (!id) {
-                console.warn("[DrawingHandler] Update requires 'id'");
-                return;
+                throw new Error("[DrawingHandler] Update requires 'id'");
             }
 
             const entityId = ID_MAP.get(id);
             if (!entityId) {
-                console.warn(`[DrawingHandler] Tag '${id}' not found in registry.`);
-                return;
+                throw new Error(`[DrawingHandler] Tag '${id}' not found in registry.`);
             }
 
             console.log(`[DrawingHandler] Updating '${id}' (${entityId})`);
@@ -133,7 +150,7 @@ export const DrawingHandler: CommandExecutor = {
                 if (!shape) {
                     console.warn(`[DrawingHandler] Entity '${entityId}' no longer valid in chart.`);
                     ID_MAP.delete(id);
-                    return;
+                    throw new Error(`[DrawingHandler] Entity '${entityId}' no longer valid in chart.`);
                 }
 
                 // Update Points
@@ -169,9 +186,11 @@ export const DrawingHandler: CommandExecutor = {
                 }
 
                 console.log(`[DrawingHandler] Update Success for '${id}'`);
+                _publishDrawingTags();
 
             } catch (e) {
                 console.error(`[DrawingHandler] Update Failed for '${id}':`, e);
+                throw e;
             }
             return;
         }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import styles from './PositionsPanel.module.css';
 import portfolioStyles from '../Portfolio/Portfolio.module.css'; // Import Navbar styles
 import { useUIStore } from '../../store/useUIStore';
@@ -53,53 +53,14 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
         openOrders,
         orderHistory,
         tradeHistory,
-        fetchPositions,
-        fetchOrders,
-        fetchTradeHistory,
         refreshAll,
-        connectRealtime,
-        disconnectRealtime,
+        startGlobalSync,
         isLoading,
         error
     } = usePortfolioStore();
     const { getPrice } = useMarketStore();
-    const { authenticated, walletAddress } = useWallet();
+    const { walletAddress } = useWallet();
     const [activeTab, setActiveTab] = useState<TabType>('Positions');
-
-    // 1. Connection Lifecycle (Only on wallet/auth change)
-    React.useEffect(() => {
-        if (!authenticated || !walletAddress) {
-            disconnectRealtime();
-            // Optional: clearStore(); if we want to wipe UI on logout
-            return;
-        }
-
-        console.log("🔄 PositionsPanel: Initializing data & realtime for", walletAddress);
-        fetchPositions(walletAddress);
-        fetchOrders(walletAddress, 'pending').catch(() => { });
-        fetchOrders(walletAddress, 'history').catch(() => { });
-        fetchTradeHistory(walletAddress).catch(() => { });
-        connectRealtime(walletAddress);
-
-        return () => {
-            disconnectRealtime();
-        };
-    }, [authenticated, walletAddress, connectRealtime, disconnectRealtime]); // Removed activeTab
-
-    // 2. Background Polling (Fallback for syncing)
-    React.useEffect(() => {
-        if (!authenticated || !walletAddress) return;
-
-        const pollInterval = setInterval(() => {
-            fetchPositions(walletAddress);
-            // Only poll pending orders if visible
-            if (activeTab === 'Orders' || activeTab === 'Positions') {
-                fetchOrders(walletAddress, 'pending').catch(() => { });
-            }
-        }, 15000); // 15s is enough for fallback
-
-        return () => clearInterval(pollInterval);
-    }, [authenticated, walletAddress, activeTab, fetchPositions, fetchOrders]);
 
     // Local state fallback if not controlled
     const [localExpanded, setLocalExpanded] = useState(true);
@@ -148,11 +109,17 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                 </button>
 
                 <div className={styles.filler} style={{ flex: 1, borderBottom: '1px solid #3A2530', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                    <button
-                        onClick={() => walletAddress && refreshAll(walletAddress)}
-                        className={styles.refreshBtn}
-                        title="Refresh Data"
-                    >
+                     <button
+                        type="button"
+                        onClick={() => {
+                            if (!walletAddress) return;
+                            // Ensure global sync is running (in case user navigated here before wallet was ready).
+                            startGlobalSync(walletAddress);
+                            void refreshAll(walletAddress);
+                        }}
+                         className={styles.refreshBtn}
+                         title="Refresh Data"
+                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M23 4v6h-6"></path>
                             <path d="M1 20v-6h6"></path>
@@ -223,14 +190,20 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                                 Loading positions...
                                             </td>
                                         </tr>
-                                    ) : error ? (
-                                        <tr>
-                                            <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                                                    <span style={{ color: '#FF4560', fontSize: '14px' }}>⚠ Failed to load positions</span>
+                                     ) : error ? (
+                                         <tr>
+                                             <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0' }}>
+                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{ color: '#FF4560', fontSize: '14px' }}>Failed to load positions</span>
                                                     <span style={{ color: '#A77590', fontSize: '12px' }}>{error}</span>
-                                                    <button
-                                                        onClick={() => fetchPositions(walletAddress!)}
+                                                     <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!walletAddress) return;
+                                                            startGlobalSync(walletAddress);
+                                                            void refreshAll(walletAddress);
+                                                        }}
+                                                        disabled={!walletAddress}
                                                         style={{ marginTop: '8px', padding: '4px 12px', background: '#3A2530', border: '1px solid #5D4050', borderRadius: '4px', cursor: 'pointer', color: '#FFE1F2' }}
                                                     >
                                                         Retry

@@ -1,9 +1,17 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { useMarketStore } from './useMarketStore';
 import { onchainService } from '../api/onchainService';
 import { orderService, type PositionData, type OrderData, type AccountSummary } from '../api/orderService';
 import { portfolioService, type PortfolioHistoryPoint, type FundingHistoryData } from '../api/portfolioService';
 import { tradingViewCommandService } from '../api/tradingViewCommandService';
+
+const realtimeAttemptsByWallet = new Map<string, number>();
+const MAX_REALTIME_ATTEMPTS = 5;
+
+let globalSyncWallet: string | null = null;
+let globalSyncIntervalId: number | null = null;
+let globalSyncTick = 0;
 
 const toPositiveNumber = (value: unknown): number | null => {
     const parsed = Number(String(value ?? '').replace(/[^0-9.\-]/g, '').trim());
@@ -71,6 +79,7 @@ interface PortfolioState {
     orderHistory: OrderData[];
     tradeHistory: TradeHistoryData[];
     history: PortfolioHistoryPoint[];
+    historyTimeframe: '1d' | '7d' | '30d' | 'all';
     fundingHistory: FundingHistoryData[]; // New
     summary: AccountSummary | null;
     isLoading: boolean;
@@ -82,17 +91,28 @@ interface PortfolioState {
     fetchOrders: (userAddress: string, status?: string) => Promise<void>;
     refreshAll: (userAddress: string) => Promise<void>;
     fetchHistory: (userAddress: string, timeframe?: string) => Promise<void>;
+    setHistoryTimeframe: (timeframe: '1d' | '7d' | '30d' | 'all') => void;
     fetchFundingHistory: (userAddress: string, type?: 'Deposit' | 'Withdraw') => Promise<void>; // New
     fetchTradeHistory: (userAddress: string) => Promise<void>; // New
-    updateTPSL: (userAddress: string, positionId: string, tp?: string, sl?: string) => Promise<void>;
+    updateTPSL: (
+        userAddress: string,
+        positionId: string,
+        tp?: string,
+        sl?: string,
+        risk?: { size_tokens?: number | null; tp_limit_price?: number | null; sl_limit_price?: number | null }
+    ) => Promise<void>;
     updateMarkPrices: (prices: Record<string, any>) => void;
     cancelOrder: (userAddress: string, orderId: string) => Promise<void>;
-    cancelAllOrders: (userAddress: string) => Promise<void>;
+    cancelAllOrders: (userAddress: string) => Promise<{ cancelled: number; failed: number; skipped: number }>;
     clearStore: () => void;
 
     // Real-time
     connectRealtime: (userAddress: string) => void;
     disconnectRealtime: () => void;
+
+    // Global sync (started from root App to avoid refetch loops on tab/page switches)
+    startGlobalSync: (userAddress: string) => void;
+    stopGlobalSync: () => void;
 
     // Internal
     localTPSL: Record<string, { tp?: string; sl?: string }>;
@@ -100,7 +120,9 @@ interface PortfolioState {
     ws: WebSocket | null;
 }
 
-export const usePortfolioStore = create<PortfolioState>((set, get) => ({
+export const usePortfolioStore = create<PortfolioState>()(
+    persist(
+        (set, get) => ({
     summary: null,
     isLoading: false,
     error: null,
@@ -108,6 +130,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     orderHistory: [],
     tradeHistory: [],
     history: [],
+    historyTimeframe: '1d',
     fundingHistory: [], // New
 
     // Initial State
@@ -123,7 +146,21 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         get().disconnectRealtime();
 
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const wsUrl = API_URL.replace('http', 'ws') + `/ws/notifications/${userAddress}`;
+        let wsUrl = '';
+        try {
+            const api = new URL(API_URL);
+            api.protocol = api.protocol === 'https:' ? 'wss:' : 'ws:';
+            api.pathname = '/';
+            api.search = '';
+            api.hash = '';
+            wsUrl = new URL(`/ws/notifications/${userAddress}`, api).toString();
+        } catch {
+            wsUrl = API_URL.replace('http', 'ws') + `/ws/notifications/${userAddress}`;
+        }
+
+        const key = String(userAddress || '').toLowerCase();
+        const prevAttempts = realtimeAttemptsByWallet.get(key) ?? 0;
+        if (prevAttempts >= MAX_REALTIME_ATTEMPTS) return;
 
         console.log(`🔌 Connecting to portfolio real-time: ${wsUrl}`);
         const socket = new WebSocket(wsUrl);
@@ -166,20 +203,29 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             // Reconnect logic
             const currentWallet = userAddress; // Capture current address
             if (currentWallet) {
-                console.log("🔄 Reconnecting portfolio real-time in 3s...");
+                const attempt = (realtimeAttemptsByWallet.get(key) ?? 0) + 1;
+                realtimeAttemptsByWallet.set(key, attempt);
+                if (attempt > MAX_REALTIME_ATTEMPTS) {
+                    console.warn('Portfolio realtime: giving up after repeated failures', { wallet: currentWallet, attempts: attempt });
+                    return;
+                }
+
+                const delayMs = Math.min(30_000, 1000 * (2 ** (attempt - 1)));
+                console.log(`🔄 Reconnecting portfolio real-time in ${Math.round(delayMs / 1000)}s...`);
                 setTimeout(() => {
                     // Check if we are still on the same wallet before reconnecting
                     const latestWallet = userAddress;
                     if (latestWallet === currentWallet) {
                         get().connectRealtime(latestWallet);
                     }
-                }, 3000);
+                }, delayMs);
             }
         };
 
-        socket.onerror = (err) => {
-            console.error("Portfolio real-time error:", err);
-            // socket.close() will be called automatically, triggering onclose
+        socket.onerror = () => {
+            // Don't spam console with opaque Event objects. Close socket to drive retry via onclose.
+            console.warn("Portfolio real-time error");
+            try { socket.close(); } catch { }
         };
 
         set({ ws: socket });
@@ -299,16 +345,15 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
                     set({ orderHistory: result.orders, isLoading: false });
                 } else {
                     // Full update: Separate open orders from history
-                    const openOrders = result.orders.filter(o =>
-                        o.status === 'pending' ||
-                        o.status === 'open' ||
-                        o.status === 'confirmed'
-                    );
-                    const orderHistory = result.orders.filter(o =>
-                        o.status !== 'pending' &&
-                        o.status !== 'open' &&
-                        o.status !== 'confirmed'
-                    );
+                    const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
+                    const openOrders = result.orders.filter(o => {
+                        const st = norm((o as any)?.status);
+                        return st === 'pending' || st === 'open' || st === 'confirmed';
+                    });
+                    const orderHistory = result.orders.filter(o => {
+                        const st = norm((o as any)?.status);
+                        return st !== 'pending' && st !== 'open' && st !== 'confirmed';
+                    });
 
                     set({ openOrders, orderHistory, isLoading: false });
                 }
@@ -330,7 +375,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         // Lower Priority: Sync history in background without blocking
         get().fetchOrders(userAddress, 'history').catch(() => { });
         get().fetchFundingHistory(userAddress).catch(() => { });
-        get().fetchHistory(userAddress).catch(() => { });
+        get().fetchHistory(userAddress, get().historyTimeframe).catch(() => { });
         get().fetchTradeHistory(userAddress).catch(() => { });
     },
 
@@ -344,6 +389,14 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         } catch (error) {
             console.log("History fetch skipped (Backend likely down)");
             // Non-critical, don't set global error
+        }
+    },
+
+    setHistoryTimeframe: (timeframe) => {
+        set({ historyTimeframe: timeframe });
+        const wallet = globalSyncWallet;
+        if (wallet) {
+            void get().fetchHistory(wallet, timeframe);
         }
     },
 
@@ -379,7 +432,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         }
     },
 
-    updateTPSL: async (userAddress: string, positionId: string, tp?: string, sl?: string) => {
+    updateTPSL: async (
+        userAddress: string,
+        positionId: string,
+        tp?: string,
+        sl?: string,
+        risk?: { size_tokens?: number | null; tp_limit_price?: number | null; sl_limit_price?: number | null }
+    ) => {
         // Optimistic update
         set(state => {
             const currentEntry = state.localTPSL[positionId] || {};
@@ -410,7 +469,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             // If position found, use its symbol. If not (maybe new order from OrderForm), assume positionId IS the symbol.
             const symbol = position ? position.symbol : positionId;
 
-            await orderService.updateTPSL(userAddress, symbol, tp, sl);
+              await orderService.updateTPSL(userAddress, symbol, tp, sl, risk);
 
             // Sync TradingView visualization if we can resolve full setup levels.
             const matchedPosition = get().positions.find(p => p.id === positionId || p.symbol === symbol);
@@ -460,16 +519,31 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     cancelAllOrders: async (userAddress: string) => {
         try {
             const { openOrders } = get();
-            if (openOrders.length === 0) return;
+            if (openOrders.length === 0) return { cancelled: 0, failed: 0, skipped: 0 };
+
+            const normStatus = (v: unknown) => String(v ?? '').trim().toLowerCase();
+            const isCancellable = (st: string) => st === 'pending' || st === 'open' || st === 'confirmed';
+
+            const cancellableOrders = openOrders.filter(o => isCancellable(normStatus((o as any)?.status)));
+            const skipped = openOrders.length - cancellableOrders.length;
+
+            let cancelled = 0;
+            let failed = 0;
 
             // Sequential cancellation to avoid nonce collisions and gas fee spikes
-            for (const order of openOrders) {
-                await orderService.cancelOrder(order.id, userAddress);
+            for (const order of cancellableOrders) {
+                try {
+                    await orderService.cancelOrder(order.id, userAddress);
+                    cancelled += 1;
+                } catch (e) {
+                    failed += 1;
+                }
                 // Optional: small delay between txs?
                 // await new Promise(r => setTimeout(r, 200));
             }
 
             get().refreshAll(userAddress);
+            return { cancelled, failed, skipped };
         } catch (error) {
             console.error("Failed to cancel all orders:", error);
             throw error;
@@ -504,5 +578,77 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             })
         }
         ));
-    }
-}));
+    },
+
+    startGlobalSync: (userAddress: string) => {
+        if (!userAddress) return;
+
+        const normalized = userAddress.toLowerCase();
+        if (globalSyncWallet === normalized && globalSyncIntervalId) {
+            // Ensure WS is connected even if it was dropped.
+            if (!get().ws) get().connectRealtime(userAddress);
+            return;
+        }
+
+        get().stopGlobalSync();
+        globalSyncWallet = normalized;
+        globalSyncTick = 0;
+
+        // Warm everything once (do not depend on which tab/page is visible).
+        get().fetchPositions(userAddress);
+        get().fetchOrders(userAddress, 'pending').catch(() => { });
+        get().fetchOrders(userAddress, 'history').catch(() => { });
+        get().fetchTradeHistory(userAddress).catch(() => { });
+        get().fetchFundingHistory(userAddress).catch(() => { });
+        get().fetchHistory(userAddress, get().historyTimeframe).catch(() => { });
+        get().connectRealtime(userAddress);
+
+        // Fallback polling (WS is primary for positions/summary).
+        globalSyncIntervalId = window.setInterval(() => {
+            const wallet = globalSyncWallet;
+            if (!wallet) return;
+            globalSyncTick += 1;
+
+            // Fast lanes: open positions + pending orders.
+            get().fetchPositions(wallet);
+            get().fetchOrders(wallet, 'pending').catch(() => { });
+
+            // Slow lanes: histories (keep "success rate" / stats feeling realtime without spamming).
+            if (globalSyncTick % 4 === 0) {
+                get().fetchOrders(wallet, 'history').catch(() => { });
+                get().fetchTradeHistory(wallet).catch(() => { });
+            }
+            if (globalSyncTick % 8 === 0) {
+                get().fetchFundingHistory(wallet).catch(() => { });
+                get().fetchHistory(wallet, get().historyTimeframe).catch(() => { });
+            }
+        }, 15_000);
+    },
+
+    stopGlobalSync: () => {
+        if (globalSyncIntervalId) {
+            window.clearInterval(globalSyncIntervalId);
+            globalSyncIntervalId = null;
+        }
+        globalSyncWallet = null;
+        globalSyncTick = 0;
+        get().disconnectRealtime();
+    },
+        }),
+        {
+            name: 'osmo_portfolio_store',
+            version: 1,
+            partialize: (s) => ({
+                positions: s.positions,
+                openOrders: s.openOrders,
+                orderHistory: s.orderHistory,
+                tradeHistory: s.tradeHistory,
+                history: s.history,
+                historyTimeframe: s.historyTimeframe,
+                fundingHistory: s.fundingHistory,
+                summary: s.summary,
+                localTPSL: s.localTPSL,
+            }),
+        }
+    )
+);

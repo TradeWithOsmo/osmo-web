@@ -62,7 +62,9 @@ export const ReversePositionModal: React.FC = () => {
         try {
             await orderService.reversePosition(
                 walletAddress,
-                selectedPosition.symbol
+                selectedPosition.symbol,
+                (selectedPosition as any)?.exchange,
+                Number(markPrice) > 0 ? Number(markPrice) : undefined
             );
 
             toast.success('Reverse position submitted');

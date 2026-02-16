@@ -1,36 +1,20 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import styles from '../Portfolio/Portfolio.module.css'; // Reusing Portfolio styles
 import UsageChart from './UsageChart';
 import UsageHistoryTable from './UsageHistoryTable';
 
 import { useUsageStore } from '../../store/useUsageStore';
-import { useWallet } from '../../hooks/useWallet';
 
 const Overview: React.FC = () => {
-    const { walletAddress } = useWallet();
-    const { stats, fetchStats } = useUsageStore();
-
-    useEffect(() => {
-        if (walletAddress) {
-            fetchStats(walletAddress);
-        }
-    }, [walletAddress, fetchStats]);
-
-    useEffect(() => {
-        if (!walletAddress) return;
-        const id = window.setInterval(() => {
-            void fetchStats(walletAddress);
-        }, 10000);
-        return () => window.clearInterval(id);
-    }, [walletAddress, fetchStats]);
+    const { stats } = useUsageStore();
 
     const formatMoney = (val: number, prefix = '$') => {
         const amount = Number.isFinite(val) ? val : 0;
-        const abs = Math.abs(amount);
-        const decimals = abs >= 1 ? 2 : abs >= 0.01 ? 4 : 6;
         return `${prefix}${amount.toLocaleString(undefined, {
-            minimumFractionDigits: decimals,
-            maximumFractionDigits: decimals
+            // Credit balance is USDC-like (6 decimals). Always show 6 decimals
+            // so small usage deltas are visible (e.g. $0.112200).
+            minimumFractionDigits: 6,
+            maximumFractionDigits: 6
         })}`;
     };
 

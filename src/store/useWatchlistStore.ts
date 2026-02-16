@@ -13,7 +13,8 @@ interface WatchlistState {
     toggleFavorite: (symbol: string, source?: string, walletAddress?: string) => Promise<void>;
 }
 
-const API_BASE = 'http://localhost:8000/api/watchlist';
+const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = `${API_ORIGIN}/api/watchlist`;
 
 export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     favorites: new Set(),

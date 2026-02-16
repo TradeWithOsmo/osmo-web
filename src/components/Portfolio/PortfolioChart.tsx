@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     AreaChart,
     Area,
@@ -8,7 +8,6 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
-import { useWallet } from '../../hooks';
 
 interface DataPoint {
     timestamp: string;
@@ -17,17 +16,14 @@ interface DataPoint {
 }
 
 const PortfolioChart: React.FC = () => {
-    const [timeframe, setTimeframe] = useState('1D');
     const [chartData, setChartData] = useState<DataPoint[]>([]);
-    const { summary, history, fetchHistory } = usePortfolioStore();
-    const { authenticated, walletAddress } = useWallet();
+    const { summary, history, historyTimeframe, setHistoryTimeframe } = usePortfolioStore();
 
-    // Fetch history when timeframe or wallet changes
-    useEffect(() => {
-        if (authenticated && walletAddress) {
-            fetchHistory(walletAddress, timeframe);
-        }
-    }, [authenticated, walletAddress, timeframe, fetchHistory]);
+    const activeLabel =
+        historyTimeframe === '1d' ? '1D' :
+            historyTimeframe === '7d' ? '7D' :
+                historyTimeframe === '30d' ? '1M' :
+                    'ALL';
 
     // Use current account value or default to 0
     const currentValue = summary?.account_value ?? 0;
@@ -39,7 +35,7 @@ const PortfolioChart: React.FC = () => {
                 const time = new Date(point.timestamp);
                 return {
                     timestamp: point.timestamp,
-                    displayTime: timeframe === '1D'
+                    displayTime: historyTimeframe === '1d'
                         ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : time.toLocaleDateString([], { month: 'short', day: 'numeric' }),
                     value: point.value
@@ -52,7 +48,7 @@ const PortfolioChart: React.FC = () => {
                 const pastTime = new Date(firstPoint.getTime() - 24 * 60 * 60 * 1000);
                 data.unshift({
                     timestamp: pastTime.toISOString(),
-                    displayTime: timeframe === '1D'
+                    displayTime: historyTimeframe === '1d'
                         ? pastTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : pastTime.toLocaleDateString([], { month: 'short', day: 'numeric' }),
                     value: 0 // New account starts at 0
@@ -67,14 +63,14 @@ const PortfolioChart: React.FC = () => {
             const points: DataPoint[] = [
                 {
                     timestamp: past.toISOString(),
-                    displayTime: timeframe === '1D'
+                    displayTime: historyTimeframe === '1d'
                         ? past.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : past.toLocaleDateString([], { month: 'short', day: 'numeric' }),
                     value: 0 // Starting point
                 },
                 {
                     timestamp: now.toISOString(),
-                    displayTime: timeframe === '1D'
+                    displayTime: historyTimeframe === '1d'
                         ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : now.toLocaleDateString([], { month: 'short', day: 'numeric' }),
                     value: currentValue
@@ -84,7 +80,7 @@ const PortfolioChart: React.FC = () => {
         } else {
             setChartData([]);
         }
-    }, [history, timeframe, currentValue]);
+    }, [history, historyTimeframe, currentValue]);
 
     return (
         <div style={{
@@ -126,17 +122,24 @@ const PortfolioChart: React.FC = () => {
                         <React.Fragment key={tf}>
                             {idx > 0 && <span style={{ color: '#3A2530', fontSize: '12px' }}>·</span>}
                             <button
-                                onClick={() => setTimeframe(tf)}
+                                onClick={() => {
+                                    const next =
+                                        tf === '1D' ? '1d' :
+                                            tf === '7D' ? '7d' :
+                                                tf === '1M' ? '30d' :
+                                                    'all';
+                                    setHistoryTimeframe(next);
+                                }}
                                 style={{
                                     background: 'transparent',
-                                    color: timeframe === tf ? '#FFE1F2' : '#8B8B9B',
+                                    color: activeLabel === tf ? '#FFE1F2' : '#8B8B9B',
                                     border: 'none',
                                     padding: '4px 8px',
                                     fontSize: '13px',
                                     cursor: 'pointer',
                                     outline: 'none',
                                     transition: 'all 0.2s',
-                                    fontWeight: timeframe === tf ? 700 : 400,
+                                    fontWeight: activeLabel === tf ? 700 : 400,
                                     textTransform: tf === 'ALL' ? 'capitalize' : 'uppercase'
                                 }}
                             >

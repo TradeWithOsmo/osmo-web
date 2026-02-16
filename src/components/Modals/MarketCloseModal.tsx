@@ -77,7 +77,8 @@ export const MarketCloseModal: React.FC = () => {
                 walletAddress,
                 selectedPosition.symbol,
                 undefined, // Market Price
-                percentage / 100
+                percentage / 100,
+                (selectedPosition as any)?.exchange
             );
 
             toast.success('Market close submitted');

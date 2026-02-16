@@ -9,7 +9,14 @@ import './styles/global.css'
 import App from './App.tsx'
 import { config } from './wagmiConfig.ts'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Prevent surprise refetches when user changes tab / focuses window.
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import styles from './Portfolio.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import TradeHistoryTable from '../Positions/TradeHistoryTable';
@@ -7,7 +7,6 @@ import FundingHistoryTable from '../Positions/FundingHistoryTable';
 import type { TradeHistoryData } from '../Positions/TradeHistoryRow';
 import type { OrderHistoryData as APIOrderHistoryData } from '../Positions/OrderHistoryRow';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
-import { useWallet } from '../../hooks';
 import type { OrderData } from '../../api/orderService';
 import type { FundingHistoryData } from '../../api/portfolioService';
 
@@ -32,33 +31,8 @@ const mapOrderToHistoryUI = (order: OrderData): APIOrderHistoryData => {
 };
 
 const PortfolioHistory: React.FC = () => {
-    // Debug log to verify HMR update
-    useEffect(() => { console.log("PortfolioHistory mounted - Tabs version"); }, []);
-
     const [subTab, setSubTab] = useState<'Trades' | 'Orders' | 'Deposits' | 'Withdrawals'>('Trades');
-    const { orderHistory, fetchOrders, tradeHistory, fetchTradeHistory, fundingHistory, fetchFundingHistory, isLoading } = usePortfolioStore();
-    const { walletAddress, authenticated } = useWallet();
-
-    useEffect(() => {
-        if (!authenticated || !walletAddress) return;
-
-        if (subTab === 'Orders' || subTab === 'Trades') {
-            if (subTab === 'Trades') fetchTradeHistory(walletAddress);
-            fetchOrders(walletAddress, 'history');
-            const interval = setInterval(() => {
-                if (subTab === 'Trades') fetchTradeHistory(walletAddress);
-                fetchOrders(walletAddress, 'history');
-            }, 5000);
-            return () => clearInterval(interval);
-        } else if (subTab === 'Deposits' || subTab === 'Withdrawals') {
-            console.log('Fetching Funding History for', subTab);
-            fetchFundingHistory(walletAddress);
-            const interval = setInterval(() => {
-                fetchFundingHistory(walletAddress);
-            }, 10000);
-            return () => clearInterval(interval);
-        }
-    }, [subTab, authenticated, walletAddress]);
+    const { orderHistory, tradeHistory, fundingHistory, isLoading } = usePortfolioStore();
 
 
     // Sort/Filter State
@@ -138,7 +112,7 @@ const PortfolioHistory: React.FC = () => {
         }
     };
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (currentPage > totalPages) {
             setCurrentPage(totalPages);
         }
