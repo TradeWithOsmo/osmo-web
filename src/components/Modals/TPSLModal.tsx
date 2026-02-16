@@ -49,8 +49,12 @@ export const TPSLModal: React.FC = () => {
                     setGainLoss(strVal.slice(0, -1));
                     setUnit('%');
                     setPrice('');
+                } else if (strVal.toUpperCase().endsWith('USD')) {
+                    setGainLoss(strVal.slice(0, -3));
+                    setUnit('USD');
+                    setPrice('');
                 } else if (strVal.endsWith('$')) {
-                    setGainLoss(strVal.slice(0, -1));
+                    setGainLoss(strVal.slice(0, -1)); // legacy format
                     setUnit('USD');
                     setPrice('');
                 } else {
@@ -83,6 +87,27 @@ export const TPSLModal: React.FC = () => {
         }
     }, [percentage, selectedPosition?.size]);
 
+    // Pre-fill optional risk config (size tokens + limit prices)
+    React.useEffect(() => {
+        if (!selectedPosition) return;
+
+        const st = Number((selectedPosition as any).tpsl_size_tokens);
+        if (Number.isFinite(st) && st > 0 && Number.isFinite(selectedPosition.size) && selectedPosition.size > 0) {
+            setConfigAmount(true);
+            const pct = Math.min(100, Math.max(0, (st / selectedPosition.size) * 100));
+            setPercentage(pct);
+            setManualAmount(st.toFixed(selectedPosition.symbol.includes('USD') ? 4 : 8));
+        }
+
+        const tlp = Number((selectedPosition as any).tp_limit_price);
+        const slp = Number((selectedPosition as any).sl_limit_price);
+        if ((Number.isFinite(tlp) && tlp > 0) || (Number.isFinite(slp) && slp > 0)) {
+            setLimitPrice(true);
+            if (Number.isFinite(tlp) && tlp > 0) setTpLimitPrice(String(tlp));
+            if (Number.isFinite(slp) && slp > 0) setSlLimitPrice(String(slp));
+        }
+    }, [selectedPosition?.id]);
+
     const handleManualAmountChange = (val: string) => {
         setManualAmount(val);
         const num = parseFloat(val);
@@ -92,7 +117,10 @@ export const TPSLModal: React.FC = () => {
         }
     };
 
-    const isFormValid = !!(tpPrice || tpGain || slPrice || slLoss || configAmount);
+    const hasTpsl = !!(tpPrice || tpGain || slPrice || slLoss);
+    const hasValidAmount = !configAmount || (Number.isFinite(parseFloat(manualAmount)) && parseFloat(manualAmount) > 0);
+    const hasLimitField = !limitPrice || !!tpLimitPrice || !!slLimitPrice;
+    const isFormValid = hasTpsl && hasValidAmount && hasLimitField;
 
     return (
         <div className={styles.overlay} onClick={handleBackdropClick}>
@@ -277,7 +305,13 @@ export const TPSLModal: React.FC = () => {
                             if (selectedPosition) {
                                 const finalTP = tpPrice || (tpGain ? `${tpGain}${tpUnit}` : undefined);
                                 const finalSL = slPrice || (slLoss ? `${slLoss}${slUnit}` : undefined);
-                                updateTPSL(walletAddress || '', selectedPosition.id, finalTP, finalSL);
+                                const risk = {
+                                    // Send explicit 0 to clear when toggle is off.
+                                    size_tokens: configAmount ? (parseFloat(manualAmount) || 0) : 0,
+                                    tp_limit_price: limitPrice ? (parseFloat(tpLimitPrice) || 0) : 0,
+                                    sl_limit_price: limitPrice ? (parseFloat(slLimitPrice) || 0) : 0,
+                                };
+                                updateTPSL(walletAddress || '', selectedPosition.id, finalTP, finalSL, risk);
                             }
                             closeTPSLModal();
                         }}

@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const TRADING_EXCHANGE = (import.meta.env.VITE_TRADING_EXCHANGE || '').trim();
 
 export interface PlaceOrderParams {
     user_address: string;
@@ -41,6 +42,9 @@ export interface PositionData {
     exchange: string;
     tp?: string;
     sl?: string;
+    tpsl_size_tokens?: number | null;
+    tp_limit_price?: number | null;
+    sl_limit_price?: number | null;
 }
 
 export interface OrderData {
@@ -107,6 +111,7 @@ export const orderService = {
         const url = new URL(`${API_URL}/api/orders/history`);
         url.searchParams.append('user_address', user_address);
         if (status) url.searchParams.append('status', status);
+        if (TRADING_EXCHANGE) url.searchParams.append('exchange', TRADING_EXCHANGE);
         // Cache busting
         url.searchParams.append('_t', Date.now().toString());
 
@@ -144,6 +149,7 @@ export const orderService = {
         try {
             const url = new URL(`${API_URL}/api/orders/positions`);
             url.searchParams.append('user_address', normalizedAddress);
+            if (TRADING_EXCHANGE) url.searchParams.append('exchange', TRADING_EXCHANGE);
             url.searchParams.append('_t', Date.now().toString());
 
             const response = await fetch(url.toString(), {
@@ -167,11 +173,21 @@ export const orderService = {
         }
     },
 
-    async updateTPSL(user_address: string, symbol: string, tp?: string, sl?: string): Promise<any> {
+    async updateTPSL(
+        user_address: string,
+        symbol: string,
+        tp?: string,
+        sl?: string,
+        risk?: {
+            size_tokens?: number | null;
+            tp_limit_price?: number | null;
+            sl_limit_price?: number | null;
+        }
+    ): Promise<any> {
         const response = await fetch(`${API_URL}/api/orders/positions/tpsl`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_address, symbol, tp, sl })
+            body: JSON.stringify({ user_address, symbol, tp, sl, ...(risk || {}) })
         });
 
         if (!response.ok) {
@@ -211,13 +227,16 @@ export const orderService = {
     },
 
     // --- Trade Actions ---
-    async closePosition(user_address: string, symbol: string, price?: number, size_pct: number = 1.0): Promise<any> {
+    async closePosition(user_address: string, symbol: string, price?: number, size_pct: number = 1.0, exchange?: string): Promise<any> {
         const response = await fetch(`${API_URL}/api/orders/close`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_address, symbol, price, size_pct })
+            body: JSON.stringify({ user_address, symbol, exchange, price, size_pct })
         });
-        if (!response.ok) throw new Error('Failed to close position');
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({} as any));
+            throw new Error(error.detail || 'Failed to close position');
+        }
         return response.json();
     },
 
@@ -226,17 +245,29 @@ export const orderService = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
-        if (!response.ok) throw new Error('Failed to close all positions');
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({} as any));
+            throw new Error(error.detail || 'Failed to close all positions');
+        }
         return response.json();
     },
 
-    async reversePosition(user_address: string, symbol: string): Promise<any> {
+    async reversePosition(user_address: string, symbol: string, exchange?: string, price?: number): Promise<any> {
+        const resolvedExchange = (exchange || TRADING_EXCHANGE || '').trim() || undefined;
         const response = await fetch(`${API_URL}/api/orders/reverse`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_address, symbol })
+            body: JSON.stringify({
+                user_address,
+                symbol,
+                exchange: resolvedExchange,
+                price: typeof price === 'number' && Number.isFinite(price) && price > 0 ? price : undefined,
+            })
         });
-        if (!response.ok) throw new Error('Failed to reverse position');
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({} as any));
+            throw new Error(error.detail || 'Failed to reverse position');
+        }
         return response.json();
     }
 };

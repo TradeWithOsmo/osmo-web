@@ -12,12 +12,23 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173/trade',
-    reuseExistingServer: true,
-    timeout: 180_000,
-  },
+  webServer: [
+    {
+      command: '..\\backend\\.venv\\Scripts\\python.exe -m uvicorn websocket.e2e_main:app --host 127.0.0.1 --port 8000',
+      url: 'http://127.0.0.1:8000/healthz',
+      reuseExistingServer: true,
+      timeout: 180_000,
+      cwd: '..\\backend',
+    },
+    {
+      command: 'npm run dev -- --host 127.0.0.1 --port 4173',
+      // Use root URL for readiness checks; this app uses pushState routing,
+      // and some dev servers may not serve deep links like /trade for "wait until 200 OK".
+      url: 'http://127.0.0.1:4173/',
+      reuseExistingServer: true,
+      timeout: 180_000,
+    },
+  ],
   projects: [
     {
       name: 'chromium',
@@ -25,4 +36,3 @@ export default defineConfig({
     },
   ],
 });
-

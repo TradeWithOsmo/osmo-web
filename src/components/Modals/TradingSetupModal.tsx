@@ -18,8 +18,9 @@ export const TradingSetupModal: React.FC<TradingSetupModalProps> = ({ isOpen, on
 
     // Status
     const [loading, setLoading] = useState(true);
-    const [roleGranted, setRoleGranted] = useState(false);
+    const [protocolReady, setProtocolReady] = useState(false);
     const [allowanceOk, setAllowanceOk] = useState(false);
+    const [rolePermission, setRolePermission] = useState<{ canGrant: boolean; reason: string } | null>(null);
 
     // Actions
     const [isProcessing, setIsProcessing] = useState(false);
@@ -36,7 +37,13 @@ export const TradingSetupModal: React.FC<TradingSetupModalProps> = ({ isOpen, on
         try {
             if (!walletAddress) return;
             const status = await onchainService.checkTradingSetup(walletAddress);
-            setRoleGranted(status.roleGranted);
+            setProtocolReady(Boolean(status.roleGranted));
+            if (!status.roleGranted) {
+                const permission = await onchainService.canGrantOrderRouterRole(walletAddress);
+                setRolePermission(permission);
+            } else {
+                setRolePermission(null);
+            }
             // Check if allowance > 100 USDC
             setAllowanceOk(status.allowance > 1_000_000_00n);
         } catch (e) {
@@ -60,31 +67,34 @@ export const TradingSetupModal: React.FC<TradingSetupModalProps> = ({ isOpen, on
         });
     };
 
+    // Derived State
+    const roleGranted = protocolReady;
+    const step: 'role' | 'allowance' | 'success' = !protocolReady
+        ? 'role'
+        : (!allowanceOk ? 'allowance' : 'success');
+
     const handleAction = async () => {
-        if (!roleGranted) {
+        if (step === 'role') {
+            if (rolePermission && !rolePermission.canGrant) {
+                toast.error(rolePermission.reason || "Admin role required", { id: 'setup-flow', duration: 5000 });
+                return;
+            }
             setIsProcessing(true);
             try {
-                console.log('[TradingSetup] Getting wallet client...');
+                if (!walletAddress) throw new Error("Wallet not connected");
                 const client = await getWalletClient();
-                console.log('[TradingSetup] Wallet client:', client);
-                console.log('[TradingSetup] Calling grantOrderRouterRole...');
                 const tx = await onchainService.grantOrderRouterRole(client);
-                console.log('[TradingSetup] Transaction hash:', tx);
-                toast.loading("Granting Role...", { id: 'setup-flow' });
+                toast.loading("Granting permissions...", { id: 'setup-flow' });
                 await onchainService.waitForTransaction(tx);
-                toast.success("Role Granted!", { id: 'setup-flow' });
+                toast.success("Permissions granted!", { id: 'setup-flow' });
 
                 // Optimistic update
-                setRoleGranted(true);
+                setProtocolReady(true);
                 await checkStatus(); // Re-verify
             } catch (e: any) {
                 console.error(e);
                 const errMsg = e.message || e.toString() || "Unknown";
-
-                // Detect common errors
-                if (errMsg.includes('insufficient funds') || errMsg.includes('gas')) {
-                    toast.error("Insufficient ETH for gas. Please claim ETH from Arbitrum Sepolia faucet.", { id: 'setup-flow', duration: 5000 });
-                } else if (errMsg.includes('user rejected') || errMsg.includes('denied')) {
+                if (errMsg.includes('user rejected') || errMsg.includes('denied')) {
                     toast.error("Transaction rejected", { id: 'setup-flow' });
                 } else {
                     toast.error("Grant Failed: " + errMsg, { id: 'setup-flow', duration: 5000 });
@@ -95,7 +105,7 @@ export const TradingSetupModal: React.FC<TradingSetupModalProps> = ({ isOpen, on
             return;
         }
 
-        if (!allowanceOk) {
+        if (step === 'allowance') {
             setIsProcessing(true);
             try {
                 const client = await getWalletClient();
@@ -131,14 +141,11 @@ export const TradingSetupModal: React.FC<TradingSetupModalProps> = ({ isOpen, on
 
     // Auto-close logic? User might want to see confirmation.
 
-    // Derived State
-    const step = !roleGranted ? 'role' : !allowanceOk ? 'allowance' : 'success';
-
     const getButtonText = () => {
         if (loading) return 'Checking...';
         if (isProcessing) return 'Processing...';
-        if (step === 'role') return 'Grant Access (Step 1)';
-        if (step === 'allowance') return 'Approve USDC (Step 2)';
+        if (step === 'role') return rolePermission?.canGrant === false ? 'Admin Required' : 'Grant Permissions';
+        if (step === 'allowance') return 'Approve USDC';
         return 'Start Trading'; // Success
     };
 
@@ -193,11 +200,16 @@ export const TradingSetupModal: React.FC<TradingSetupModalProps> = ({ isOpen, on
                         </div>
 
                     </div>
+                    {step === 'role' && rolePermission?.canGrant === false && (
+                        <div style={{ fontSize: '12px', color: '#A77590', marginTop: '-12px', marginBottom: '16px' }}>
+                            This is a protocol configuration step. Connect with the admin wallet to grant roles. ({rolePermission.reason})
+                        </div>
+                    )}
 
                     <button
                         className={styles.actionButton}
                         onClick={handleAction}
-                        disabled={loading || isProcessing}
+                        disabled={loading || isProcessing || (step === 'role' && rolePermission?.canGrant === false)}
                         style={{
                             background: step === 'success' ? '#00E396' : undefined,
                             color: step === 'success' ? '#000' : undefined

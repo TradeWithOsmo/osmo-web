@@ -3,6 +3,28 @@ import { useEffect, useRef } from 'react';
 import { commandRegistry } from '../charting/commands/registry';
 import { useMarketStore } from '../store/useMarketStore';
 
+const API_HOST =
+    typeof window !== 'undefined' && window.location?.hostname
+        ? window.location.hostname
+        : 'localhost';
+const API_URL = import.meta.env.VITE_API_URL || `http://${API_HOST}:8000`;
+
+const parseEnvMs = (raw: unknown, fallback: number, min: number): number => {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+        return fallback;
+    }
+    return Math.max(min, parsed);
+};
+
+const TV_COMMAND_POLL_MS = parseEnvMs(import.meta.env.VITE_TV_COMMAND_POLL_MS, 1000, 250);
+const TV_INITIAL_SYNC_MS = parseEnvMs(import.meta.env.VITE_TV_INITIAL_SYNC_MS, 250, 0);
+const TV_SET_RESOLUTION_TIMEOUT_MS = parseEnvMs(
+    import.meta.env.VITE_TV_SET_RESOLUTION_TIMEOUT_MS,
+    4500,
+    1000
+);
+
 export type TradeDecisionTriggerEvent = {
     symbol: string;
     timeframe: string;
@@ -38,6 +60,8 @@ type ActiveTradeTriggerState = {
 declare global {
     interface Window {
         __activeTradeTriggers?: Record<string, ActiveTradeTriggerState>;
+        __tvDrawingTags?: string[];
+        __tvTradeSetup?: Record<string, any>;
     }
 }
 
@@ -381,6 +405,10 @@ export const useTradingViewConnector = (
                     symbol,
                     timeframe: resolution,
                     indicators,
+                    // Used by agent tools for post-write verification (add/remove indicator).
+                    active_indicators: (chart.getAllStudies?.() || []).map((s: any) => s?.name).filter(Boolean),
+                    drawing_tags: Array.isArray(window.__tvDrawingTags) ? window.__tvDrawingTags : [],
+                    trade_setup: window.__tvTradeSetup || {},
                     timestamp: Date.now()
                 };
 
@@ -399,7 +427,7 @@ export const useTradingViewConnector = (
                 maybeEmitTradeDecisionTrigger(symbol, resolution, latestClosePrice);
 
                 // POST to Backend
-                await fetch('http://localhost:8000/api/connectors/tradingview/indicators', {
+                await fetch(`${API_URL}/api/connectors/tradingview/indicators`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -412,7 +440,7 @@ export const useTradingViewConnector = (
                 // --- NEW: Poll for Commands from Agent ---
                 const encodedSymbol = encodeURIComponent(symbol);
                 console.log(`[TradingViewConnector] Polling commands for: ${symbol} (Encoded: ${encodedSymbol})`);
-                const cmdResponse = await fetch(`http://localhost:8000/api/connectors/tradingview/commands/${encodedSymbol}`);
+                const cmdResponse = await fetch(`${API_URL}/api/connectors/tradingview/commands/${encodedSymbol}`);
                 if (cmdResponse.ok) {
                     const commands = await cmdResponse.json();
                     if (Array.isArray(commands) && commands.length > 0) {
@@ -426,7 +454,7 @@ export const useTradingViewConnector = (
                         ) => {
                             if (!commandId) return;
                             try {
-                                await fetch('http://localhost:8000/api/connectors/tradingview/commands/result', {
+                                await fetch(`${API_URL}/api/connectors/tradingview/commands/result`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
@@ -588,7 +616,7 @@ export const useTradingViewConnector = (
                                                 finished = true;
                                                 reject(new Error(`setResolution timeout for ${tf}`));
                                             }
-                                        }, 7000);
+                                        }, TV_SET_RESOLUTION_TIMEOUT_MS);
                                         try {
                                             chart.setResolution(resolvedTf, () => {
                                                 if (finished) return;
@@ -639,7 +667,25 @@ export const useTradingViewConnector = (
                                 }
                                 // === NEW: Trade Setup (Visual Only) ===
                                 else if (cmd.action === 'setup_trade') {
-                                    const { side, entry, sl, tp } = cmd.params;
+                                    const {
+                                        side,
+                                        entry,
+                                        sl,
+                                        tp,
+                                        tp2,
+                                        tp3,
+                                        trailing_sl,
+                                        be,
+                                        liq,
+                                        gp,
+                                        gl,
+                                        validation,
+                                        invalidation,
+                                        validation_note,
+                                        invalidation_note
+                                    } = cmd.params || {};
+                                    const gpLevel = gp ?? validation;
+                                    const glLevel = gl ?? invalidation;
                                     console.log(`[TradingViewConnector] Visualizing Trade Setup: ${side ? side.toUpperCase() : 'UNKNOWN'} @ ${entry}`);
 
                                     const tool = side === 'long' ? 'long_position' : 'short_position';
@@ -715,22 +761,6 @@ export const useTradingViewConnector = (
                                         activeLines.push(slLine);
 
                                         // === OPTIONAL LINES ===
-                                        const {
-                                            tp2,
-                                            tp3,
-                                            trailing_sl,
-                                            be,
-                                            liq,
-                                            gp,
-                                            gl,
-                                            validation,
-                                            invalidation,
-                                            validation_note,
-                                            invalidation_note
-                                        } = cmd.params;
-                                        const gpLevel = gp ?? validation;
-                                        const glLevel = gl ?? invalidation;
-
                                         // 4. TP 2
                                         if (tp2) {
                                             const tp2Line = chart.createOrderLine()
@@ -859,15 +889,98 @@ export const useTradingViewConnector = (
 
                                         // Save to global scope for cleanup next time
                                         (window as any).__activeTradeLines = activeLines;
+                                        // Publish last trade setup params for agent verification.
+                                        window.__tvTradeSetup = {
+                                            symbol,
+                                            timeframe: resolution,
+                                            side,
+                                            entry,
+                                            sl,
+                                            tp,
+                                            tp2,
+                                            tp3,
+                                            trailing_sl,
+                                            be,
+                                            liq,
+                                            validation: gpLevel,
+                                            invalidation: glLevel,
+                                            validation_note,
+                                            invalidation_note,
+                                        };
 
                                         console.log(`[TradingViewConnector] Native Order Lines Created!`);
                                         cmdResult = buildCommandResult(cmd.action, cmd.params, 'Trade setup lines created.');
 
                                     } catch (err) {
                                         console.error("[TradingViewConnector] Failed to draw native lines:", err);
-                                        // Fallback warning
-                                        console.warn("Is 'createOrderLine' enabled in your TV Chart config?");
-                                        throw err;
+                                        // Fallback for environments where createOrderLine is unavailable.
+                                        // Keep command successful to avoid brittle runtime failures.
+                                        const nowTs = Math.floor(Date.now() / 1000);
+                                        let fallbackDrawCount = 0;
+
+                                        const tryDrawFallbackLine = (
+                                            price: any,
+                                            label: string,
+                                            color: string,
+                                            lineWidth: number = 2
+                                        ) => {
+                                            if (price === undefined || price === null) return;
+                                            const priceNum = Number(price);
+                                            if (!Number.isFinite(priceNum)) return;
+                                            try {
+                                                chart.createMultipointShape(
+                                                    [{ time: nowTs, price: priceNum }],
+                                                    {
+                                                        shape: 'horizontal_line',
+                                                        overrides: {
+                                                            color,
+                                                            linecolor: color,
+                                                            linewidth: lineWidth,
+                                                            text: label,
+                                                        },
+                                                        lock: false,
+                                                        disableSelection: false,
+                                                    }
+                                                );
+                                                fallbackDrawCount += 1;
+                                            } catch (drawErr) {
+                                                console.warn('[TradingViewConnector] setup_trade fallback draw failed:', drawErr);
+                                            }
+                                        };
+
+                                        tryDrawFallbackLine(entry, side === 'long' ? 'Entry Long' : 'Entry Short', '#2962FF');
+                                        tryDrawFallbackLine(tp, 'Take Profit', '#089981');
+                                        tryDrawFallbackLine(sl, 'Stop Loss', '#F23645');
+                                        tryDrawFallbackLine(gpLevel, validation_note || 'Validation', '#089981', 1);
+                                        tryDrawFallbackLine(glLevel, invalidation_note || 'Invalidation', '#F23645', 1);
+
+                                        window.__tvTradeSetup = {
+                                            symbol,
+                                            timeframe: resolution,
+                                            side,
+                                            entry,
+                                            sl,
+                                            tp,
+                                            tp2,
+                                            tp3,
+                                            trailing_sl,
+                                            be,
+                                            liq,
+                                            validation: gpLevel,
+                                            invalidation: glLevel,
+                                            validation_note,
+                                            invalidation_note,
+                                        };
+
+                                        cmdResult = buildCommandResult(
+                                            cmd.action,
+                                            cmd.params,
+                                            "Trade setup fallback applied (createOrderLine unavailable)."
+                                        );
+                                        cmdResult.fallback = 'setup_trade_horizontal_line';
+                                        cmdResult.fallback_draw_count = fallbackDrawCount;
+                                        cmdStatus = 'success';
+                                        cmdError = undefined;
                                     }
 
                                 } else {
@@ -892,11 +1005,11 @@ export const useTradingViewConnector = (
             }
         };
 
-        // Sync every 3 seconds (Faster for commands)
-        intervalRef.current = setInterval(syncIndicators, 3000);
+        // Poll command queue at 1s by default so backend wait_for_completion does not timeout first.
+        intervalRef.current = setInterval(syncIndicators, TV_COMMAND_POLL_MS);
 
         // Initial sync
-        setTimeout(syncIndicators, 2000);
+        setTimeout(syncIndicators, TV_INITIAL_SYNC_MS);
 
         return () => {
             if (intervalRef.current) {

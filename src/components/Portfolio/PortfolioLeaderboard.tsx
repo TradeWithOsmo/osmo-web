@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styles from './Portfolio.module.css';
 import panelStyles from '../Positions/PositionsPanel.module.css';
 import { useLeaderboardStore } from '../../store/useLeaderboardStore';
@@ -238,25 +238,26 @@ const AgentLeaderboardRow: React.FC<AgentLeaderboardRowProps> = ({ item, formatC
 };
 
 const PortfolioLeaderboard: React.FC = () => {
-    const [timeFilter, setTimeFilter] = useState<Timeframe>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'trader' | 'agent' | 'model'>('trader');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [rowsPerPage, setRowsPerPage] = useState(20);
     const [isRowsDropdownOpen, setIsRowsDropdownOpen] = useState(false);
 
     // Zustand store
     const {
+        view,
+        setView,
         traderData,
         traderPagination,
         agentData,
         agentPagination,
         isLoadingTraders,
         isLoadingAgents,
-        fetchTraderLeaderboard,
-        fetchAgentLeaderboard
     } = useLeaderboardStore();
+
+    const activeTab = view.activeTab;
+    const timeFilter = view.timeframe;
+    const currentPage = view.page;
+    const rowsPerPage = view.limit;
 
     const toggleTimeDropdown = () => setIsTimeDropdownOpen(!isTimeDropdownOpen);
     const toggleRowsDropdown = () => setIsRowsDropdownOpen(!isRowsDropdownOpen);
@@ -265,21 +266,10 @@ const PortfolioLeaderboard: React.FC = () => {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(val);
     };
 
-    // Fetch data when tab, timeframe, or page changes
+    // Reset page when filters change (search is client-side, but keep behavior consistent)
     useEffect(() => {
-        if (activeTab === 'trader') {
-            fetchTraderLeaderboard(timeFilter, currentPage, rowsPerPage, false);
-        } else if (activeTab === 'agent') {
-            fetchTraderLeaderboard(timeFilter, currentPage, rowsPerPage, true);
-        } else {
-            fetchAgentLeaderboard(timeFilter, currentPage, rowsPerPage);
-        }
-    }, [activeTab, timeFilter, currentPage, rowsPerPage]);
-
-    // Reset page when filters change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, timeFilter, activeTab]);
+        if (currentPage !== 1) setView({ page: 1 });
+    }, [searchQuery, timeFilter, activeTab, currentPage, setView]);
 
     // Filter data by search query (client-side)
     const filteredData = useMemo(() => {
@@ -305,15 +295,15 @@ const PortfolioLeaderboard: React.FC = () => {
 
     const goToPage = (page: number) => {
         if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
+            setView({ page });
         }
     };
 
     useEffect(() => {
         if (currentPage > totalPages) {
-            setCurrentPage(totalPages);
+            setView({ page: totalPages });
         }
-    }, [currentPage, totalPages]);
+    }, [currentPage, totalPages, setView]);
 
     return (
         <div style={{ paddingBottom: '32px' }}>
@@ -324,19 +314,19 @@ const PortfolioLeaderboard: React.FC = () => {
                 <div className={styles.tabsContainer}>
                     <button
                         className={`${styles.tabButton} ${activeTab === 'trader' ? styles.activeTab : ''}`}
-                        onClick={() => setActiveTab('trader')}
+                        onClick={() => setView({ activeTab: 'trader', page: 1 })}
                     >
                         Trader
                     </button>
                     <button
                         className={`${styles.tabButton} ${activeTab === 'agent' ? styles.activeTab : ''}`}
-                        onClick={() => setActiveTab('agent')}
+                        onClick={() => setView({ activeTab: 'agent', page: 1 })}
                     >
                         Agent
                     </button>
                     <button
                         className={`${styles.tabButton} ${activeTab === 'model' ? styles.activeTab : ''}`}
-                        onClick={() => setActiveTab('model')}
+                        onClick={() => setView({ activeTab: 'model', page: 1 })}
                     >
                         Model
                     </button>
@@ -399,7 +389,7 @@ const PortfolioLeaderboard: React.FC = () => {
                                         <button
                                             key={tf}
                                             className={`${panelStyles.dropdownItem} ${timeFilter === tf ? panelStyles.selected : ''}`}
-                                            onClick={() => { setTimeFilter(tf); setIsTimeDropdownOpen(false); }}
+                                            onClick={() => { setView({ timeframe: tf, page: 1 }); setIsTimeDropdownOpen(false); }}
                                         >
                                             {tf.toUpperCase()}
                                         </button>
@@ -559,17 +549,17 @@ const PortfolioLeaderboard: React.FC = () => {
                                         </button>
                                         {isRowsDropdownOpen && (
                                             <div className={panelStyles.dropdownMenu} style={{ minWidth: '60px', bottom: '100%', top: 'auto', marginBottom: '4px' }}>
-                                                {[10, 20, 50, 100].map((rows) => (
-                                                    <button
-                                                        key={rows}
-                                                        className={`${panelStyles.dropdownItem} ${rowsPerPage === rows ? panelStyles.selected : ''}`}
-                                                        onClick={() => { setRowsPerPage(rows); setCurrentPage(1); setIsRowsDropdownOpen(false); }}
-                                                    >
-                                                        {rows}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
+                                            {[10, 20, 50, 100].map((rows) => (
+                                                <button
+                                                    key={rows}
+                                                    className={`${panelStyles.dropdownItem} ${rowsPerPage === rows ? panelStyles.selected : ''}`}
+                                                    onClick={() => { setView({ limit: rows, page: 1 }); setIsRowsDropdownOpen(false); }}
+                                                >
+                                                    {rows}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                     </div>
                                 </div>
                             </div>

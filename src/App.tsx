@@ -8,6 +8,7 @@ import { DepositModal, ReversePositionModal, MarketCloseModal, TPSLModal, CloseA
 import { useWallet } from './hooks/useWallet';
 import { useUIStore } from './store/useUIStore';
 import { onchainService } from './api/onchainService';
+import { useAppDataSync } from './hooks/useAppDataSync';
 
 function App() {
   const [currentRoute, setCurrentRoute] = useState(window.location.pathname === '/' ? '/trade' : window.location.pathname);
@@ -16,6 +17,7 @@ function App() {
 
   // Enable global real-time market data stream
   useGlobalMarketStream();
+  useAppDataSync();
 
   const { fetchTokenList } = useTokenListStore();
 

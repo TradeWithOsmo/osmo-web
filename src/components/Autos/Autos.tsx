@@ -191,10 +191,14 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     const [inboxSessions, setInboxSessions] = useState<Session[]>([
         { id: 'new-chat-1', title: 'New Chat', type: 'chat', isActive: true }
     ]);
+    // Store messages per session (key = activeSessionId)
+    const [sessionMessages, setSessionMessages] = useState<Record<string, Message[]>>({});
+    const [typingStatus, setTypingStatus] = useState<Record<string, boolean>>({});
 
     // 1. Initial Load: Fetch Sessions & Workspaces from Backend
     useEffect(() => {
         const fetchData = async () => {
+            if (!walletAddress) return;
             try {
                 const token = await getAccessToken();
                 if (!token) return;
@@ -238,13 +242,14 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             }
         };
         fetchData();
-    }, [getAccessToken]);
+    }, [getAccessToken, walletAddress]);
 
     // 2. Fetch History when session changes
     useEffect(() => {
         const loadHistory = async () => {
             if (!activeSessionId || activeSessionId.startsWith('new-chat')) return;
             if (sessionMessages[activeSessionId]) return; // Already loaded
+            if (!walletAddress) return;
 
             try {
                 const token = await getAccessToken();
@@ -269,11 +274,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             }
         };
         loadHistory();
-    }, [activeSessionId, getAccessToken]);
-
-    // Store messages per session (key = activeSessionId)
-    const [sessionMessages, setSessionMessages] = useState<Record<string, Message[]>>({});
-    const [typingStatus, setTypingStatus] = useState<Record<string, boolean>>({});
+    }, [activeSessionId, getAccessToken, walletAddress, sessionMessages]);
 
     const getSessionById = (id: string): Session | undefined => {
         const inbox = inboxSessions.find(s => s.id === id);
@@ -399,12 +400,18 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             const phaseName = String(phase?.name || '').trim();
             if (!phaseName) return;
             const status = String(phase?.status || 'done').trim();
-            const detail = String(phase?.detail || '').trim();
+            const detail = String(phase?.detail || phaseName.replace(/_/g, ' ')).trim();
             const phaseTool = String(phase?.meta?.tool || '').trim();
             const phaseStage = String(phase?.meta?.stage || '').trim().toLowerCase();
             const loopRaw = phase?.meta?.loop;
             const phaseLoop = Number.isFinite(Number(loopRaw)) ? Number(loopRaw) : null;
+            const attemptRaw = phase?.meta?.attempt;
+            const phaseAttempt = Number.isFinite(Number(attemptRaw)) ? Number(attemptRaw) : null;
+            const seqRaw = phase?.meta?.seq;
+            const phaseSeq = Number.isFinite(Number(seqRaw)) ? Number(seqRaw) : null;
             const normalizedDetail = detail.toLowerCase();
+            const isSynthetic = Boolean(phase?.meta?.synthetic);
+            const phaseIdentity = `${phaseName}|${phaseTool}|${phaseStage}|${phaseLoop ?? ''}|${phaseAttempt ?? ''}|${phaseSeq ?? ''}`;
 
             if (status.toLowerCase() === 'skipped') return;
             if (normalizedDetail.includes('not triggered for this request')) return;
@@ -434,6 +441,9 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             if (phaseLoop && phaseLoop > 0) {
                 contentParts.push(`loop=${phaseLoop}`);
             }
+            if (phaseAttempt && phaseAttempt > 0) {
+                contentParts.push(`attempt=${phaseAttempt}`);
+            }
             if (stageLabel) {
                 contentParts.push(`stage=${stageLabel}`);
             }
@@ -446,21 +456,37 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                 const updated = existing.map(m => {
                     if (m.id !== responseId) return m;
                     const currentPhases = Array.isArray(m.runtimePhases) ? [...m.runtimePhases] : [];
-                    const duplicate = currentPhases.some(
-                        p => p.name === phaseName && (p.detail || '') === detail && (p.status || '') === status
+                    const incomingPhase = {
+                        name: phaseName,
+                        status,
+                        detail,
+                        meta: { ...phase?.meta, identity: phaseIdentity },
+                    };
+                    const existingIdx = currentPhases.findIndex(
+                        p =>
+                            String(p?.meta?.identity || '') === phaseIdentity ||
+                            (
+                                p.name === phaseName &&
+                                String(p?.meta?.tool || '') === phaseTool &&
+                                String(p?.meta?.stage || '').toLowerCase() === phaseStage &&
+                                Number(p?.meta?.loop ?? NaN) === Number(phaseLoop ?? NaN) &&
+                                Number(p?.meta?.attempt ?? NaN) === Number(phaseAttempt ?? NaN) &&
+                                Number(p?.meta?.seq ?? NaN) === Number(phaseSeq ?? NaN)
+                            )
                     );
-                    if (!duplicate) {
-                        currentPhases.push({
-                            name: phaseName,
-                            status,
-                            detail,
-                            meta: phase?.meta,
-                        });
+                    if (existingIdx >= 0) {
+                        currentPhases[existingIdx] = incomingPhase;
+                    } else {
+                        currentPhases.push(incomingPhase);
                     }
-                    return { ...m, runtimePhases: currentPhases, isThinking: true };
+                    // Prevent unbounded phase growth from flooding the UI.
+                    const trimmedPhases = currentPhases.slice(-24);
+                    return { ...m, runtimePhases: trimmedPhases, isThinking: true };
                 });
                 return { ...prev, [currentSessionId]: updated };
             });
+
+            if (isSynthetic) return;
 
             appendThought({
                 type: 'tool',
@@ -474,7 +500,9 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         };
 
         let streamedText = '';
-        const stopTyping = () => { };
+        const stopTyping = () => {
+            setTypingStatus(prev => ({ ...prev, [currentSessionId]: false }));
+        };
 
         const THOUGHT_DELAY_MS = 35;
         let thoughtQueue: any[] = [];
@@ -608,6 +636,12 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                     thoughtQueue.push(thought);
                     scheduleThoughtFlush();
                 },
+                onRuntime: (runtime) => {
+                    const phases = Array.isArray(runtime?.phases) ? runtime.phases : [];
+                    for (const phase of phases) {
+                        appendRuntimePhase(phase);
+                    }
+                },
                 onRuntimePhase: (phase) => {
                     appendRuntimePhase(phase);
                 },
@@ -709,10 +743,14 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         for (let i = history.length - 1; i >= 0; i -= 1) {
             const msg = history[i] as Message & { modelId?: string };
             if (msg.role === 'assistant' && msg.modelId) {
-                return msg.modelId;
+                const raw = String(msg.modelId).trim();
+                if (raw.toLowerCase().startsWith('nvidia/')) {
+                    return raw.split('/').slice(1).join('/');
+                }
+                return raw;
             }
         }
-        return 'nvidia/moonshotai/kimi-k2.5';
+        return 'moonshotai/kimi-k2.5';
     };
 
     const handleTradeDecisionTrigger = async (event: TradeDecisionTriggerEvent) => {
@@ -1025,7 +1063,14 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
         }
     };
 
-    const handleEditMessage = (sessionId: string, messageId: string, newContent: string, modelId?: string, reasoningEffort?: string) => {
+    const handleEditMessage = (
+        sessionId: string,
+        messageId: string,
+        newContent: string,
+        modelId?: string,
+        reasoningEffort?: string,
+        toolStates?: any
+    ) => {
         const history = sessionMessages[sessionId] || [];
         const msgIndex = history.findIndex(m => m.id === messageId);
         if (msgIndex === -1) return;
@@ -1057,7 +1102,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             }));
             return;
         }
-        generateAssistantResponse(sessionId, newContent, modelId, croppedHistory, reasoningEffort);
+        generateAssistantResponse(sessionId, newContent, modelId, croppedHistory, reasoningEffort, toolStates);
     };
 
     // Drag to scroll tabs logic
@@ -1093,7 +1138,12 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
     const activeSession = getSessionById(activeSessionId);
 
     // Reset artifact when session changes
-    const handleRegenerateResponse = (assistantMessageId: string, modelId?: string, reasoningEffort?: string) => {
+    const handleRegenerateResponse = (
+        assistantMessageId: string,
+        modelId?: string,
+        reasoningEffort?: string,
+        toolStates?: any
+    ) => {
         const history = sessionMessages[activeSessionId] || [];
         const msgIndex = history.findIndex(m => m.id === assistantMessageId);
         if (msgIndex === -1) return;
@@ -1123,7 +1173,7 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
             }));
             return;
         }
-        generateAssistantResponse(activeSessionId, userMsg.content, modelId, croppedHistory, reasoningEffort);
+        generateAssistantResponse(activeSessionId, userMsg.content, modelId, croppedHistory, reasoningEffort, toolStates);
     };
 
     const handleFeedback = (messageId: string, feedback: 'like' | 'dislike' | null) => {
@@ -1321,6 +1371,8 @@ const Autos: React.FC<AutosProps> = ({ forceMobileMode, compact, currentSymbol =
                                 onRegenerateResponse={handleRegenerateResponse}
                                 onFeedback={handleFeedback}
                                 currentSymbol={currentSymbol}
+                                currentTimeframe={chartState?.timeframe}
+                                currentIndicators={chartState?.indicators || []}
                                 onToggleMinimize={() => setIsMinimized(!isMinimized)}
                                 isMinimized={isMinimized}
                                 onNewChat={handleNewChat}

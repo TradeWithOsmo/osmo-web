@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
     AreaChart,
     Area,
@@ -11,26 +11,9 @@ import {
 
 
 import { useUsageStore } from '../../store/useUsageStore';
-import { useWallet } from '../../hooks/useWallet';
 
 const UsageChart: React.FC = () => {
-    const [timeframe, setTimeframe] = useState('30D');
-    const { chartData, fetchChartData } = useUsageStore();
-    const { walletAddress } = useWallet();
-
-    useEffect(() => {
-        if (walletAddress) {
-            fetchChartData(walletAddress, timeframe);
-        }
-    }, [walletAddress, timeframe, fetchChartData]);
-
-    useEffect(() => {
-        if (!walletAddress) return;
-        const id = window.setInterval(() => {
-            void fetchChartData(walletAddress, timeframe);
-        }, 15000);
-        return () => window.clearInterval(id);
-    }, [walletAddress, timeframe, fetchChartData]);
+    const { chartData, chartTimeframe, setChartTimeframe } = useUsageStore();
 
     // Format data for chart
     const formattedData = useMemo(() => {
@@ -118,17 +101,17 @@ const UsageChart: React.FC = () => {
                         <React.Fragment key={tf}>
                             {idx > 0 && <span style={{ color: '#3A2530', fontSize: '12px' }}>·</span>}
                             <button
-                                onClick={() => setTimeframe(tf)}
+                                onClick={() => setChartTimeframe(tf)}
                                 style={{
                                     background: 'transparent',
-                                    color: timeframe === tf ? '#FFE1F2' : '#8B8B9B',
+                                    color: chartTimeframe === tf ? '#FFE1F2' : '#8B8B9B',
                                     border: 'none',
                                     padding: '4px 8px',
                                     fontSize: '13px',
                                     cursor: 'pointer',
                                     outline: 'none',
                                     transition: 'all 0.2s',
-                                    fontWeight: timeframe === tf ? 700 : 400,
+                                    fontWeight: chartTimeframe === tf ? 700 : 400,
                                     textTransform: tf === 'ALL' ? 'capitalize' : 'uppercase'
                                 }}
                             >
@@ -169,6 +152,14 @@ const UsageChart: React.FC = () => {
                             itemStyle={{ color: '#FFE1F2', fontSize: '13px', fontWeight: 600 }}
                             labelStyle={{ color: '#8B8B9B', fontSize: '11px', marginBottom: '2px' }}
                             cursor={{ stroke: '#660035', strokeWidth: 1 }}
+                            formatter={(value: any) => {
+                                const n = Number(value);
+                                if (!Number.isFinite(n)) return [String(value), 'Cost'];
+                                return [
+                                    `$${n.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 })}`,
+                                    'Cost'
+                                ];
+                            }}
                         />
                         <Area
                             type="monotone"

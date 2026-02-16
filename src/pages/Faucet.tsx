@@ -90,10 +90,10 @@ const Faucet: React.FC = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    transition: 'all 0.3s ease',
+                    // Avoid heavy glow/box-shadow effects; keep hover lightweight.
+                    transition: 'transform 0.25s ease, background-color 0.25s ease',
                     zIndex: 20,
                     outline: 'none',
-                    boxShadow: isHovered ? '0 0 60px rgba(66, 0, 36, 0.5)' : 'none'
                 }}
             >
                 {/* Inner Circle */}
@@ -106,7 +106,7 @@ const Faucet: React.FC = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    transition: 'all 0.3s ease'
+                    transition: 'background-color 0.25s ease'
                 }}>
                     {/* Logo Always Shown */}
                     <img

@@ -3,7 +3,7 @@ import styles from './DepositModal.module.css'; // Reusing DepositModal styles f
 import { useUIStore } from '../../store/useUIStore';
 import usdcArbIcon from '../../assets/deposited chain/USDCARB.png';
 import { useWallet } from '../../hooks/useWallet';
-import { onchainService, CONTRACTS } from '../../api/onchainService';
+import { onchainService } from '../../api/onchainService';
 import toast from 'react-hot-toast';
 import { createWalletClient, custom } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
@@ -13,14 +13,21 @@ export const FaucetModal: React.FC = () => {
     const { authenticated, walletAddress, wallets, handleSwitchToTargetChain } = useWallet();
     const [amount, setAmount] = useState('1000');
     const [isClaiming, setIsClaiming] = useState(false);
-    const [destination, setDestination] = useState<'wallet' | 'ai_vault'>('wallet');
+    const [dripAmountText, setDripAmountText] = useState<string>('');
+
+    const shortenAddress = (addr?: string) => {
+        const a = String(addr || '');
+        if (!a) return '';
+        if (a.length <= 12) return a;
+        return `${a.slice(0, 6)}...${a.slice(-4)}`;
+    };
 
     useEffect(() => {
         if (isFaucetModalOpen) {
             document.body.style.overflow = 'hidden';
-            setAmount('1000'); // Default amount
+            setAmount(''); // Will be populated from on-chain dripAmount when available
+            setDripAmountText('');
             setIsClaiming(false);
-            setDestination('wallet');
         } else {
             document.body.style.overflow = '';
         }
@@ -28,6 +35,30 @@ export const FaucetModal: React.FC = () => {
             document.body.style.overflow = '';
         };
     }, [isFaucetModalOpen]);
+
+    useEffect(() => {
+        if (!isFaucetModalOpen || !walletAddress) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const st = await onchainService.getFaucetStatusOnChain(walletAddress);
+                const amt = Number(st.drip_amount) / 1_000_000;
+                if (!cancelled) {
+                    setAmount(String(amt));
+                    setDripAmountText(amt.toLocaleString());
+                }
+            } catch (e) {
+                // Non-fatal; UI can still attempt claim and surface error.
+                if (!cancelled) {
+                    setAmount('');
+                    setDripAmountText('');
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isFaucetModalOpen, walletAddress]);
 
     if (!isFaucetModalOpen) return null;
 
@@ -54,53 +85,15 @@ export const FaucetModal: React.FC = () => {
                 {/* Content */}
                 <div className={styles.content}>
                     <p style={{ color: '#A77590', fontSize: '14px', marginBottom: '20px', lineHeight: '1.5' }}>
-                        Mint testnet tokens to start trading on Osmo. You can drip up to 1,000 USDC every 24 hours.
+                        Mint testnet tokens to start trading on Osmo. The faucet drips a fixed amount (up to 1,000 USDC) every 24 hours.
                     </p>
-
-                    {/* Destination Tabs */}
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', background: '#0A0005', padding: '4px', borderRadius: '8px', border: '1px solid #3A2530' }}>
-                        <button
-                            onClick={() => setDestination('wallet')}
-                            style={{
-                                flex: 1,
-                                padding: '8px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: destination === 'wallet' ? '#3A2530' : 'transparent',
-                                color: destination === 'wallet' ? '#FFE1F2' : '#A77590',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            My Wallet
-                        </button>
-                        <button
-                            onClick={() => setDestination('ai_vault')}
-                            style={{
-                                flex: 1,
-                                padding: '8px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: destination === 'ai_vault' ? '#3A2530' : 'transparent',
-                                color: destination === 'ai_vault' ? '#FFE1F2' : '#A77590',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            AI Vault Credits
-                        </button>
-                    </div>
 
                     {/* Amount Input */}
                     <div className={styles.amountContainer}>
                         <div className={styles.amountHeader}>
                             <span>Amount to Drip</span>
                             <div className={styles.balanceLabel}>
-                                <span style={{ color: '#A77590' }}>Max Drip: 1,000</span>
+                                <span style={{ color: '#A77590' }}>Fixed: {dripAmountText || '...'} USDC</span>
                             </div>
                         </div>
                         <div className={styles.inputRow}>
@@ -110,6 +103,7 @@ export const FaucetModal: React.FC = () => {
                                 placeholder="0.00"
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
+                                disabled
                             />
                             <div className={styles.assetSelector}>
                                 <span className={styles.assetName} style={{ fontSize: '16px', fontWeight: 600 }}>USDC</span>
@@ -127,8 +121,12 @@ export const FaucetModal: React.FC = () => {
 
                     <div className={styles.infoRow}>
                         <span className={styles.infoLabel}>Destination</span>
-                        <span className={styles.infoValue} style={{ color: '#FFE1F2' }}>
-                            {destination === 'wallet' ? 'Your Wallet Address' : 'AI Vault Contract'}
+                        <span
+                            className={styles.infoValue}
+                            style={{ color: '#FFE1F2', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace' }}
+                            title={walletAddress || ''}
+                        >
+                            {walletAddress ? shortenAddress(walletAddress) : 'Connect wallet'}
                         </span>
                     </div>
 
@@ -161,16 +159,10 @@ export const FaucetModal: React.FC = () => {
                                     transport: custom(provider)
                                 });
 
-                                // Determine recipient
-                                const recipient = destination === 'wallet' ? walletAddress : (CONTRACTS.AIVault as string);
-
-                                if (!recipient) {
-                                    throw new Error("Invalid destination address");
-                                }
-
-                                const result = await onchainService.claimFaucetOnChain(walletClient, recipient, parseFloat(amount));
+                                const result = await onchainService.claimFaucetOnChain(walletClient, walletAddress, 0);
                                 if (result.success || result.tx_hash) {
-                                    toast.success(`Successfully claimed ${parseFloat(amount).toLocaleString()} USDC to ${destination === 'wallet' ? 'your wallet' : 'AI Vault'}!`);
+                                    const claimed = result?.drip_amount ? (Number(result.drip_amount) / 1_000_000) : parseFloat(amount || '0');
+                                    toast.success(`Successfully claimed ${claimed.toLocaleString()} USDC to your wallet!`);
                                     closeFaucetModal();
                                 }
                             } catch (error: any) {
@@ -183,12 +175,6 @@ export const FaucetModal: React.FC = () => {
                     >
                         {isClaiming ? 'Dripping Tokens...' : !authenticated ? 'Connect Wallet' : 'Drip Tokens'}
                     </button>
-
-                    {destination === 'ai_vault' && (
-                        <p style={{ marginTop: '12px', fontSize: '11px', color: '#A77590', textAlign: 'center' }}>
-                            Note: Drip to AI Vault will increase your AI credits for autonomous trading.
-                        </p>
-                    )}
                 </div>
             </div>
         </div>

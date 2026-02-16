@@ -2534,6 +2534,49 @@
     border-radius: 4px;
 }
 
+/* Style Sub-Page dropdowns (Arena FAQ-like) */
+.styleDetails {
+    display: block;
+}
+
+.styleSummary {
+    list-style: none;
+}
+
+.styleSummary::-webkit-details-marker {
+    display: none;
+}
+
+.styleChevron {
+    width: 14px;
+    height: 14px;
+    opacity: 0.85;
+    transform: rotate(-90deg);
+    transition: transform 0.16s ease, opacity 0.16s ease;
+    flex: 0 0 auto;
+}
+
+.styleChevronOpen {
+    transform: rotate(0deg);
+    opacity: 1;
+}
+
+.stylePanel {
+    display: flex;
+    flex-direction: column;
+}
+
+.styleIndexPill {
+    font-size: 12px;
+    font-weight: 700;
+    color: #F2D9E7;
+    background: rgba(167, 117, 144, 0.18);
+    border: 1px solid rgba(167, 117, 144, 0.35);
+    padding: 2px 7px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
 /* Image Overlay */
 .imageOverlayBackdrop {
     position: fixed;

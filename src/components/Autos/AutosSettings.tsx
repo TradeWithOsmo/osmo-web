@@ -249,6 +249,29 @@ const AutosSettings: React.FC<AutosSettingsProps> = ({ onBack }) => {
         init();
     }, []);
 
+    const handleRefresh = async () => {
+        setLoading(true);
+        try {
+            // Refresh enabled list (localStorage + backend) and models list without hard reload.
+            await fetchEnabledModels(userAddress);
+
+            const allModels = await usageService.getModels();
+            const grouped: Record<string, Model[]> = {};
+            allModels.forEach((m: Model) => {
+                const parts = m.id.split('/');
+                let p = parts.length > 1 ? parts[0] : 'Other';
+                p = p.charAt(0).toUpperCase() + p.slice(1);
+                if (!grouped[p]) grouped[p] = [];
+                grouped[p].push(m);
+            });
+            setProviderModels(grouped);
+        } catch (err) {
+            console.error('Failed to refresh models', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Filter logic
     const filteredProviderModels = useMemo(() => {
         if (!searchQuery) return providerModels;
@@ -348,7 +371,7 @@ const AutosSettings: React.FC<AutosSettingsProps> = ({ onBack }) => {
                 </div>
                 <button
                     className={styles.refreshButton}
-                    onClick={() => window.location.reload()}
+                    onClick={handleRefresh}
                     title="Refresh"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -104,6 +104,10 @@ export const agentService = {
             }
             if (payload.runtime) {
                 handlers.onRuntime?.(payload.runtime);
+                const phases = Array.isArray(payload.runtime?.phases) ? payload.runtime.phases : [];
+                for (const phase of phases) {
+                    handlers.onRuntimePhase?.(phase || {});
+                }
             }
             const content = typeof payload.response === 'string' ? payload.response : '';
             if (content) {
@@ -154,6 +158,40 @@ export const agentService = {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        let sawTerminalEvent = false;
+        let streamedContent = '';
+        let latestThoughts: any[] = [];
+
+        const dispatchEvent = (event: ChatStreamEvent): boolean => {
+            if (event.type === 'meta') handlers.onMeta?.(event);
+            if (event.type === 'delta') {
+                const chunk = event.content || '';
+                streamedContent += chunk;
+                handlers.onDelta?.(chunk);
+            }
+            if (event.type === 'thoughts') {
+                latestThoughts = Array.isArray(event.thoughts) ? event.thoughts : [];
+                handlers.onThoughts?.(latestThoughts);
+            }
+            if (event.type === 'thoughts_delta') handlers.onThoughtDelta?.(event.thought || '');
+            if (event.type === 'runtime') handlers.onRuntime?.(event.runtime || {});
+            if (event.type === 'runtime_phase') handlers.onRuntimePhase?.(event.phase || {});
+            if (event.type === 'done') {
+                sawTerminalEvent = true;
+                handlers.onDone?.({
+                    ...event,
+                    content: event.content ?? streamedContent,
+                    thoughts: Array.isArray(event.thoughts) && event.thoughts.length > 0 ? event.thoughts : latestThoughts
+                });
+                return true;
+            }
+            if (event.type === 'error') {
+                sawTerminalEvent = true;
+                handlers.onError?.(event.message || 'Unknown error');
+                return true;
+            }
+            return false;
+        };
 
         while (true) {
             const { value, done } = await reader.read();
@@ -179,18 +217,7 @@ export const agentService = {
                     continue;
                 }
 
-                if (event.type === 'meta') handlers.onMeta?.(event);
-                if (event.type === 'delta') handlers.onDelta?.(event.content || '');
-                if (event.type === 'thoughts') handlers.onThoughts?.(event.thoughts || []);
-                if (event.type === 'thoughts_delta') handlers.onThoughtDelta?.(event.thought || '');
-                if (event.type === 'runtime') handlers.onRuntime?.(event.runtime || {});
-                if (event.type === 'runtime_phase') handlers.onRuntimePhase?.(event.phase || {});
-                if (event.type === 'done') {
-                    handlers.onDone?.(event);
-                    return;
-                }
-                if (event.type === 'error') {
-                    handlers.onError?.(event.message || 'Unknown error');
+                if (dispatchEvent(event)) {
                     return;
                 }
             }
@@ -203,18 +230,26 @@ export const agentService = {
             if (dataStr) {
                 try {
                     const event: ChatStreamEvent = JSON.parse(dataStr);
-                    if (event.type === 'meta') handlers.onMeta?.(event);
-                    if (event.type === 'delta') handlers.onDelta?.(event.content || '');
-                    if (event.type === 'thoughts') handlers.onThoughts?.(event.thoughts || []);
-                    if (event.type === 'thoughts_delta') handlers.onThoughtDelta?.(event.thought || '');
-                    if (event.type === 'runtime') handlers.onRuntime?.(event.runtime || {});
-                    if (event.type === 'runtime_phase') handlers.onRuntimePhase?.(event.phase || {});
-                    if (event.type === 'done') handlers.onDone?.(event);
-                    if (event.type === 'error') handlers.onError?.(event.message || 'Unknown error');
+                    if (dispatchEvent(event)) {
+                        return;
+                    }
                 } catch {
                     // ignore trailing non-json fragments
                 }
             }
+        }
+
+        if (!sawTerminalEvent) {
+            if (streamedContent || latestThoughts.length > 0) {
+                handlers.onDone?.({
+                    type: 'done',
+                    content: streamedContent,
+                    usage: {},
+                    thoughts: latestThoughts
+                } as ChatStreamEvent);
+                return;
+            }
+            handlers.onError?.('Stream ended unexpectedly before completion.');
         }
     },
 
@@ -241,6 +276,18 @@ export const agentService = {
 
     getModels: async (): Promise<any> => {
         const response = await axios.get(`${API_URL}/api/agent/models`);
+        return response.data;
+    },
+
+    getTradingViewConsumerStatus: async (symbol?: string, staleAfterSec: number = 6): Promise<any> => {
+        const params = new URLSearchParams();
+        if (symbol) {
+            params.set('symbol', symbol);
+        }
+        params.set('stale_after_sec', String(staleAfterSec));
+        const query = params.toString();
+        const endpoint = `${API_URL}/api/connectors/tradingview/consumer-status${query ? `?${query}` : ''}`;
+        const response = await axios.get(endpoint);
         return response.data;
     },
 
