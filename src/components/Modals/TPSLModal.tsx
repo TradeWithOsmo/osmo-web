@@ -24,6 +24,7 @@ export const TPSLModal: React.FC = () => {
     const [slLimitPrice, setSlLimitPrice] = useState('');
     const [tpUnit, setTpUnit] = useState<'%' | 'USD'>('%');
     const [slUnit, setSlUnit] = useState<'%' | 'USD'>('%');
+    const [manualAmount, setManualAmount] = useState('');
 
     // Prevent scroll
     React.useEffect(() => {
@@ -69,17 +70,7 @@ export const TPSLModal: React.FC = () => {
         }
     }, [selectedPosition]);
 
-    if (!isTPSLModalOpen || !selectedPosition) return null;
-
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) closeTPSLModal();
-    };
-
-    const assetSymbol = selectedPosition.symbol.split('-')[0];
-    const markPrice = getPrice(selectedPosition?.symbol || '') || (selectedPosition as any)?.markPrice || (selectedPosition as any)?.mark_price || 0;
-
-    const [manualAmount, setManualAmount] = useState('');
-
+    // Sync manual amount with percentage
     React.useEffect(() => {
         if (selectedPosition) {
             const amt = (selectedPosition.size * (percentage / 100));
@@ -107,6 +98,15 @@ export const TPSLModal: React.FC = () => {
             if (Number.isFinite(slp) && slp > 0) setSlLimitPrice(String(slp));
         }
     }, [selectedPosition?.id]);
+
+    if (!isTPSLModalOpen || !selectedPosition) return null;
+
+    const handleBackdropClick = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) closeTPSLModal();
+    };
+
+    const assetSymbol = selectedPosition.symbol.split('-')[0];
+    const markPrice = getPrice(selectedPosition?.symbol || '') || (selectedPosition as any)?.markPrice || (selectedPosition as any)?.mark_price || 0;
 
     const handleManualAmountChange = (val: string) => {
         setManualAmount(val);

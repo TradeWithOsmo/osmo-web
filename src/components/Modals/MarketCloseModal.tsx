@@ -33,6 +33,14 @@ export const MarketCloseModal: React.FC = () => {
         return () => { document.body.style.overflow = ''; };
     }, [isMarketCloseModalOpen]);
 
+    // Update manual size when percentage changes
+    React.useEffect(() => {
+        if (selectedPosition && !isSubmitting) {
+            const size = (selectedPosition.size * (percentage / 100));
+            setManualSize(size.toFixed(selectedPosition.symbol.includes('USD') ? 4 : 8));
+        }
+    }, [percentage, selectedPosition?.size, isSubmitting]);
+
     if (!isMarketCloseModalOpen || !selectedPosition) return null;
 
     const handleBackdropClick = (e: React.MouseEvent) => {
@@ -42,14 +50,6 @@ export const MarketCloseModal: React.FC = () => {
     };
 
     const assetSymbol = selectedPosition.symbol.split('-')[0];
-
-    // Update manual size when percentage changes
-    React.useEffect(() => {
-        if (selectedPosition && !isSubmitting) {
-            const size = (selectedPosition.size * (percentage / 100));
-            setManualSize(size.toFixed(selectedPosition.symbol.includes('USD') ? 4 : 8));
-        }
-    }, [percentage, selectedPosition?.size, isSubmitting]);
 
     const handleManualSizeChange = (val: string) => {
         setManualSize(val);

@@ -48,7 +48,17 @@ export interface SearchResult {
 }
 
 export interface ThoughtStep {
-    type: 'text' | 'browsing' | 'code' | 'tool';
+    type:
+        | 'text'
+        | 'browsing'
+        | 'code'
+        | 'tool'
+        | 'reasoning'
+        | 'summary'
+        | 'warning'
+        | 'info'
+        | 'plan'
+        | string;
     title: string;
     content?: string;
     results?: SearchResult[];

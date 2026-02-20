@@ -178,16 +178,38 @@ export const useUsageStore = create<UsageState>()(
     fetchStats: async (address: string) => {
         set({ isLoading: true, error: null });
         try {
-            const [backendData, onchainBalances] = await Promise.all([
+            const [backendResult, onchainResult] = await Promise.allSettled([
                 usageService.getStats(address),
-                onchainService.getVaultBalances(address).catch(() => null)
+                onchainService.getVaultBalances(address)
             ]);
 
+            const prevStats = get().stats;
+            const backendData = backendResult.status === 'fulfilled'
+                ? backendResult.value
+                : prevStats;
+            const onchainAi = onchainResult.status === 'fulfilled'
+                ? onchainResult.value.ai
+                : null;
+            const hasOnchainAi = typeof onchainAi === 'number' && Number.isFinite(onchainAi);
+            const fallbackCredit = Number(backendData.credit_balance ?? prevStats.credit_balance ?? 0);
+
+            const nextStats: UsageStats = {
+                total_cost: Number(backendData.total_cost ?? prevStats.total_cost ?? 0),
+                total_tokens: Number(backendData.total_tokens ?? prevStats.total_tokens ?? 0),
+                request_count: Number(backendData.request_count ?? prevStats.request_count ?? 0),
+                credit_balance: hasOnchainAi ? onchainAi : (Number.isFinite(fallbackCredit) ? fallbackCredit : 0),
+            };
+
+            const combinedError =
+                backendResult.status === 'rejected' && onchainResult.status === 'rejected'
+                    ? (backendResult.reason as Error)?.message ||
+                    (onchainResult.reason as Error)?.message ||
+                    'Failed to fetch usage stats'
+                    : null;
+
             set({
-                stats: {
-                    ...backendData,
-                    credit_balance: onchainBalances ? onchainBalances.ai : backendData.credit_balance
-                },
+                stats: nextStats,
+                error: combinedError,
                 isLoading: false
             });
         } catch (error: any) {
