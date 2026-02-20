@@ -8,11 +8,13 @@
     min-height: 0;
     /* Fix for flex child scrolling */
     position: relative;
-    background: linear-gradient(rgba(18, 0, 10, 0.9), rgba(18, 0, 10, 0.9)), url("../../assets/circle pettern.png");
+    background:
+        linear-gradient(rgba(18, 0, 10, 0.9), rgba(18, 0, 10, 0.9)),
+        url("../../assets/circle pettern.png");
     background-size: cover;
     background-position: center;
     /* App background */
-    color: #FFE1F2;
+    color: #ffe1f2;
 
     padding: 0;
 }
@@ -33,8 +35,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #12000A;
-    border: 1px solid #3A2530;
+    background: #12000a;
+    border: 1px solid #3a2530;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
@@ -43,8 +45,8 @@
 }
 
 .headerIconButton:hover {
-    background-color: #3A2530;
-    border-color: #3B2030;
+    background-color: #3a2530;
+    border-color: #3b2030;
 }
 
 .headerIconButton img {
@@ -62,7 +64,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     /* Or slight off-white like #E0E0E0 */
     font-size: 14px;
     font-weight: 500;
@@ -73,11 +75,11 @@
 }
 
 .titleWrapper:hover {
-    background-color: #12000A;
+    background-color: #12000a;
 }
 
 .titleArrow {
-    color: #A77590;
+    color: #a77590;
     font-size: 16px;
     margin-top: -4px;
 }
@@ -86,8 +88,8 @@
     position: absolute;
     top: 100%;
     left: 0;
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background-color: #12000a;
+    border: 1px solid #3a2530;
     border-radius: 8px;
     padding: 8px;
     min-width: 180px;
@@ -101,7 +103,7 @@
 .menuItem {
     padding: 8px 12px;
     font-size: 14px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     border-radius: 6px;
     cursor: pointer;
     display: flex;
@@ -110,11 +112,11 @@
 }
 
 .menuItem:hover {
-    background-color: #3A2530;
+    background-color: #3a2530;
 }
 
 .menuItem.delete {
-    color: #FF5D5D;
+    color: #ff5d5d;
 }
 
 .menuItem.delete:hover {
@@ -126,8 +128,8 @@
     top: 0;
     left: 100%;
     margin-left: 8px;
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background-color: #12000a;
+    border: 1px solid #3a2530;
     border-radius: 8px;
     padding: 8px;
     min-width: 160px;
@@ -139,10 +141,10 @@
 }
 
 .renameInput {
-    background: #12000A;
-    border: 1px solid #3B2030;
+    background: #12000a;
+    border: 1px solid #3b2030;
     border-radius: 6px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     padding: 4px 8px;
     font-size: 14px;
     outline: none;
@@ -159,12 +161,12 @@
 }
 
 .incognitoBadge {
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background-color: #12000a;
+    border: 1px solid #3a2530;
     border-radius: 20px;
     padding: 6px 12px;
     font-size: 12px;
-    color: #A77590;
+    color: #a77590;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -173,26 +175,26 @@
 }
 
 .incognitoBadge:hover {
-    background-color: #3A2530;
-    color: #FFE1F2;
+    background-color: #3a2530;
+    color: #ffe1f2;
 }
 
 .incognitoIcon {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #A77590;
+    color: #a77590;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .incognitoIcon:hover {
-    border-color: #3B2030;
-    color: #FFE1F2;
+    border-color: #3b2030;
+    color: #ffe1f2;
 }
 
 .centerContent {
@@ -210,24 +212,24 @@
 }
 
 .planBadge {
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background-color: #12000a;
+    border: 1px solid #3a2530;
     border-radius: 16px;
     padding: 6px 16px;
     font-size: 12px;
-    color: #A77590;
+    color: #a77590;
     margin-bottom: 24px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .planBadge:hover {
-    border-color: #3B2030;
-    color: #FFE1F2;
+    border-color: #3b2030;
+    color: #ffe1f2;
 }
 
 .planBadge strong {
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-weight: 600;
 }
 
@@ -259,9 +261,9 @@
 /* Input Wrapper */
 .inputWrapper {
     width: 100%;
-    background-color: #19020E;
+    background-color: #19020e;
     /* Updated dark background */
-    border: 1px solid #220E18;
+    border: 1px solid #220e18;
     border-radius: 24px;
     padding: 0;
     /* Removed padding from parent */
@@ -279,12 +281,27 @@
     /* Extra space at bottom */
 }
 
+.chatGateNotice {
+    margin: 10px 12px 0 12px;
+    padding: 8px 10px;
+    border: 1px solid #5a3a2a;
+    border-radius: 10px;
+    background: rgba(128, 58, 23, 0.22);
+    color: #ffd8c2;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
 .aiPlanCard {
     margin: 10px 12px 0 12px;
     padding: 10px 12px;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     border-radius: 12px;
-    background: linear-gradient(180deg, rgba(33, 8, 22, 0.95), rgba(24, 4, 14, 0.95));
+    background: linear-gradient(
+        180deg,
+        rgba(33, 8, 22, 0.95),
+        rgba(24, 4, 14, 0.95)
+    );
 }
 
 .aiPlanHeader {
@@ -306,7 +323,7 @@
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-weight: 600;
 }
 
@@ -319,7 +336,7 @@
 
 .aiPlanIntent {
     font-size: 11px;
-    color: #A77590;
+    color: #a77590;
     text-transform: capitalize;
 }
 
@@ -327,19 +344,21 @@
     width: 22px;
     height: 22px;
     border-radius: 6px;
-    border: 1px solid #3A2530;
-    background: #12000A;
-    color: #A77590;
+    border: 1px solid #3a2530;
+    background: #12000a;
+    color: #a77590;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
+    transition:
+        border-color 0.2s,
+        color 0.2s;
 }
 
 .aiPlanToggle:hover {
-    border-color: #5A3A4B;
-    color: #FFE1F2;
+    border-color: #5a3a4b;
+    color: #ffe1f2;
 }
 
 .aiPlanSteps {
@@ -361,7 +380,7 @@
 }
 
 .aiPlanStepsScrollable::-webkit-scrollbar-thumb {
-    background: #4A2E3D;
+    background: #4a2e3d;
     border-radius: 999px;
 }
 
@@ -386,18 +405,18 @@
 }
 
 .aiPlanStatusRunning {
-    border: 1px solid #A77590;
+    border: 1px solid #a77590;
     background: rgba(70, 28, 48, 0.55);
 }
 
 .aiPlanStatusDone {
-    border: 1px solid #4AA97A;
+    border: 1px solid #4aa97a;
     background: rgba(20, 64, 44, 0.55);
-    color: #7DE0AA;
+    color: #7de0aa;
 }
 
 .aiPlanStatusPending {
-    border: 1px solid #4E3341;
+    border: 1px solid #4e3341;
     background: rgba(32, 10, 21, 0.45);
 }
 
@@ -411,33 +430,37 @@
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #8A6577;
+    background: #8a6577;
 }
 
 .aiPlanSpinner {
     width: 9px;
     height: 9px;
     border: 1.4px solid rgba(255, 225, 242, 0.28);
-    border-top-color: #FFE1F2;
+    border-top-color: #ffe1f2;
     border-radius: 50%;
     animation: aiPlanSpin 0.9s linear infinite;
 }
 
 @keyframes aiPlanSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .aiPlanStepIndex {
     font-size: 12px;
-    color: #8A6577;
+    color: #8a6577;
     min-width: 18px;
     line-height: 16px;
 }
 
 .aiPlanStepText {
     font-size: 12px;
-    color: #F3D8E8;
+    color: #f3d8e8;
     line-height: 1.4;
 }
 
@@ -451,21 +474,21 @@
 
 .aiPlanStepMeta {
     font-size: 11px;
-    color: #A77590;
+    color: #a77590;
     line-height: 1.25;
 }
 
 .aiPlanLoadingText {
     font-size: 12px;
-    color: #A77590;
+    color: #a77590;
 }
 
 .aiPlanFooter {
     margin-top: 8px;
     padding-top: 8px;
-    border-top: 1px solid #3A2530;
+    border-top: 1px solid #3a2530;
     font-size: 11px;
-    color: #A77590;
+    color: #a77590;
 }
 
 .aiPlanNotes {
@@ -484,20 +507,20 @@
 }
 
 .aiPlanWarnChip {
-    border: 1px solid #5A3A4B;
-    color: #F7CCDF;
+    border: 1px solid #5a3a4b;
+    color: #f7ccdf;
     background: rgba(76, 25, 49, 0.35);
 }
 
 .aiPlanBlockChip {
-    border: 1px solid #6B2E45;
-    color: #FFD6E5;
+    border: 1px solid #6b2e45;
+    color: #ffd6e5;
     background: rgba(102, 23, 54, 0.42);
 }
 
 .inputWrapper:focus-within {
     /* Background kept consistent */
-    border-color: #3B2030;
+    border-color: #3b2030;
     z-index: 1000;
     /* Bring forward when interacting to cover messages */
 }
@@ -519,11 +542,11 @@
     background: transparent;
     border: none;
     resize: none;
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-size: 16px;
     line-height: 1.5;
     /* Ensure clear line height */
-    font-family: 'Satoshi', sans-serif;
+    font-family: "Satoshi", sans-serif;
     outline: none;
     min-height: 72px;
     /* Height for ~3 lines */
@@ -536,14 +559,14 @@
 }
 
 .inputField::placeholder {
-    color: #805B6F;
+    color: #805b6f;
 }
 
 /* Integrated Action Bar Styles */
 .actionBar {
     display: flex;
     align-items: stretch;
-    border-top: 1px solid #3A2530;
+    border-top: 1px solid #3a2530;
     height: 48px;
     /* Fixed height for the bar */
     width: 100%;
@@ -569,7 +592,7 @@
         /* Fixed square size matching height */
         width: 60px;
         height: 100%;
-        border-right: 1px solid #3A2530;
+        border-right: 1px solid #3a2530;
         border-bottom: none;
     }
 
@@ -600,7 +623,7 @@
         height: 100%;
         order: 0;
         /* meaningful order */
-        border-right: 1px solid #3A2530;
+        border-right: 1px solid #3a2530;
         border-bottom: none;
     }
 
@@ -711,7 +734,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-right: 1px solid #3A2530;
+    border-right: 1px solid #3a2530;
     position: relative;
 }
 
@@ -749,7 +772,7 @@
     gap: 0px;
     background: transparent;
     border: none;
-    color: #FFE1F2;
+    color: #ffe1f2;
     cursor: pointer;
     font-size: 1px;
     font-weight: 500;
@@ -774,7 +797,7 @@
     height: 100%;
     padding: 0 10px 0 16px;
     cursor: pointer;
-    color: #E07A5F;
+    color: #e07a5f;
     /* Orange color for model name */
     font-size: 14px;
     transition: background 0.2s;
@@ -787,9 +810,9 @@
 }
 
 .modelSelectorTrigger.active {
-    background-color: #220E18;
+    background-color: #220e18;
     /* Matched to focused input */
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     border-top: none;
     /* Blend with top menu */
     border-bottom: none;
@@ -808,9 +831,6 @@
     display: flex;
 }
 
-
-
-
 .chatToggle {
     display: flex;
     align-items: center;
@@ -818,7 +838,7 @@
     /* Center content */
     gap: 8px;
     cursor: pointer;
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-size: 14px;
     height: 100%;
     /* Fill container */
@@ -854,6 +874,13 @@
     transition: background 0.2s;
 }
 
+.toolButton:disabled,
+.iconAction:disabled,
+.sendAction:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
 .iconAction.listening {
     background-color: rgba(224, 122, 95, 0.1);
 }
@@ -872,13 +899,13 @@
 .waveBar {
     width: 3px;
     height: 8px;
-    background-color: #E07A5F;
+    background-color: #e07a5f;
     border-radius: 2px;
     animation: wave 1s ease-in-out infinite;
 }
 
 .waveBar:nth-child(1) {
-    animation-delay: 0.0s;
+    animation-delay: 0s;
 }
 
 .waveBar:nth-child(2) {
@@ -894,7 +921,6 @@
 }
 
 @keyframes wave {
-
     0%,
     100% {
         height: 6px;
@@ -912,8 +938,8 @@
     bottom: 110%;
     /* Pop up above the button */
     right: -10px;
-    background-color: #19020E;
-    border: 1px solid #3A2530;
+    background-color: #19020e;
+    border: 1px solid #3a2530;
     border-radius: 12px;
     padding: 6px;
     width: 160px;
@@ -930,20 +956,20 @@
     gap: 8px;
     padding: 8px 12px;
     font-size: 13px;
-    color: #A77590;
+    color: #a77590;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .voiceLanguageItem:hover {
-    background-color: #3A2530;
-    color: #FFE1F2;
+    background-color: #3a2530;
+    color: #ffe1f2;
 }
 
 .voiceLanguageItem.activeLang {
-    background-color: #3A2530;
-    color: #E07A5F;
+    background-color: #3a2530;
+    color: #e07a5f;
     font-weight: 500;
 }
 
@@ -957,11 +983,11 @@
 }
 
 .sendAction.active {
-    background-color: #3B2030;
+    background-color: #3b2030;
 }
 
 .sendAction.active:hover {
-    background-color: #4D2D40;
+    background-color: #4d2d40;
 }
 
 /* Adjust Model Menu to match new parent */
@@ -969,8 +995,8 @@
     position: absolute;
     left: -1px;
     right: -1px;
-    background-color: #220E18;
-    border: 1px solid #3A2530;
+    background-color: #220e18;
+    border: 1px solid #3a2530;
     padding: 0 0 8px 0;
     z-index: 1000;
     max-height: 170px;
@@ -1035,13 +1061,13 @@
     padding: 10px 16px;
     cursor: pointer;
     font-size: 14px;
-    color: #A77590;
+    color: #a77590;
     transition: all 0.2s;
 }
 
 .modelMenuItemMain:hover {
-    background-color: #3A2530;
-    color: #FFE1F2;
+    background-color: #3a2530;
+    color: #ffe1f2;
 }
 
 .modelMenuItemMain img {
@@ -1058,19 +1084,19 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #A77590;
+    color: #a77590;
     transition: all 0.2s;
     border-left: 1px solid transparent;
 }
 
 .modelMenuItemChevron:hover {
-    background-color: #3A2530;
-    color: #FFE1F2;
+    background-color: #3a2530;
+    color: #ffe1f2;
     border-left-color: rgba(58, 37, 48, 0.5);
 }
 
 .modelSubmenu {
-    background-color: #15060A;
+    background-color: #15060a;
     padding: 12px 12px 12px 15px;
     /* Indented content */
     cursor: default;
@@ -1084,7 +1110,7 @@
 
 .modelDescription {
     font-size: 13px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     margin: 0;
     line-height: 1.4;
     opacity: 0.9;
@@ -1102,7 +1128,7 @@
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: #A77590;
+    color: #a77590;
 }
 
 .effortDropdown {
@@ -1123,9 +1149,9 @@
 .effortItem {
     padding: 2px 8px;
     font-size: 11px;
-    color: #A77590;
-    background-color: #3A2530;
-    border: 1px solid #3A2530;
+    color: #a77590;
+    background-color: #3a2530;
+    border: 1px solid #3a2530;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
@@ -1133,14 +1159,14 @@
 }
 
 .effortItem:hover {
-    background-color: #3A2530;
-    color: #FFE1F2;
-    border-color: #805B6F;
+    background-color: #3a2530;
+    color: #ffe1f2;
+    border-color: #805b6f;
 }
 
 .modelMenuItem:hover {
-    background-color: #3A2530;
-    color: #FFE1F2;
+    background-color: #3a2530;
+    color: #ffe1f2;
 }
 
 .modelMenuItem img {
@@ -1161,7 +1187,7 @@
 }
 
 .modelMenu::-webkit-scrollbar-thumb {
-    background: #3A2530;
+    background: #3a2530;
     border-radius: 2px;
 }
 
@@ -1173,9 +1199,6 @@
 .sendButton.active:hover .arrowIcon {
     transform: rotate(-90deg) scale(1.1);
 }
-
-
-
 
 /* Chat Message Styles */
 .messageList {
@@ -1227,9 +1250,9 @@
 }
 
 .userBubble {
-    background-color: #3A2530;
+    background-color: #3a2530;
     /* Theme dark purple */
-    color: #FFE1F2;
+    color: #ffe1f2;
     border-radius: 12px;
     padding: 8px 16px;
     font-size: 15px;
@@ -1239,7 +1262,7 @@
 
 .assistantBubble {
     background: transparent;
-    color: #FFE1F2;
+    color: #ffe1f2;
     padding: 0;
     width: 100%;
     display: flex;
@@ -1249,12 +1272,12 @@
 
 /* Claude-like Styling */
 .thinkingBlock {
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     background-color: transparent;
     border-radius: 8px;
     padding: 10px 16px;
     font-size: 14px;
-    color: #A77590;
+    color: #a77590;
     display: flex;
     justify-content: flex-start;
     gap: 12px;
@@ -1268,11 +1291,11 @@
 }
 
 .thinkingBlock:hover {
-    background-color: #12000A;
+    background-color: #12000a;
 }
 
 .thinkingContent {
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     border-top: none;
     background-color: transparent;
     /* Match transparent block or use standard bg */
@@ -1289,16 +1312,16 @@
 .stepDetail {
     padding: 8px 16px 16px 16px;
     font-size: 13px;
-    color: #A77590;
+    color: #a77590;
     line-height: 1.5;
     background-color: transparent;
 }
 
 .thinkingStep {
     font-size: 14px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     padding: 12px 16px;
-    border-bottom: 1px solid #3A2530;
+    border-bottom: 1px solid #3a2530;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1328,7 +1351,7 @@
     top: 20px;
     bottom: 0;
     width: 2px;
-    background-color: #3A2530;
+    background-color: #3a2530;
     z-index: 0;
 }
 
@@ -1358,10 +1381,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #A77590;
+    color: #a77590;
     z-index: 2;
     /* On top of line */
-    background-color: #12000A;
+    background-color: #12000a;
     /* Hide line behind icon */
 }
 
@@ -1375,7 +1398,7 @@
 .toolStepPill {
     padding: 3px 8px;
     border-radius: 999px;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     font-size: 11px;
     font-weight: 600;
     text-transform: lowercase;
@@ -1399,11 +1422,58 @@
     margin-top: 8px;
     padding: 10px 12px;
     border-radius: 8px;
-    border: 1px solid #3A2530;
-    background: #12000A;
+    border: 1px solid #3a2530;
+    background: #12000a;
     color: #cfa9bf;
     font-size: 12px;
     line-height: 1.4;
+}
+
+.reasoningDetail {
+    margin-left: 28px;
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.reasoningMarkdown {
+    color: inherit;
+}
+
+.reasoningMarkdown p {
+    margin: 6px 0;
+}
+
+.reasoningMarkdown p:first-child {
+    margin-top: 0;
+}
+
+.reasoningMarkdown p:last-child {
+    margin-bottom: 0;
+}
+
+.reasoningMarkdown strong {
+    color: #ffe1f2;
+    font-weight: 700;
+}
+
+.reasoningMarkdown ul,
+.reasoningMarkdown ol {
+    margin: 6px 0 6px 18px;
+    padding: 0;
+}
+
+.reasoningMarkdown li {
+    margin: 2px 0;
+}
+
+.reasoningMarkdown code {
+    font-family: "JetBrains Mono", monospace;
+    color: #ffe1f2;
+    background: rgba(18, 0, 10, 0.65);
+    border: 1px solid #3a2530;
+    border-radius: 4px;
+    padding: 1px 5px;
 }
 
 /* Results */
@@ -1422,14 +1492,14 @@
     gap: 10px;
     padding: 8px;
     border-radius: 6px;
-    background-color: #12000A;
+    background-color: #12000a;
     transition: background 0.2s;
     text-decoration: none;
 }
 
 .resultItem:hover {
-    background-color: #A77590;
-    color: #12000A;
+    background-color: #a77590;
+    color: #12000a;
 }
 
 .resultItem img {
@@ -1447,7 +1517,7 @@
 }
 
 .resultTitle {
-    color: #FFE1F2;
+    color: #ffe1f2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1455,13 +1525,13 @@
 }
 
 .resultDomain {
-    color: #A77590;
+    color: #a77590;
     font-size: 11px;
 }
 
 .resultItem:hover .resultTitle,
 .resultItem:hover .resultDomain {
-    color: #12000A;
+    color: #12000a;
 }
 
 .stepResultCount {
@@ -1473,12 +1543,12 @@
 }
 
 .thinkingStep:hover {
-    background-color: #12000A;
+    background-color: #12000a;
 }
 
 .loadingSpinner {
     animation: spin 1s linear infinite;
-    color: #3B2030;
+    color: #3b2030;
 }
 
 @keyframes spin {
@@ -1492,13 +1562,44 @@
 }
 
 .responseContent {
-    font-family: 'Satoshi', sans-serif;
+    font-family: "Satoshi", sans-serif;
     font-size: 16px;
     font-weight: 500;
     line-height: 1.6;
-    color: #FFE1F2;
+    color: #ffe1f2;
     margin-bottom: 4px;
     margin-top: 4px;
+}
+
+.messageContextRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 4px 0 6px 0;
+}
+
+.messageContextChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid #3a2530;
+    background: rgba(18, 0, 10, 0.55);
+    line-height: 1;
+}
+
+.messageContextLabel {
+    color: #a77590;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.messageContextValue {
+    color: #ffe1f2;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
 }
 
 .toolUsageInlinePill {
@@ -1507,7 +1608,7 @@
     margin: 0 4px;
     padding: 1px 8px;
     border-radius: 999px;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     background: rgba(27, 7, 18, 0.95);
     color: #f6cfe3;
     font-size: 12px;
@@ -1524,15 +1625,28 @@
     margin: 12px 0 6px 0;
     font-weight: 700;
     line-height: 1.3;
-    color: #FFE1F2;
+    color: #ffe1f2;
 }
 
-.responseContent h1 { font-size: 22px; }
-.responseContent h2 { font-size: 20px; }
-.responseContent h3 { font-size: 18px; }
-.responseContent h4 { font-size: 16px; }
-.responseContent h5 { font-size: 15px; }
-.responseContent h6 { font-size: 14px; color: #CFA9BF; }
+.responseContent h1 {
+    font-size: 22px;
+}
+.responseContent h2 {
+    font-size: 20px;
+}
+.responseContent h3 {
+    font-size: 18px;
+}
+.responseContent h4 {
+    font-size: 16px;
+}
+.responseContent h5 {
+    font-size: 15px;
+}
+.responseContent h6 {
+    font-size: 14px;
+    color: #cfa9bf;
+}
 
 .responseContent p {
     margin: 6px 0;
@@ -1544,10 +1658,10 @@
     gap: 6px;
     padding: 2px 8px;
     margin: 0 2px;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     border-radius: 999px;
     background: rgba(18, 0, 10, 0.6);
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-size: 12px;
     line-height: 1.2;
     white-space: nowrap;
@@ -1558,7 +1672,7 @@
 }
 
 .symbolBadge:hover {
-    border-color: #5A3A4A;
+    border-color: #5a3a4a;
     background: rgba(18, 0, 10, 0.8);
 }
 
@@ -1572,10 +1686,10 @@
     gap: 6px;
     padding: 2px 8px;
     margin: 0 2px;
-    border: 1px solid #2E3A45;
+    border: 1px solid #2e3a45;
     border-radius: 999px;
     background: rgba(10, 16, 22, 0.6);
-    color: #E4F1FF;
+    color: #e4f1ff;
     font-size: 12px;
     line-height: 1.2;
     white-space: nowrap;
@@ -1586,7 +1700,7 @@
 }
 
 .indicatorBadge:hover {
-    border-color: #3F5160;
+    border-color: #3f5160;
     background: rgba(10, 16, 22, 0.8);
 }
 
@@ -1600,7 +1714,7 @@
 }
 
 .indicatorBadgeNumber {
-    color: #8FB7D9;
+    color: #8fb7d9;
     font-weight: 500;
 }
 
@@ -1618,9 +1732,9 @@
     gap: 6px;
     padding: 4px 8px;
     border-radius: 999px;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     background: rgba(18, 0, 10, 0.6);
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-size: 12px;
     line-height: 1;
 }
@@ -1628,7 +1742,7 @@
 .linkChipIcon {
     width: 12px;
     height: 12px;
-    color: #A77590;
+    color: #a77590;
 }
 
 .linkChipText {
@@ -1641,7 +1755,7 @@
 .linkChipRemove {
     background: transparent;
     border: none;
-    color: #A77590;
+    color: #a77590;
     cursor: pointer;
     font-size: 14px;
     line-height: 1;
@@ -1654,9 +1768,9 @@
     gap: 6px;
     padding: 4px 8px;
     border-radius: 999px;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     background: rgba(18, 0, 10, 0.6);
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-size: 12px;
     line-height: 1;
     max-width: 240px;
@@ -1665,7 +1779,7 @@
 .fileChipIcon {
     width: 12px;
     height: 12px;
-    color: #E14B4B;
+    color: #e14b4b;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1681,7 +1795,7 @@
 .fileChipRemove {
     background: transparent;
     border: none;
-    color: #A77590;
+    color: #a77590;
     cursor: pointer;
     font-size: 14px;
     line-height: 1;
@@ -1689,7 +1803,7 @@
 }
 
 .fileChipRemove:hover {
-    color: #FFE1F2;
+    color: #ffe1f2;
 }
 
 .contextChipsRow {
@@ -1705,9 +1819,9 @@
     gap: 6px;
     padding: 4px 8px;
     border-radius: 999px;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     background: rgba(18, 0, 10, 0.55);
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-size: 12px;
     line-height: 1;
 }
@@ -1717,17 +1831,17 @@
 }
 
 .indicatorContextChip {
-    border-color: #2E3A45;
+    border-color: #2e3a45;
     background: rgba(10, 16, 22, 0.55);
 }
 
 .timeframeContextChip {
-    border-color: #3A2F45;
+    border-color: #3a2f45;
     background: rgba(18, 10, 22, 0.55);
 }
 
 .contextChipKey {
-    color: #A77590;
+    color: #a77590;
     font-size: 11px;
 }
 
@@ -1742,7 +1856,7 @@
 .contextChipRemove {
     background: transparent;
     border: none;
-    color: #A77590;
+    color: #a77590;
     cursor: pointer;
     font-size: 13px;
     line-height: 1;
@@ -1750,7 +1864,7 @@
 }
 
 .contextChipRemove:hover {
-    color: #FFE1F2;
+    color: #ffe1f2;
 }
 
 .inputAttachmentRow {
@@ -1771,8 +1885,8 @@
     height: 260px;
     border-radius: 18px;
     overflow: hidden;
-    border: 1px solid #3A2530;
-    background: #12000A;
+    border: 1px solid #3a2530;
+    background: #12000a;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
@@ -1791,9 +1905,9 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     background: rgba(18, 0, 10, 0.7);
-    color: #FFE1F2;
+    color: #ffe1f2;
     cursor: pointer;
     font-size: 14px;
     line-height: 1;
@@ -1813,8 +1927,8 @@
     gap: 12px;
     padding: 10px 12px;
     border-radius: 14px;
-    border: 1px solid #3A2530;
-    background: #12000A;
+    border: 1px solid #3a2530;
+    background: #12000a;
     min-width: 220px;
     max-width: 360px;
 }
@@ -1823,11 +1937,11 @@
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: #E14B4B;
+    background: #e14b4b;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FFFFFF;
+    color: #ffffff;
     flex-shrink: 0;
 }
 
@@ -1840,7 +1954,7 @@
 
 .inputFileName {
     font-size: 13px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1848,7 +1962,7 @@
 
 .inputFileType {
     font-size: 11px;
-    color: #A77590;
+    color: #a77590;
     letter-spacing: 0.4px;
 }
 
@@ -1858,14 +1972,14 @@
     right: 6px;
     background: transparent;
     border: none;
-    color: #A77590;
+    color: #a77590;
     cursor: pointer;
     font-size: 16px;
     line-height: 1;
 }
 
 .inputFileRemove:hover {
-    color: #FFE1F2;
+    color: #ffe1f2;
 }
 
 .timeframeBadge {
@@ -1873,10 +1987,10 @@
     align-items: center;
     padding: 2px 8px;
     margin: 0 2px;
-    border: 1px solid #3A2F45;
+    border: 1px solid #3a2f45;
     border-radius: 999px;
     background: rgba(18, 10, 22, 0.6);
-    color: #F3E7FF;
+    color: #f3e7ff;
     font-size: 12px;
     line-height: 1.2;
     white-space: nowrap;
@@ -1887,7 +2001,7 @@
 }
 
 .timeframeBadge:hover {
-    border-color: #4A3A60;
+    border-color: #4a3a60;
     background: rgba(18, 10, 22, 0.8);
 }
 
@@ -1913,16 +2027,16 @@
 }
 
 .symbolBadgePrice {
-    color: #A77590;
+    color: #a77590;
     font-weight: 500;
 }
 
 .symbolBadgePriceUp {
-    color: #34D399;
+    color: #34d399;
 }
 
 .symbolBadgePriceDown {
-    color: #F87171;
+    color: #f87171;
 }
 
 .loadingRow {
@@ -1930,11 +2044,11 @@
     align-items: center;
     gap: 10px;
     margin: 6px 0 4px 0;
-    color: #A77590;
+    color: #a77590;
     font-size: 13px;
     line-height: 1.35;
     padding: 6px 10px;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     border-radius: 999px;
     background: rgba(18, 0, 10, 0.85);
     max-width: 100%;
@@ -1951,34 +2065,49 @@
 .loadingBar {
     width: 3px;
     height: 6px;
-    background-color: #E07A5F;
+    background-color: #e07a5f;
     border-radius: 2px;
     animation: loadingWave 0.9s ease-in-out infinite;
 }
 
-.loadingBar:nth-child(1) { animation-delay: 0s; }
-.loadingBar:nth-child(2) { animation-delay: 0.1s; }
-.loadingBar:nth-child(3) { animation-delay: 0.2s; }
-.loadingBar:nth-child(4) { animation-delay: 0.3s; }
+.loadingBar:nth-child(1) {
+    animation-delay: 0s;
+}
+.loadingBar:nth-child(2) {
+    animation-delay: 0.1s;
+}
+.loadingBar:nth-child(3) {
+    animation-delay: 0.2s;
+}
+.loadingBar:nth-child(4) {
+    animation-delay: 0.3s;
+}
 
 .loadingText {
     display: inline-flex;
     align-items: baseline;
     gap: 1px;
     letter-spacing: 0.2px;
-    color: #C992AF;
+    color: #c992af;
     font-weight: 500;
 }
 
 .loadingDots {
     display: inline-block;
     min-width: 16px;
-    color: #A77590;
+    color: #a77590;
 }
 
 @keyframes loadingWave {
-    0%, 100% { height: 6px; opacity: 0.6; }
-    50% { height: 14px; opacity: 1; }
+    0%,
+    100% {
+        height: 6px;
+        opacity: 0.6;
+    }
+    50% {
+        height: 14px;
+        opacity: 1;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1991,7 +2120,7 @@
 
 .responseContent hr {
     border: none;
-    border-top: 1px solid #3A2530;
+    border-top: 1px solid #3a2530;
     margin: 10px 0;
     opacity: 0.4;
 }
@@ -2007,18 +2136,18 @@
 }
 
 .inlineCode {
-    background: #12000A;
-    border: 1px solid #3A2530;
+    background: #12000a;
+    border: 1px solid #3a2530;
     padding: 1px 6px;
     border-radius: 6px;
-    font-family: 'Satoshi', sans-serif;
+    font-family: "Satoshi", sans-serif;
     font-size: 14px;
-    color: #E07A5F;
+    color: #e07a5f;
 }
 
 .codeBlock {
-    background: #12000A;
-    border: 1px solid #3A2530;
+    background: #12000a;
+    border: 1px solid #3a2530;
     border-radius: 10px;
     padding: 12px 14px;
     overflow-x: auto;
@@ -2031,15 +2160,15 @@
     background: transparent;
     padding: 0;
     border: none;
-    color: #A77590;
-    font-family: 'Satoshi', sans-serif;
+    color: #a77590;
+    font-family: "Satoshi", sans-serif;
 }
 
 .blockquote {
-    border-left: 3px solid #3A2530;
+    border-left: 3px solid #3a2530;
     margin: 8px 0;
     padding: 6px 12px;
-    color: #CFA9BF;
+    color: #cfa9bf;
     background: rgba(18, 0, 10, 0.4);
     border-radius: 8px;
 }
@@ -2048,24 +2177,34 @@
     width: 100%;
     overflow-x: auto;
     margin: 8px 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+    cursor: grab;
 }
 
 .markdownTable {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
     font-size: 14px;
+    table-layout: auto;
+}
+
+.tableWrapperDragging {
+    cursor: grabbing;
 }
 
 .tableHeader {
     text-align: left;
-    background: #12000A;
-    border: 1px solid #3A2530;
+    background: #12000a;
+    border: 1px solid #3a2530;
     padding: 8px 10px;
     font-weight: 600;
 }
 
 .tableCell {
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     padding: 8px 10px;
 }
 
@@ -2073,20 +2212,20 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #E07A5F;
+    color: #e07a5f;
     text-decoration: underline;
     text-underline-offset: 3px;
 }
 
 .linkWithIcon:hover {
-    color: #F2A07A;
+    color: #f2a07a;
 }
 
 .linkIcon {
     width: 14px;
     height: 14px;
     border-radius: 4px;
-    background: #12000A;
+    background: #12000a;
 }
 
 .linkText {
@@ -2104,7 +2243,6 @@
     height: 12px;
     opacity: 0.85;
 }
-
 
 .actionRow {
     display: flex;
@@ -2126,12 +2264,12 @@
 }
 
 .actionBtn:hover {
-    color: #FFE1F2;
+    color: #ffe1f2;
 }
 
 .assistantLogo {
     margin-top: 12px;
-    color: #E07A5F;
+    color: #e07a5f;
     /* Orange-ish color from screenshot */
 }
 
@@ -2140,8 +2278,8 @@
 /* Artifact Card */
 .artifactCard {
     margin-top: 12px;
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background-color: #12000a;
+    border: 1px solid #3a2530;
     border-radius: 8px;
     padding: 12px;
     display: flex;
@@ -2152,8 +2290,8 @@
 }
 
 .artifactCard:hover {
-    background-color: #3A2530;
-    border-color: #3B2030;
+    background-color: #3a2530;
+    border-color: #3b2030;
 }
 
 .artifactInfo {
@@ -2163,25 +2301,25 @@
 }
 
 .artifactTitle {
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-weight: 500;
     font-size: 14px;
 }
 
 .artifactType {
-    color: #A77590;
+    color: #a77590;
     font-size: 12px;
 }
 
 .artifactIcon {
     width: 40px;
     height: 40px;
-    background-color: #3A2530;
+    background-color: #3a2530;
     border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FFE1F2;
+    color: #ffe1f2;
 }
 
 /* Tools Menu Styling */
@@ -2192,8 +2330,8 @@
     top: auto;
     left: -1px;
     min-width: 240px;
-    background-color: #220E18;
-    border: 1px solid #3A2530;
+    background-color: #220e18;
+    border: 1px solid #3a2530;
     border-radius: 12px 12px 0 0;
     /* Top rounded */
     padding: 0;
@@ -2214,7 +2352,7 @@
 }
 
 .toolsMenu::-webkit-scrollbar-thumb {
-    background: #3A2530;
+    background: #3a2530;
     border-radius: 2px;
 }
 
@@ -2225,13 +2363,16 @@
     gap: 8px;
     background: transparent;
     border: 1px solid transparent;
-    color: #FFE1F2;
+    color: #ffe1f2;
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
     height: 100%;
     opacity: 0.8;
-    transition: background-color 0.2s, opacity 0.2s, color 0.2s;
+    transition:
+        background-color 0.2s,
+        opacity 0.2s,
+        color 0.2s;
     padding: 0 12px;
     border-radius: 8px;
 }
@@ -2244,8 +2385,8 @@
 /* "Unified" Active Button State - Dropping DOWN */
 .toolButton.active {
     opacity: 1;
-    background-color: #220E18;
-    border: 1px solid #3A2530;
+    background-color: #220e18;
+    border: 1px solid #3a2530;
     border-top: none;
     /* Look like it stays attached to bar */
     border-bottom: none;
@@ -2275,8 +2416,8 @@
 
 .toolButton.active {
     opacity: 1;
-    background-color: #220E18;
-    border: 1px solid #3A2530;
+    background-color: #220e18;
+    border: 1px solid #3a2530;
     border-top: none;
     /* Inherit bar? No, bar has border-top. Button usually just sits there. */
     /* Let's say we want to hide the button's bottom border. */
@@ -2290,7 +2431,7 @@
     /* No, just extend height? */
     border-radius: 0;
     padding: 0 12px;
-    box-shadow: 0 4px 0 #220E18;
+    box-shadow: 0 4px 0 #220e18;
     /* Mask seam BELOW button? Yes, to cover menu's top border. */
 }
 
@@ -2303,7 +2444,7 @@
     border-bottom: 1px solid rgba(86, 55, 72, 0.5);
     /* Separator */
     cursor: pointer;
-    color: #A77590;
+    color: #a77590;
     font-size: 14px;
     transition: all 0.2s;
     user-select: none;
@@ -2311,11 +2452,11 @@
     background: transparent;
 }
 
-.toolItem>span:nth-of-type(1) {
+.toolItem > span:nth-of-type(1) {
     flex: 1;
 }
 
-.toolItemCompact>span:nth-of-type(1) {
+.toolItemCompact > span:nth-of-type(1) {
     flex: 1;
 }
 
@@ -2332,8 +2473,8 @@
 }
 
 .toolItem:hover {
-    background-color: #3A2530;
-    color: #FFE1F2;
+    background-color: #3a2530;
+    color: #ffe1f2;
 }
 
 .toolIconWrapper {
@@ -2361,7 +2502,7 @@
     margin-left: auto;
     font-size: 12px;
     font-weight: 600;
-    color: #F2D9E7;
+    color: #f2d9e7;
     background: rgba(167, 117, 144, 0.18);
     border: 1px solid rgba(167, 117, 144, 0.35);
     padding: 2px 7px;
@@ -2374,12 +2515,12 @@
 
 .toolArrow {
     margin-left: 8px;
-    color: #3A2530;
+    color: #3a2530;
     font-size: 16px;
 }
 
 .toolItem:hover .toolArrow {
-    color: #A77590;
+    color: #a77590;
 }
 
 .maxThinkingControl {
@@ -2393,9 +2534,9 @@
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    border: 1px solid #5B3750;
-    background: #1A0A12;
-    color: #FFEAF7;
+    border: 1px solid #5b3750;
+    background: #1a0a12;
+    color: #ffeaf7;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
@@ -2403,14 +2544,14 @@
 }
 
 .maxThinkingStepButton:hover {
-    border-color: #A77590;
-    background: #28121D;
+    border-color: #a77590;
+    background: #28121d;
 }
 
 .maxThinkingValue {
     min-width: 34px;
     text-align: center;
-    color: #F7D9EA;
+    color: #f7d9ea;
     font-weight: 600;
     font-size: 14px;
 }
@@ -2422,13 +2563,15 @@
     background-color: rgba(58, 37, 48, 0.45);
     border-radius: 10px;
     position: relative;
-    transition: background-color 0.2s, box-shadow 0.2s;
+    transition:
+        background-color 0.2s,
+        box-shadow 0.2s;
     margin-left: auto;
     border: 1px solid rgba(167, 117, 144, 0.25);
 }
 
 .toggleSwitch::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 2px;
     left: 2px;
@@ -2436,7 +2579,10 @@
     height: 14px;
     background-color: rgba(255, 225, 242, 0.62);
     border-radius: 50%;
-    transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
+    transition:
+        transform 0.2s,
+        background-color 0.2s,
+        box-shadow 0.2s;
 }
 
 .toggleSwitch.checked {
@@ -2446,7 +2592,7 @@
 
 .toggleSwitch.checked::after {
     transform: translateX(14px);
-    background-color: #FFEAF7;
+    background-color: #ffeaf7;
     box-shadow: 0 0 10px rgba(255, 225, 242, 0.35);
 }
 
@@ -2466,17 +2612,17 @@
     align-items: center;
     gap: 12px;
     padding: 10px 16px;
-    border-bottom: 1px solid #3A2530;
-    color: #FFE1F2;
+    border-bottom: 1px solid #3a2530;
+    color: #ffe1f2;
     font-weight: 500;
     font-size: 14px;
-    background-color: #12000A;
+    background-color: #12000a;
 }
 
 .backButton {
     background: none;
     border: none;
-    color: #A77590;
+    color: #a77590;
     font-size: 20px;
     cursor: pointer;
     padding: 0;
@@ -2490,8 +2636,8 @@
 }
 
 .backButton:hover {
-    background-color: #3A2530;
-    color: #FFE1F2;
+    background-color: #3a2530;
+    color: #ffe1f2;
 }
 
 .toolSearch {
@@ -2501,17 +2647,17 @@
 
 .toolSearch input {
     width: 100%;
-    background-color: #12000A;
-    border: 1px solid #3A2530;
+    background-color: #12000a;
+    border: 1px solid #3a2530;
     border-radius: 6px;
     padding: 8px 12px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-size: 13px;
     outline: none;
 }
 
 .toolSearch input:focus {
-    border-color: #3B2030;
+    border-color: #3b2030;
 }
 
 .toolList {
@@ -2530,7 +2676,7 @@
 }
 
 .toolList::-webkit-scrollbar-thumb {
-    background-color: #3A2530;
+    background-color: #3a2530;
     border-radius: 4px;
 }
 
@@ -2552,7 +2698,9 @@
     height: 14px;
     opacity: 0.85;
     transform: rotate(-90deg);
-    transition: transform 0.16s ease, opacity 0.16s ease;
+    transition:
+        transform 0.16s ease,
+        opacity 0.16s ease;
     flex: 0 0 auto;
 }
 
@@ -2569,7 +2717,7 @@
 .styleIndexPill {
     font-size: 12px;
     font-weight: 700;
-    color: #F2D9E7;
+    color: #f2d9e7;
     background: rgba(167, 117, 144, 0.18);
     border: 1px solid rgba(167, 117, 144, 0.35);
     padding: 2px 7px;
@@ -2623,9 +2771,9 @@
 
 .overlayInfo {
     margin-top: 16px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     font-size: 14px;
-    font-family: 'Satoshi', sans-serif;
+    font-family: "Satoshi", sans-serif;
     background: rgba(30, 11, 21, 0.8);
     padding: 8px 16px;
     border-radius: 20px;
@@ -2635,7 +2783,7 @@
     position: absolute;
     top: -40px;
     right: -40px;
-    color: #A77590;
+    color: #a77590;
     background: transparent;
     border: none;
     font-size: 24px;
@@ -2644,7 +2792,7 @@
 }
 
 .overlayClose:hover {
-    color: #FFE1F2;
+    color: #ffe1f2;
 }
 
 /* Global Active States (Ensure overrides hover) */
@@ -2653,7 +2801,7 @@
 .toolButton:active,
 .chatToggle:active,
 .modelSelectorTrigger:active {
-    background-color: #3A2530;
+    background-color: #3a2530;
     transform: translateY(1px);
 }
 
@@ -2662,7 +2810,7 @@
     bottom: 8px;
     right: 8px;
     font-size: 8px;
-    color: #805B6F;
+    color: #805b6f;
     font-weight: bold;
 }
 
@@ -2697,8 +2845,8 @@
     width: min(320px, 75vw);
     border-radius: 18px;
     overflow: hidden;
-    border: 1px solid #3A2530;
-    background: #12000A;
+    border: 1px solid #3a2530;
+    background: #12000a;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
@@ -2717,8 +2865,8 @@
     gap: 12px;
     padding: 10px 12px;
     border-radius: 14px;
-    border: 1px solid #3A2530;
-    background: #12000A;
+    border: 1px solid #3a2530;
+    background: #12000a;
     min-width: 220px;
     max-width: 340px;
 }
@@ -2727,11 +2875,11 @@
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: #3A2530;
+    background: #3a2530;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #FFE1F2;
+    color: #ffe1f2;
     flex-shrink: 0;
 }
 
@@ -2744,7 +2892,7 @@
 
 .userFileName {
     font-size: 13px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2752,7 +2900,7 @@
 
 .userFileType {
     font-size: 11px;
-    color: #A77590;
+    color: #a77590;
     letter-spacing: 0.4px;
 }
 
@@ -2771,7 +2919,7 @@
 
 /* Invisible bridge to maintain hover when moving from bubble to action bar */
 .userActionBar::before {
-    content: '';
+    content: "";
     position: absolute;
     top: -16px;
     /* Extend upwards to meet the bubble */
@@ -2811,7 +2959,7 @@
 
 .messageTime {
     font-size: 11px;
-    color: #805B6F;
+    color: #805b6f;
     font-weight: 500;
 }
 
@@ -2819,7 +2967,7 @@
     background: transparent;
     border: none;
     padding: 4px;
-    color: #805B6F;
+    color: #805b6f;
     cursor: pointer;
     border-radius: 4px;
     display: flex;
@@ -2830,14 +2978,14 @@
 
 .userActionBtn:hover {
     background-color: rgba(255, 255, 255, 0.05);
-    color: #FFE1F2;
+    color: #ffe1f2;
 }
 
 /* Edit Mode */
 .editMessageContainer {
     width: 100%;
-    background-color: #12000A;
-    border: 1px solid #3B2030;
+    background-color: #12000a;
+    border: 1px solid #3b2030;
     /* Active border color replaced with #3B2030 */
     border-radius: 12px;
     padding: 0;
@@ -2850,8 +2998,8 @@
     background-color: transparent;
     border: none;
     padding: 12px;
-    color: #FFE1F2;
-    font-family: 'Satoshi', sans-serif;
+    color: #ffe1f2;
+    font-family: "Satoshi", sans-serif;
     font-size: 16px;
     resize: none;
     outline: none;
@@ -2859,7 +3007,7 @@
 }
 
 .editInput:focus {
-    color: #FFE1F2;
+    color: #ffe1f2;
     /* Ensure color stays consistent on focus */
 }
 
@@ -2868,16 +3016,16 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px;
-    background-color: #19020E;
+    background-color: #19020e;
     /* Darker footer */
-    border-top: 1px solid #3A2530;
+    border-top: 1px solid #3a2530;
     gap: 20px;
     /* Add gap between info and buttons */
 }
 
 .editInfo {
     font-size: 12px;
-    color: #A77590;
+    color: #a77590;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -2891,23 +3039,23 @@
 .editCancelBtn {
     padding: 6px 16px;
     font-size: 13px;
-    color: #FFE1F2;
+    color: #ffe1f2;
     background-color: transparent;
-    border: 1px solid #3A2530;
+    border: 1px solid #3a2530;
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.2s;
 }
 
 .editCancelBtn:hover {
-    background-color: #3A2530;
+    background-color: #3a2530;
 }
 
 .editSaveBtn {
     padding: 6px 16px;
     font-size: 13px;
-    color: #12000A;
-    background-color: #A0A0A0;
+    color: #12000a;
+    background-color: #a0a0a0;
     /* Greyish save button from image */
     border: none;
     border-radius: 6px;

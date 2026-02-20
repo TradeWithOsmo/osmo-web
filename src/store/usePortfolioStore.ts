@@ -13,11 +13,33 @@ let globalSyncWallet: string | null = null;
 let globalSyncIntervalId: number | null = null;
 let globalSyncTick = 0;
 
+// Request deduplication - prevent duplicate concurrent requests
+const pendingRequests = new Map<string, Promise<any>>();
+
 const toPositiveNumber = (value: unknown): number | null => {
     const parsed = Number(String(value ?? '').replace(/[^0-9.\-]/g, '').trim());
     if (!Number.isFinite(parsed) || parsed <= 0) return null;
     return parsed;
 };
+
+// Helper to deduplicate concurrent requests
+async function fetchWithDedup<T>(
+    key: string,
+    fetchFn: () => Promise<T>
+): Promise<T> {
+    // If same request is already pending, return that promise
+    if (pendingRequests.has(key)) {
+        return pendingRequests.get(key) as Promise<T>;
+    }
+
+    try {
+        const promise = fetchFn();
+        pendingRequests.set(key, promise);
+        return await promise;
+    } finally {
+        pendingRequests.delete(key);
+    }
+}
 
 const normalizeSide = (side: unknown): 'long' | 'short' | null => {
     const s = String(side ?? '').toLowerCase();
@@ -263,12 +285,15 @@ export const usePortfolioStore = create<PortfolioState>()(
             set({ isLoading: true, error: null });
         }
         try {
-            // Hybrid Fetch:
-            // 1. Positions from Backend (Simulation Engine)
-            // 2. Balances from Contract (Vault Source of Truth)
+            // Use deduplication to prevent concurrent duplicate requests
+            const TRADING_EXCHANGE = import.meta.env.VITE_TRADING_EXCHANGE || 'simulation';
+            const isSimulation = TRADING_EXCHANGE.toLowerCase() === 'simulation';
+
             const [positionsResult, vaultBalances] = await Promise.all([
-                orderService.getPositions(userAddress),
-                onchainService.getVaultBalances(userAddress).catch(() => null)
+                fetchWithDedup(`positions:${userAddress}`, () => orderService.getPositions(userAddress)),
+                !isSimulation
+                    ? fetchWithDedup(`vault:${userAddress}`, () => onchainService.getVaultBalances(userAddress).catch(() => null))
+                    : Promise.resolve(null)
             ]);
 
             // If a newer fetch has started, discard this one
@@ -283,9 +308,13 @@ export const usePortfolioStore = create<PortfolioState>()(
                 leverage: 0
             };
 
-            // Priority 1: Real Vault Balances (The Source of Truth for on-chain collateral)
-            // Priority 2: Backend Summary (Fallback or for Simulation/CEX views)
-            if (vaultBalances) {
+            // SIMULATION MODE: Use backend summary (ledger-based)
+            // HYBRID/ONCHAIN MODE: Use vault balances as source of truth
+            if (isSimulation && positionsResult.success && positionsResult.summary) {
+                console.log("DEBUG: Using Simulation Ledger Summary", positionsResult.summary);
+                summary = positionsResult.summary;
+            } else if (vaultBalances) {
+                console.log("DEBUG: Using Vault Balances as Source of Truth", summary);
                 summary = {
                     account_value: vaultBalances.trading,
                     free_collateral: vaultBalances.available,
@@ -293,7 +322,6 @@ export const usePortfolioStore = create<PortfolioState>()(
                     margin_usage: vaultBalances.trading > 0 ? (vaultBalances.reserved / vaultBalances.trading) * 100 : 0,
                     leverage: 0 // Will be calc below if positions exist
                 };
-                console.log("DEBUG: Using Vault Balances as Source of Truth", summary);
             } else if (positionsResult.success && positionsResult.summary) {
                 console.log("DEBUG: Fallback to Backend Summary", positionsResult.summary);
                 summary = positionsResult.summary;
@@ -307,6 +335,14 @@ export const usePortfolioStore = create<PortfolioState>()(
                     tp: currentLocalTPSL[p.id]?.tp ?? currentLocalTPSL[p.symbol]?.tp ?? p.tp,
                     sl: currentLocalTPSL[p.id]?.sl ?? currentLocalTPSL[p.symbol]?.sl ?? p.sl
                 })).filter(p => Math.abs(p.size) > 1e-8);
+
+                // Calculate leverage from positions if not provided in summary
+                if (mergedPositions.length > 0 && summary.leverage === 0) {
+                    const totalMargin = mergedPositions.reduce((sum, p) => sum + (p.margin_used || 0), 0);
+                    const totalValue = mergedPositions.reduce((sum, p) => sum + ((p.size || 0) * (p.entry_price || 0)), 0);
+                    summary.leverage = totalMargin > 0 ? totalValue / totalMargin : 0;
+                    summary.margin_usage = summary.account_value > 0 ? (totalMargin / summary.account_value) * 100 : 0;
+                }
 
                 set({
                     positions: mergedPositions,
@@ -324,7 +360,7 @@ export const usePortfolioStore = create<PortfolioState>()(
 
         } catch (error: any) {
             console.error("Critical error in fetchPositions (Silent Fail):", error);
-            // set({ error: error.message, isLoading: false }); 
+            // set({ error: error.message, isLoading: false });
             set({ isLoading: false }); // Just stop loading, keep old data
         }
     },
@@ -424,7 +460,24 @@ export const usePortfolioStore = create<PortfolioState>()(
         try {
             const result = await portfolioService.getTradeHistory(userAddress);
             if (result && result.data) {
-                set({ tradeHistory: result.data, isLoading: false });
+                // Enhance trade data with better direction labels
+                const enhancedTrades = result.data.map((trade: any) => {
+                    // Check if this is a close order (id starts with 'sim_close_' or 'close_')
+                    const isCloseOrder = trade.id.startsWith('sim_close_') || trade.id.startsWith('close_');
+
+                    // For close orders, prefix with "Close"
+                    let displayDirection = trade.direction;
+                    if (isCloseOrder) {
+                        displayDirection = `Close ${trade.direction}`;
+                    }
+
+                    return {
+                        ...trade,
+                        displayDirection
+                    };
+                });
+
+                set({ tradeHistory: enhancedTrades, isLoading: false });
             }
         } catch (error) {
             console.warn("Failed to fetch trade history:", error);
@@ -604,25 +657,27 @@ export const usePortfolioStore = create<PortfolioState>()(
         get().connectRealtime(userAddress);
 
         // Fallback polling (WS is primary for positions/summary).
+        // Increased interval to avoid rate limiting (30 req/min limit)
         globalSyncIntervalId = window.setInterval(() => {
             const wallet = globalSyncWallet;
             if (!wallet) return;
             globalSyncTick += 1;
 
-            // Fast lanes: open positions + pending orders.
+            // Fast lanes: open positions + pending orders (every 30s)
             get().fetchPositions(wallet);
             get().fetchOrders(wallet, 'pending').catch(() => { });
 
-            // Slow lanes: histories (keep "success rate" / stats feeling realtime without spamming).
+            // Slow lanes: histories (every 120s = 4 ticks * 30s)
             if (globalSyncTick % 4 === 0) {
                 get().fetchOrders(wallet, 'history').catch(() => { });
                 get().fetchTradeHistory(wallet).catch(() => { });
             }
+            // Very slow lanes: funding + portfolio history (every 240s = 8 ticks * 30s)
             if (globalSyncTick % 8 === 0) {
                 get().fetchFundingHistory(wallet).catch(() => { });
                 get().fetchHistory(wallet, get().historyTimeframe).catch(() => { });
             }
-        }, 15_000);
+        }, 30_000); // Changed from 15s to 30s to reduce API calls
     },
 
     stopGlobalSync: () => {

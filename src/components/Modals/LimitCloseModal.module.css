@@ -241,11 +241,10 @@
 }
 
 .confirmButton:disabled {
-    background-color: #35001C !important;
-    border-color: #2D0018 !important;
-    color: #5D4050 !important;
-    cursor: not-allowed !important;
-    opacity: 1 !important;
+    background-color: #35001C;
+    border-color: #2D0018;
+    color: #5D4050;
+    cursor: not-allowed;
 }
 
 @keyframes fadeIn {

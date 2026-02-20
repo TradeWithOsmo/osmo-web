@@ -227,11 +227,11 @@ export const orderService = {
     },
 
     // --- Trade Actions ---
-    async closePosition(user_address: string, symbol: string, price?: number, size_pct: number = 1.0, exchange?: string): Promise<any> {
+    async closePosition(user_address: string, symbol: string, price?: number, size_pct: number = 1.0, exchange?: string, is_limit: boolean = false): Promise<any> {
         const response = await fetch(`${API_URL}/api/orders/close`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_address, symbol, exchange, price, size_pct })
+            body: JSON.stringify({ user_address, symbol, exchange, price, size_pct, is_limit })
         });
         if (!response.ok) {
             const error = await response.json().catch(() => ({} as any));

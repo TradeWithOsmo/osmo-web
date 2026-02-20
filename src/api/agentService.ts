@@ -41,7 +41,7 @@ export interface ChatResponse {
 }
 
 export interface ChatStreamEvent {
-    type: 'meta' | 'delta' | 'thoughts' | 'thoughts_delta' | 'runtime' | 'runtime_phase' | 'done' | 'error';
+    type: 'meta' | 'delta' | 'thoughts' | 'thoughts_delta' | 'runtime' | 'runtime_phase' | 'status' | 'billing' | 'done' | 'error';
     [key: string]: any;
 }
 
@@ -49,7 +49,7 @@ export interface ChatStreamHandlers {
     onMeta?: (event: ChatStreamEvent) => void;
     onDelta?: (content: string) => void;
     onThoughts?: (thoughts: any[]) => void;
-    onThoughtDelta?: (thought: string) => void;
+    onThoughtDelta?: (thought: any) => void;
     onRuntime?: (runtime: any) => void;
     onRuntimePhase?: (phase: any) => void;
     onDone?: (event: ChatStreamEvent) => void;
@@ -88,7 +88,8 @@ export const agentService = {
     chatStream: async (request: ChatRequest, handlers: ChatStreamHandlers = {}): Promise<void> => {
         const { token, wallet_address, ...data } = request;
         const headers = buildAuthHeaders(token, wallet_address, {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream'
         });
 
         const runNonStreamFallback = async () => {
@@ -104,10 +105,6 @@ export const agentService = {
             }
             if (payload.runtime) {
                 handlers.onRuntime?.(payload.runtime);
-                const phases = Array.isArray(payload.runtime?.phases) ? payload.runtime.phases : [];
-                for (const phase of phases) {
-                    handlers.onRuntimePhase?.(phase || {});
-                }
             }
             const content = typeof payload.response === 'string' ? payload.response : '';
             if (content) {
@@ -162,6 +159,19 @@ export const agentService = {
         let streamedContent = '';
         let latestThoughts: any[] = [];
 
+        const parseSseData = (rawChunk: string): string | null => {
+            const lines = rawChunk.split('\n');
+            const dataLines = lines.filter((line) => line.startsWith('data:'));
+            const dataStr = dataLines.map((line) => line.slice(5).trimStart()).join('\n').trim();
+            if (!dataStr) return null;
+
+            // OpenRouter keepalive/comment lines should never be treated as content events.
+            if (dataStr.startsWith(':')) return null;
+            if (/openrouter\s+processing/i.test(dataStr)) return null;
+            if (/^for\s+sse\s*\(server-sent events\)/i.test(dataStr)) return null;
+            return dataStr;
+        };
+
         const dispatchEvent = (event: ChatStreamEvent): boolean => {
             if (event.type === 'meta') handlers.onMeta?.(event);
             if (event.type === 'delta') {
@@ -176,6 +186,17 @@ export const agentService = {
             if (event.type === 'thoughts_delta') handlers.onThoughtDelta?.(event.thought || '');
             if (event.type === 'runtime') handlers.onRuntime?.(event.runtime || {});
             if (event.type === 'runtime_phase') handlers.onRuntimePhase?.(event.phase || {});
+            if (event.type === 'status') {
+                handlers.onRuntimePhase?.({
+                    name: String(event.stage || 'stream_status'),
+                    status: 'running',
+                    detail: String(event.stage || 'processing'),
+                    meta: {
+                        synthetic: true,
+                        elapsed_ms: Number(event.elapsed_ms || 0)
+                    }
+                });
+            }
             if (event.type === 'done') {
                 sawTerminalEvent = true;
                 handlers.onDone?.({
@@ -205,9 +226,7 @@ export const agentService = {
                 const chunk = buffer.slice(0, idx);
                 buffer = buffer.slice(idx + 2);
 
-                const lines = chunk.split('\n');
-                const dataLines = lines.filter(l => l.startsWith('data:'));
-                const dataStr = dataLines.map(l => l.slice(5).trimStart()).join('\n');
+                const dataStr = parseSseData(chunk);
                 if (!dataStr) continue;
 
                 let event: ChatStreamEvent;
@@ -224,9 +243,7 @@ export const agentService = {
         }
 
         if (buffer.trim().length > 0) {
-            const lines = buffer.split('\n');
-            const dataLines = lines.filter(l => l.startsWith('data:'));
-            const dataStr = dataLines.map(l => l.slice(5).trimStart()).join('\n');
+            const dataStr = parseSseData(buffer);
             if (dataStr) {
                 try {
                     const event: ChatStreamEvent = JSON.parse(dataStr);

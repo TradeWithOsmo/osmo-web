@@ -5,7 +5,8 @@ export interface TradeHistoryData {
     id: string;
     time: string;
     symbol: string;
-    direction: string; // e.g. "Open Long", "Close Short", etc.
+    direction: string; // e.g. "Long", "Short" from API
+    displayDirection?: string; // e.g. "Close Long", "Close Short" for UI
     price: number;
     size: number;
     sizeAsset: string; // e.g. "SOL"
@@ -27,13 +28,24 @@ const TradeHistoryRow: React.FC<TradeHistoryRowProps> = ({ trade }) => {
     // Format helpers
     const formatUsd = (val: number) => val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    // Determine direction color
-    const isLong = trade.direction.toLowerCase().includes('long');
-    const isBuy = trade.direction.toLowerCase().includes('buy');
+    // Use displayDirection if available (for close orders), otherwise use direction
+    const displayDirection = trade.displayDirection || trade.direction;
 
-    // Simple logic for color: Long/Buy = Green, Short/Sell = Red. 
-    // "Open Long" -> Green.
-    const directionColor = (isLong || isBuy) ? '#00E396' : '#FF4560';
+    // Determine direction color based on displayDirection (what user sees)
+    const isCloseLong = displayDirection.toLowerCase().includes('close long');
+    const isCloseShort = displayDirection.toLowerCase().includes('close short');
+    const isLong = displayDirection.toLowerCase().includes('long') && !isCloseShort;
+    const isBuy = displayDirection.toLowerCase().includes('buy');
+
+    // Close Long = Green, Close Short = Red, Long/Buy = Green, Short/Sell = Red
+    let directionColor: string;
+    if (isCloseLong) {
+        directionColor = '#00E396';
+    } else if (isCloseShort) {
+        directionColor = '#FF4560';
+    } else {
+        directionColor = (isLong || isBuy) ? '#00E396' : '#FF4560';
+    }
 
     const toggleExpand = () => setIsExpanded(!isExpanded);
 
@@ -61,7 +73,7 @@ const TradeHistoryRow: React.FC<TradeHistoryRowProps> = ({ trade }) => {
 
                 {/* Direction */}
                 <td className={styles.td}>
-                    <span style={{ color: directionColor }}>{trade.direction}</span>
+                    <span style={{ color: directionColor }}>{displayDirection}</span>
                 </td>
 
                 {/* Price */}
@@ -145,7 +157,7 @@ const TradeHistoryRow: React.FC<TradeHistoryRowProps> = ({ trade }) => {
                                 </div>
                                 <div className={styles.mobileDetailRow}>
                                     <span className={styles.mobileLabel}>Direction</span>
-                                    <span className={styles.mobileValue} style={{ color: directionColor }}>{trade.direction}</span>
+                                    <span className={styles.mobileValue} style={{ color: directionColor }}>{displayDirection}</span>
                                 </div>
                                 <div className={styles.mobileDetailRow}>
                                     <span className={styles.mobileLabel}>Price</span>

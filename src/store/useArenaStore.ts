@@ -1,19 +1,25 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-import { onchainService } from '../api/onchainService';
-import { leaderboardService, type Timeframe, type TraderLeaderboardEntry } from '../api/leaderboardService';
+import { onchainService } from "../api/onchainService";
+import {
+  leaderboardService,
+  type ArenaLeaderboardScope,
+  type TraderLeaderboardEntry,
+} from "../api/leaderboardService";
 
-type ArenaSide = 'human' | 'ai';
+type ArenaSide = "human" | "ai";
+type ArenaLeaderboardView = ArenaSide | "overall";
 
 export interface StoredPick {
   side: ArenaSide;
   pickedAtMs: number;
   lockUntilMs: number;
   wager: number;
+  walletAddress: string;
 }
 
-const PICK_STORAGE_KEY = 'osmo_arena_pick_v1';
+const PICK_STORAGE_KEY = "osmo_arena_pick_v1";
 
 let onchainPollId: number | null = null;
 let leaderboardPollId: number | null = null;
@@ -31,8 +37,9 @@ interface ArenaState {
   picked: StoredPick | null;
   userPoints: number;
   userLockedPoints: number;
+  userRank: number | null;
 
-  leaderboardSide: ArenaSide;
+  leaderboardSide: ArenaLeaderboardView;
   leaderboardPage: number;
   leaderboardLimit: number;
   leaderboardRows: TraderLeaderboardEntry[];
@@ -41,11 +48,19 @@ interface ArenaState {
   leaderboardError: string | null;
   lastLeaderboardFetchedAt: number | null;
 
-  setLeaderboardParams: (params: Partial<Pick<ArenaState, 'leaderboardSide' | 'leaderboardPage' | 'leaderboardLimit'>>) => void;
+  setLeaderboardParams: (
+    params: Partial<
+      Pick<
+        ArenaState,
+        "leaderboardSide" | "leaderboardPage" | "leaderboardLimit"
+      >
+    >,
+  ) => void;
 
-  hydratePickFromStorage: () => void;
+  hydratePickFromStorage: (walletAddress?: string | null) => void;
   fetchOnchain: (walletAddress: string) => Promise<void>;
   fetchLeaderboard: () => Promise<void>;
+  fetchUserRank: (walletAddress: string, side: ArenaSide) => Promise<void>;
 
   startGlobalSync: (walletAddress?: string) => void;
   stopGlobalSync: () => void;
@@ -57,8 +72,9 @@ export const useArenaStore = create<ArenaState>()(
       picked: null,
       userPoints: 0,
       userLockedPoints: 0,
+      userRank: null,
 
-      leaderboardSide: 'human',
+      leaderboardSide: "human",
       leaderboardPage: 1,
       leaderboardLimit: 20,
       leaderboardRows: [],
@@ -73,41 +89,101 @@ export const useArenaStore = create<ArenaState>()(
         void get().fetchLeaderboard();
       },
 
-      hydratePickFromStorage: () => {
+      hydratePickFromStorage: (walletAddress?: string | null) => {
+        const normalizedWallet = walletAddress
+          ? walletAddress.toLowerCase()
+          : null;
         try {
           const raw = localStorage.getItem(PICK_STORAGE_KEY);
-          if (!raw) return;
-          const parsed = JSON.parse(raw) as StoredPick;
-          if (!parsed || !parsed.side) return;
-          set({ picked: parsed });
+          if (!raw) {
+            set({ picked: null });
+            return;
+          }
+
+          const parsed = JSON.parse(raw) as Partial<StoredPick>;
+          if (
+            !parsed ||
+            (parsed.side !== "human" && parsed.side !== "ai") ||
+            typeof parsed.pickedAtMs !== "number"
+          ) {
+            localStorage.removeItem(PICK_STORAGE_KEY);
+            set({ picked: null });
+            return;
+          }
+
+          const EVENT_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+          const isExpired = Date.now() - parsed.pickedAtMs > EVENT_DURATION_MS;
+
+          if (isExpired) {
+            console.log("[ArenaStore] Clearing expired pick from localStorage");
+            localStorage.removeItem(PICK_STORAGE_KEY);
+            set({ picked: null });
+            return;
+          }
+
+          // Pick must belong to the currently connected wallet.
+          if (!normalizedWallet) {
+            set({ picked: null });
+            return;
+          }
+
+          const parsedWallet =
+            typeof parsed.walletAddress === "string"
+              ? parsed.walletAddress.toLowerCase()
+              : null;
+          if (!parsedWallet || parsedWallet !== normalizedWallet) {
+            set({ picked: null });
+            return;
+          }
+
+          set({
+            picked: {
+              side: parsed.side,
+              pickedAtMs: parsed.pickedAtMs,
+              lockUntilMs:
+                typeof parsed.lockUntilMs === "number"
+                  ? parsed.lockUntilMs
+                  : parsed.pickedAtMs + EVENT_DURATION_MS,
+              wager: typeof parsed.wager === "number" ? parsed.wager : 0,
+              walletAddress: parsedWallet,
+            },
+          });
         } catch {
-          // ignore
+          set({ picked: null });
         }
       },
 
       fetchOnchain: async (walletAddress: string) => {
         if (!walletAddress) return;
+        const normalizedWallet = walletAddress.toLowerCase();
         try {
-          const onchainPick = await onchainService.getArenaUserPick(walletAddress);
+          const onchainPick =
+            await onchainService.getArenaUserPick(walletAddress);
           if (onchainPick && onchainPick.side) {
             const data: StoredPick = {
               side: onchainPick.side as ArenaSide,
               pickedAtMs: onchainPick.pickedAt * 1000,
               lockUntilMs: onchainPick.lockUntil * 1000,
               wager: onchainPick.wager,
+              walletAddress: normalizedWallet,
             };
             localStorage.setItem(PICK_STORAGE_KEY, JSON.stringify(data));
             set({ picked: data });
+          } else {
+            localStorage.removeItem(PICK_STORAGE_KEY);
+            set({ picked: null, userRank: null });
           }
 
-          const rewards = await onchainService.getArenaPendingReward(walletAddress);
-          const locked = await onchainService.getArenaLockedPoints(walletAddress);
+          const rewards =
+            await onchainService.getArenaPendingReward(walletAddress);
+          const locked =
+            await onchainService.getArenaLockedPoints(walletAddress);
           set({
             userPoints: Number.isFinite(rewards) ? rewards : 0,
             userLockedPoints: Number.isFinite(locked) ? locked : 0,
           });
         } catch (e) {
-          console.error('[ArenaStore] Failed to fetch onchain arena data:', e);
+          console.error("[ArenaStore] Failed to fetch onchain arena data:", e);
         }
       },
 
@@ -115,12 +191,31 @@ export const useArenaStore = create<ArenaState>()(
         const { leaderboardSide, leaderboardPage, leaderboardLimit } = get();
         const seq = ++leaderboardReqSeq;
 
+        console.log("[ArenaStore] Fetching leaderboard:", {
+          side: leaderboardSide,
+          page: leaderboardPage,
+          limit: leaderboardLimit,
+          seq,
+        });
+
         set({ isLoadingLeaderboard: true, leaderboardError: null });
         try {
-          const timeframe: Timeframe = '7d';
-          const aiOnly = leaderboardSide === 'ai';
-          const resp = await leaderboardService.getTraderLeaderboard(timeframe, leaderboardPage, leaderboardLimit, aiOnly);
-          if (seq !== leaderboardReqSeq) return;
+          const resp = await leaderboardService.getArenaLeaderboard(
+            leaderboardSide as ArenaLeaderboardScope,
+            leaderboardPage,
+            leaderboardLimit,
+          );
+
+          console.log("[ArenaStore] Received response:", {
+            seq,
+            rowsReturned: resp.data?.length,
+            pagination: resp.pagination,
+          });
+
+          if (seq !== leaderboardReqSeq) {
+            console.log("[ArenaStore] Stale response, ignoring");
+            return;
+          }
           set({
             leaderboardRows: resp.data || [],
             leaderboardPagination: resp.pagination || null,
@@ -133,8 +228,21 @@ export const useArenaStore = create<ArenaState>()(
             leaderboardRows: [],
             leaderboardPagination: null,
             isLoadingLeaderboard: false,
-            leaderboardError: e?.message || 'Failed to load arena leaderboard',
+            leaderboardError: e?.message || "Failed to load arena leaderboard",
           });
+        }
+      },
+
+      fetchUserRank: async (walletAddress: string, side: ArenaSide) => {
+        try {
+          const rankData = await leaderboardService.getUserRank(
+            walletAddress,
+            side,
+          );
+          set({ userRank: rankData.rank });
+        } catch (e) {
+          console.error("[ArenaStore] Failed to fetch user rank:", e);
+          set({ userRank: null });
         }
       },
 
@@ -149,8 +257,8 @@ export const useArenaStore = create<ArenaState>()(
           }, 20_000);
         }
 
-        // Hydrate any previous pick immediately (even if disconnected).
-        get().hydratePickFromStorage();
+        // Hydrate pick for active wallet only.
+        get().hydratePickFromStorage(normalized);
 
         // On-chain sync is wallet-bound.
         if (!normalized) {
@@ -159,6 +267,12 @@ export const useArenaStore = create<ArenaState>()(
             onchainPollId = null;
           }
           arenaWallet = null;
+          set({
+            picked: null,
+            userRank: null,
+            userPoints: 0,
+            userLockedPoints: 0,
+          });
           return;
         }
 
@@ -170,6 +284,7 @@ export const useArenaStore = create<ArenaState>()(
         }
 
         arenaWallet = normalized;
+        set({ userRank: null, userPoints: 0, userLockedPoints: 0 });
         void get().fetchOnchain(normalized);
 
         onchainPollId = window.setInterval(() => {
@@ -192,11 +307,12 @@ export const useArenaStore = create<ArenaState>()(
       },
     }),
     {
-      name: 'osmo_arena_store',
+      name: "osmo_arena_store",
       partialize: (s) => ({
         picked: s.picked,
         userPoints: s.userPoints,
         userLockedPoints: s.userLockedPoints,
+        userRank: s.userRank,
         leaderboardSide: s.leaderboardSide,
         leaderboardPage: s.leaderboardPage,
         leaderboardLimit: s.leaderboardLimit,
@@ -204,7 +320,20 @@ export const useArenaStore = create<ArenaState>()(
         leaderboardPagination: s.leaderboardPagination,
         lastLeaderboardFetchedAt: s.lastLeaderboardFetchedAt,
       }),
-      version: 1,
-    }
-  )
+      version: 4,
+      migrate: (persistedState: any, version) => {
+        if (!persistedState) return persistedState;
+        if (version < 4) {
+          return {
+            ...persistedState,
+            picked: null,
+            userPoints: 0,
+            userLockedPoints: 0,
+            userRank: null,
+          };
+        }
+        return persistedState;
+      },
+    },
+  ),
 );
