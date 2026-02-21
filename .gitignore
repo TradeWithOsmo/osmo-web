@@ -33,6 +33,8 @@ secret/
 .agent/
 test-results/
 test-results-run/
+.storybook/
+e2e/
 
 # Charting library artifacts (keep folder structure only)
 public/charting-library.html
