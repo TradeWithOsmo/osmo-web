@@ -228,10 +228,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!raw) return "";
     const mapped = indicatorAliases[raw.toUpperCase()];
     if (mapped?.label) return mapped.label;
-    return raw
-      .replace(/[_-]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+    return raw.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
   };
 
   const extractMessageContextSummary = (
@@ -250,9 +247,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const indicatorMatch = text.match(
       /\b(?:active\s+indicator(?:s)?|indicator(?:s)?)\s*(?::|=|-|\s)\s*([^\n\r|;,.]+)/i,
     );
-    const hasContextKeyword = /\b(market|symbol|pair|timeframe|tf|indicator)\b/i.test(
-      text,
-    );
+    const hasContextKeyword =
+      /\b(market|symbol|pair|timeframe|tf|indicator)\b/i.test(text);
 
     let market = normalizeMarketLabel(marketMatch?.[1]);
     let timeframe = normalizeTimeframeLabel(timeframeMatch?.[1] || "");
@@ -1338,7 +1334,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         </a>
       );
     },
-    pre: ({ children }: any) => <pre className={styles.codeBlock}>{children}</pre>,
+    pre: ({ children }: any) => (
+      <pre className={styles.codeBlock}>{children}</pre>
+    ),
     code: ({ className, children }: any) =>
       className ? (
         <code className={className}>{children}</code>
@@ -1354,7 +1352,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <table className={styles.markdownTable}>{children}</table>
       </div>
     ),
-    th: ({ children }: any) => <th className={styles.tableHeader}>{children}</th>,
+    th: ({ children }: any) => (
+      <th className={styles.tableHeader}>{children}</th>
+    ),
     td: ({ children }: any) => <td className={styles.tableCell}>{children}</td>,
     blockquote: ({ children }: any) => (
       <blockquote className={styles.blockquote}>{children}</blockquote>
@@ -1780,14 +1780,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   : [];
                 const messageContextSummary =
                   msg.role === "assistant"
-                    ? extractMessageContextSummary(msg.content, chatContextFallback)
+                    ? extractMessageContextSummary(
+                        msg.content,
+                        chatContextFallback,
+                      )
                     : {};
                 const hasMessageContextSummary = Boolean(
                   messageContextSummary.market ||
-                    messageContextSummary.timeframe ||
-                    messageContextSummary.indicator,
+                  messageContextSummary.timeframe ||
+                  messageContextSummary.indicator,
                 );
                 const shouldShowThoughtBlock = thoughtsList.length > 0;
+                const hasAssistantContent = Boolean(
+                  msg.role === "assistant" &&
+                  msg.content &&
+                  msg.content.trim().length > 0,
+                );
+                const showAssistantLoading = Boolean(
+                  msg.role === "assistant" &&
+                  msg.isThinking &&
+                  !hasAssistantContent,
+                );
                 const assistantLoadingLabel =
                   msg.role === "assistant"
                     ? getAssistantLoadingLabel(msg)
@@ -2027,7 +2040,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   gap: "8px",
                                 }}
                               >
-                                {msg.isThinking ? (
+                                {showAssistantLoading ? (
                                   <>
                                     <svg
                                       className={styles.loadingSpinner}
@@ -2718,7 +2731,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                   className={
                                                     styles.reasoningMarkdown
                                                   }
-                                                  components={markdownComponents}
+                                                  components={
+                                                    markdownComponents
+                                                  }
                                                 >
                                                   {normalizeMarkdownContent(
                                                     stepContent || stepTitle,
@@ -2736,14 +2751,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                               </div>
                                             ) : (
                                               <div
-                                                className={styles.reasoningDetail}
+                                                className={
+                                                  styles.reasoningDetail
+                                                }
                                               >
                                                 <ReactMarkdown
                                                   remarkPlugins={[remarkGfm]}
                                                   className={
                                                     styles.reasoningMarkdown
                                                   }
-                                                  components={markdownComponents}
+                                                  components={
+                                                    markdownComponents
+                                                  }
                                                 >
                                                   {normalizeMarkdownContent(
                                                     stepContent || stepTitle,
@@ -2763,65 +2782,64 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         )}
 
                         {/* Response Text */}
-                        {msg.isThinking &&
-                          (!msg.content || msg.content.trim().length === 0) &&
-                          !shouldShowThoughtBlock && (
+                        {showAssistantLoading && (
+                          <div
+                            className={styles.loadingRow}
+                            role="status"
+                            aria-live="polite"
+                          >
                             <div
-                              className={styles.loadingRow}
-                              role="status"
-                              aria-live="polite"
+                              className={styles.loadingBars}
+                              aria-hidden="true"
                             >
-                              <div
-                                className={styles.loadingBars}
-                                aria-hidden="true"
-                              >
-                                <span className={styles.loadingBar}></span>
-                                <span className={styles.loadingBar}></span>
-                                <span className={styles.loadingBar}></span>
-                                <span className={styles.loadingBar}></span>
-                              </div>
-                              <span className={styles.loadingText}>
-                                {assistantLoadingLabel}
-                                <span className={styles.loadingDots}>
-                                  {loadingDots}
-                                </span>
-                              </span>
+                              <span className={styles.loadingBar}></span>
+                              <span className={styles.loadingBar}></span>
+                              <span className={styles.loadingBar}></span>
+                              <span className={styles.loadingBar}></span>
                             </div>
-                          )}
-                        {msg.role === "assistant" && hasMessageContextSummary && (
-                          <div className={styles.messageContextRow}>
-                            {messageContextSummary.market && (
-                              <div className={styles.messageContextChip}>
-                                <span className={styles.messageContextLabel}>
-                                  Market
-                                </span>
-                                <span className={styles.messageContextValue}>
-                                  {messageContextSummary.market}
-                                </span>
-                              </div>
-                            )}
-                            {messageContextSummary.timeframe && (
-                              <div className={styles.messageContextChip}>
-                                <span className={styles.messageContextLabel}>
-                                  Timeframe
-                                </span>
-                                <span className={styles.messageContextValue}>
-                                  {messageContextSummary.timeframe}
-                                </span>
-                              </div>
-                            )}
-                            {messageContextSummary.indicator && (
-                              <div className={styles.messageContextChip}>
-                                <span className={styles.messageContextLabel}>
-                                  Active Indicator
-                                </span>
-                                <span className={styles.messageContextValue}>
-                                  {messageContextSummary.indicator}
-                                </span>
-                              </div>
-                            )}
+                            <span className={styles.loadingText}>
+                              {assistantLoadingLabel}
+                              <span className={styles.loadingDots}>
+                                {loadingDots}
+                              </span>
+                            </span>
                           </div>
                         )}
+                        {msg.role === "assistant" &&
+                          hasMessageContextSummary && (
+                            <div className={styles.messageContextRow}>
+                              {messageContextSummary.market && (
+                                <div className={styles.messageContextChip}>
+                                  <span className={styles.messageContextLabel}>
+                                    Market
+                                  </span>
+                                  <span className={styles.messageContextValue}>
+                                    {messageContextSummary.market}
+                                  </span>
+                                </div>
+                              )}
+                              {messageContextSummary.timeframe && (
+                                <div className={styles.messageContextChip}>
+                                  <span className={styles.messageContextLabel}>
+                                    Timeframe
+                                  </span>
+                                  <span className={styles.messageContextValue}>
+                                    {messageContextSummary.timeframe}
+                                  </span>
+                                </div>
+                              )}
+                              {messageContextSummary.indicator && (
+                                <div className={styles.messageContextChip}>
+                                  <span className={styles.messageContextLabel}>
+                                    Active Indicator
+                                  </span>
+                                  <span className={styles.messageContextValue}>
+                                    {messageContextSummary.indicator}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         <div className={styles.responseContent}>
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
