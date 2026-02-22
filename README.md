@@ -1,55 +1,90 @@
-# V1 Web
+# OSMO Web Frontend
 
-React + TypeScript project with Rolldown and Oxlint.
+Frontend dApp for trading, portfolio, leaderboard/arena, and AI-assisted chart workflow.
 
-## Quick Start
+Repository: https://github.com/TradeWithOsmo/osmo-web
 
-### Run Development Server
+## Stack
+
+- React 19 + TypeScript
+- Vite
+- Zustand + React Query
+- TradingView Advanced Chart integration
+- Playwright (E2E)
+- Storybook
+
+## Prerequisites
+
+- Node.js 20+
+- npm 10+
+
+## Setup
+
+```bash
+npm install
+```
+
+Create `.env` in project root (`v1-web/.env`) and set values for your environment.
+
+Common variables:
+- `VITE_API_URL` (default fallback in code: `http://localhost:8000`)
+- `VITE_PRIVY_APP_ID`
+- `VITE_TRADING_EXCHANGE` (`simulation`, `onchain`, or your runtime setting)
+- `VITE_ARENA_END_ISO`
+- `VITE_TV_COMMAND_POLL_MS`
+- `VITE_TV_INITIAL_SYNC_MS`
+- `VITE_TV_SET_RESOLUTION_TIMEOUT_MS`
+
+On-chain contract variables used by frontend:
+- `VITE_CONTRACT_TRADING_VAULT`
+- `VITE_CONTRACT_ORDER_ROUTER`
+- `VITE_CONTRACT_POSITION_MANAGER`
+- `VITE_CONTRACT_SESSION_KEY_MANAGER`
+- `VITE_CONTRACT_OSTIUM_ADAPTER`
+- `VITE_CONTRACT_USDC`
+- `VITE_CONTRACT_FAUCET`
+- `VITE_CONTRACT_AI_VAULT`
+- `VITE_CONTRACT_ARENA_CHOOSE_SIDE`
+- `VITE_CONTRACT_ARENA_POINTS`
+
+## Run
+
 ```bash
 npm run dev
 ```
-Opens at `http://localhost:5173`
 
-### Build for Production
-```bash
-npm run build
-```
-
-### Run Linter
-```bash
-npm run lint
-```
-
-## Tech Stack
-
-- **React 19.2.0** - UI library
-- **TypeScript 5.9** - Type safety
-- **Rolldown** - Rust-based bundler (via rolldown-vite)
-- **Oxlint** - Fast Rust-based linter
-- **Storybook** - Component development environment
+App runs at `http://localhost:5173`.
 
 ## Scripts
 
 ```bash
-npm run dev              # Start Vite dev server
-npm run build            # Build for production
-npm run lint             # Run oxlint linter
-npm run preview          # Preview production build
-npm run storybook        # Start Storybook dev server
-npm run build-storybook  # Build static Storybook
+npm run dev
+npm run start
+npm run build
+npm run preview
+npm run lint
+npm run test:e2e
+npm run storybook
+npm run build-storybook
 ```
 
-## Project Structure
+## Project Areas
 
-```
-src/
-├── assets/             # Static assets (images, icons)
-├── App.tsx            # Main application component
-└── main.tsx           # Entry point
-```
+- `src/pages/` - Trade, Portfolio, Arena, Leaderboard, Usage, Faucet
+- `src/components/` - UI modules (order form, positions, chat, modals, chart, etc.)
+- `src/api/` - API clients (`orders`, `portfolio`, `leaderboard`, `agent`, `usage`, `onchain`)
+- `src/charting/` - TradingView datafeeds, command handlers, and chart utilities
+- `src/contracts/abis/` - smart contract ABI files consumed by the UI
+- `src/store/` - global state stores
 
-## Storybook
+## TradingView Library Note
 
-Storybook is installed but currently empty. Add `.stories.tsx` files to start using Storybook for component development.
+TradingView charting library artifacts are intentionally not committed in full.  
+Ensure required files are available under:
+- `public/charting_library/`
+- `src/charting/charting_library/`
 
-For more information, see [STORYBOOK.md](./STORYBOOK.md).
+## Notes
+
+- This frontend expects backend API/WebSocket services running (usually from `backend/websocket` on port `8000`).
+- For arena and leaderboard behavior, confirm backend migration/data seeding is complete.
