@@ -1,11 +1,15 @@
 import React, { useState } from "react";
 import styles from "./PositionsPanel.module.css";
 import { useUIStore } from "../../store/useUIStore";
+import { useMarketStore } from "../../store/useMarketStore";
+import TokenIcon from "../MarketDetails/TokenIcon";
+import OstiumIcon from "../MarketDetails/OstiumIcon";
 
 export interface PositionData {
   id: string;
   symbol: string;
   pair: string;
+  exchange?: string;
   side: "Long" | "Short";
   size: number; // e.g., in BTC
   sizeUsd: number; // e.g., in USD
@@ -34,6 +38,10 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
   } = useUIStore();
   const [isExpanded, setIsExpanded] = useState(false);
   const isLong = position.side === "Long";
+  const markets = useMarketStore((state) => state.markets);
+  const marketMeta = markets.find((m) => m.symbol === position.symbol);
+  const isOstiumSymbol =
+    marketMeta?.source === "ostium" || position.exchange === "ostium";
 
   // Debug logging for modal opens
   const handleLimitClick = () => {
@@ -59,10 +67,6 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
       minimumFractionDigits: 4,
       maximumFractionDigits: 4,
     });
-
-  const symbolCode = position.symbol.split("-")[0].toLowerCase();
-  const iconUrl = `https://assets.coincap.io/assets/icons/${symbolCode}@2x.png`;
-  const fallbackUrl = `https://ui-avatars.com/api/?name=${position.symbol}&background=627EEA&color=fff&rounded=true&bold=true&format=svg`;
 
   const toggleExpand = () => setIsExpanded(!isExpanded);
 
@@ -90,14 +94,11 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
                 flexShrink: 0,
               }}
             >
-              <img
-                src={iconUrl}
-                alt={position.symbol}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = fallbackUrl;
-                }}
-              />
+              {isOstiumSymbol ? (
+                <OstiumIcon symbol={position.symbol} size={24} />
+              ) : (
+                <TokenIcon symbol={position.symbol} size={24} />
+              )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ fontWeight: 700, color: "#FFFFFF" }}>

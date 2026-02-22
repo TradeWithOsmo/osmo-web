@@ -24,6 +24,170 @@ const TV_SET_RESOLUTION_TIMEOUT_MS = parseEnvMs(
     4500,
     1000
 );
+const MAX_UI_NON_VOLUME_INDICATORS = 2;
+
+const normalizeStudyName = (value: any): string =>
+    String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+const isVolumeStudyName = (value: any): boolean => {
+    const normalized = normalizeStudyName(value);
+    return normalized === 'volume' || normalized.startsWith('volume ');
+};
+
+const indicatorNameMatches = (studyName: any, targetName: any): boolean => {
+    const current = normalizeStudyName(studyName);
+    const target = normalizeStudyName(targetName);
+    if (!current || !target) return false;
+    return current === target || current.includes(target) || target.includes(current);
+};
+
+const collectUiIndicators = (chart: any): string[] => {
+    const studies = chart?.getAllStudies?.() || [];
+    const selected: string[] = [];
+    const seen = new Set<string>();
+    let nonVolumeCount = 0;
+
+    for (const study of studies) {
+        const rawName = String(study?.name || study?.description || '').trim();
+        if (!rawName) continue;
+        const key = normalizeStudyName(rawName);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        if (isVolumeStudyName(rawName)) {
+            selected.push(rawName);
+            continue;
+        }
+        if (nonVolumeCount >= MAX_UI_NON_VOLUME_INDICATORS) continue;
+        selected.push(rawName);
+        nonVolumeCount += 1;
+    }
+
+    return selected;
+};
+
+const enforceIndicatorLimitBeforeAdd = (
+    chart: any,
+    requestedName: string,
+): { alreadyPresent: boolean; removedCount: number } => {
+    const studies = chart?.getAllStudies?.() || [];
+    const isRequestedVolume = isVolumeStudyName(requestedName);
+    let removedCount = 0;
+
+    if (isRequestedVolume) {
+        const volumeMatches = studies.filter((study: any) =>
+            isVolumeStudyName(study?.name || study?.description),
+        );
+        if (volumeMatches.length > 0) {
+            for (const duplicate of volumeMatches.slice(1)) {
+                try {
+                    chart.removeEntity(duplicate.id);
+                    removedCount += 1;
+                } catch (error) {
+                    console.warn('[TradingViewConnector] Failed removing duplicate volume study', duplicate?.name, error);
+                }
+            }
+            return { alreadyPresent: true, removedCount };
+        }
+        return { alreadyPresent: false, removedCount };
+    }
+
+    const nonVolumeStudies = studies.filter(
+        (study: any) => !isVolumeStudyName(study?.name || study?.description),
+    );
+    const matches = nonVolumeStudies.filter((study: any) =>
+        indicatorNameMatches(study?.name || study?.description, requestedName),
+    );
+
+    // Keep one copy if already present; remove duplicates.
+    if (matches.length > 0) {
+        for (const duplicate of matches.slice(1)) {
+            try {
+                chart.removeEntity(duplicate.id);
+                removedCount += 1;
+            } catch (error) {
+                console.warn('[TradingViewConnector] Failed removing duplicate indicator', duplicate?.name, error);
+            }
+        }
+        return { alreadyPresent: true, removedCount };
+    }
+
+    // Before adding a new one, keep only (max - 1) existing non-volume studies.
+    const keepBeforeAdd = Math.max(0, MAX_UI_NON_VOLUME_INDICATORS - 1);
+    const overflow = nonVolumeStudies.length - keepBeforeAdd;
+    if (overflow > 0) {
+        for (const staleStudy of nonVolumeStudies.slice(0, overflow)) {
+            try {
+                chart.removeEntity(staleStudy.id);
+                removedCount += 1;
+            } catch (error) {
+                console.warn('[TradingViewConnector] Failed removing stale indicator', staleStudy?.name, error);
+            }
+        }
+    }
+
+    return { alreadyPresent: false, removedCount };
+};
+
+const toFiniteNumber = (value: any): number | null => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeSetupTradeLevels = (
+    params: Record<string, any> | undefined
+): {
+    side: 'long' | 'short';
+    validationLevel: number | null;
+    invalidationLevel: number | null;
+} => {
+    const rawSide = String(params?.side || '').trim().toLowerCase();
+    const side: 'long' | 'short' = rawSide === 'short' || rawSide === 'sell' ? 'short' : 'long';
+
+    const entry = toFiniteNumber(params?.entry);
+    const sl = toFiniteNumber(params?.sl);
+    const tp = toFiniteNumber(params?.tp);
+
+    let validationLevel = toFiniteNumber(params?.gp ?? params?.validation);
+    let invalidationLevel = toFiniteNumber(params?.gl ?? params?.invalidation);
+
+    if (validationLevel === null && tp !== null) validationLevel = tp;
+    if (invalidationLevel === null && sl !== null) invalidationLevel = sl;
+
+    if (entry === null) {
+        return { side, validationLevel, invalidationLevel };
+    }
+
+    const isValidationOk = (value: number | null): boolean => {
+        if (value === null) return true;
+        return side === 'long' ? value > entry : value < entry;
+    };
+    const isInvalidationOk = (value: number | null): boolean => {
+        if (value === null) return true;
+        return side === 'long' ? value < entry : value > entry;
+    };
+
+    // If both levels are clearly reversed around entry, swap them once.
+    if (validationLevel !== null && invalidationLevel !== null) {
+        if (side === 'long' && validationLevel < entry && invalidationLevel > entry) {
+            const tmp = validationLevel;
+            validationLevel = invalidationLevel;
+            invalidationLevel = tmp;
+        } else if (side === 'short' && validationLevel > entry && invalidationLevel < entry) {
+            const tmp = validationLevel;
+            validationLevel = invalidationLevel;
+            invalidationLevel = tmp;
+        }
+    }
+
+    if (!isValidationOk(validationLevel) && isValidationOk(tp)) {
+        validationLevel = tp;
+    }
+    if (!isInvalidationOk(invalidationLevel) && isInvalidationOk(sl)) {
+        invalidationLevel = sl;
+    }
+
+    return { side, validationLevel, invalidationLevel };
+};
 
 export type TradeDecisionTriggerEvent = {
     symbol: string;
@@ -117,14 +281,13 @@ export const useTradingViewConnector = (
         ) => {
             const key = normalizeSymbolKey(symbolRaw || state.symbol);
             if (!key) return;
-            const validation = params?.validation ?? params?.gp ?? null;
-            const invalidation = params?.invalidation ?? params?.gl ?? null;
+            const normalized = normalizeSetupTradeLevels(params);
             const store = ensureTradeTriggersStore();
             store[key] = {
                 symbol: state.symbol || key,
-                side: String(params?.side || '').toLowerCase(),
-                validation: validation !== null && validation !== undefined ? Number(validation) : null,
-                invalidation: invalidation !== null && invalidation !== undefined ? Number(invalidation) : null,
+                side: normalized.side,
+                validation: normalized.validationLevel,
+                invalidation: normalized.invalidationLevel,
                 validationNote: params?.validation_note || '',
                 invalidationNote: params?.invalidation_note || '',
                 triggeredValidation: false,
@@ -406,7 +569,7 @@ export const useTradingViewConnector = (
                     timeframe: resolution,
                     indicators,
                     // Used by agent tools for post-write verification (add/remove indicator).
-                    active_indicators: (chart.getAllStudies?.() || []).map((s: any) => s?.name).filter(Boolean),
+                    active_indicators: collectUiIndicators(chart),
                     drawing_tags: Array.isArray(window.__tvDrawingTags) ? window.__tvDrawingTags : [],
                     trade_setup: window.__tvTradeSetup || {},
                     timestamp: Date.now()
@@ -414,9 +577,7 @@ export const useTradingViewConnector = (
 
                 // Notify Local Component
                 if (onStateChangeRef.current) {
-                    // Extract simple indicator names list
-                    const studies = chart.getAllStudies();
-                    const activeIndicators = studies.map((s: any) => s.name);
+                    const activeIndicators = collectUiIndicators(chart);
 
                     onStateChangeRef.current({
                         symbol,
@@ -534,9 +695,10 @@ export const useTradingViewConnector = (
                             } else if (action === 'add_indicator') {
                                 payload.applied_indicator = params?.name || '';
                             } else if (action === 'setup_trade') {
-                                payload.side = params?.side || '';
-                                payload.validation = params?.validation ?? params?.gp ?? null;
-                                payload.invalidation = params?.invalidation ?? params?.gl ?? null;
+                                const normalized = normalizeSetupTradeLevels(params);
+                                payload.side = normalized.side;
+                                payload.validation = normalized.validationLevel;
+                                payload.invalidation = normalized.invalidationLevel;
                             } else if ((action === 'draw_shape' || action === 'update_drawing') && params?.id) {
                                 payload.drawing_id = params.id;
                             }
@@ -634,16 +796,27 @@ export const useTradingViewConnector = (
                                     });
                                     cmdResult = buildCommandResult(cmd.action, cmd.params, `Timeframe set to ${tf}.`);
                                 } else if (cmd.action === 'add_indicator') {
-                                    const { name, inputs, forceOverlay } = cmd.params;
+                                    const { name, inputs } = cmd.params;
                                     console.log(`[TradingViewConnector] Executing Legacy: Add Indicator ${name}`);
-                                    chart.createStudy(name, forceOverlay, false, inputs);
-                                    cmdResult = buildCommandResult(cmd.action, cmd.params, `Indicator '${name}' added.`);
+                                    const enforcement = enforceIndicatorLimitBeforeAdd(chart, String(name || ''));
+                                    if (!enforcement.alreadyPresent) {
+                                        chart.createStudy(name, false, false, inputs);
+                                    }
+                                    cmdResult = buildCommandResult(
+                                        cmd.action,
+                                        cmd.params,
+                                        enforcement.alreadyPresent
+                                            ? `Indicator '${name}' already present.`
+                                            : `Indicator '${name}' added.`
+                                    );
+                                    cmdResult.max_indicators = MAX_UI_NON_VOLUME_INDICATORS;
+                                    cmdResult.removed_indicators = enforcement.removedCount;
                                 } else if (cmd.action === 'clear_indicators') {
                                     const keepVolume = Boolean(cmd?.params?.keep_volume || cmd?.params?.keepVolume);
                                     const studies = chart.getAllStudies?.() || [];
                                     for (const study of studies) {
                                         const studyName = String(study?.name || '').trim().toLowerCase();
-                                        if (keepVolume && studyName === 'volume') {
+                                        if (keepVolume && isVolumeStudyName(studyName)) {
                                             continue;
                                         }
                                         chart.removeEntity(study.id);
@@ -668,7 +841,6 @@ export const useTradingViewConnector = (
                                 // === NEW: Trade Setup (Visual Only) ===
                                 else if (cmd.action === 'setup_trade') {
                                     const {
-                                        side,
                                         entry,
                                         sl,
                                         tp,
@@ -677,15 +849,29 @@ export const useTradingViewConnector = (
                                         trailing_sl,
                                         be,
                                         liq,
-                                        gp,
-                                        gl,
-                                        validation,
-                                        invalidation,
                                         validation_note,
                                         invalidation_note
                                     } = cmd.params || {};
-                                    const gpLevel = gp ?? validation;
-                                    const glLevel = gl ?? invalidation;
+                                    const normalizedSetup = normalizeSetupTradeLevels(cmd.params || {});
+                                    const side = normalizedSetup.side;
+                                    const gpLevel = normalizedSetup.validationLevel;
+                                    const glLevel = normalizedSetup.invalidationLevel;
+                                    const slLevel = toFiniteNumber(sl);
+                                    const mergedInvalidationWithSl =
+                                        slLevel !== null &&
+                                        glLevel !== null &&
+                                        Math.abs(slLevel - glLevel) < 1e-8;
+                                    const stopLossLabel = mergedInvalidationWithSl
+                                        ? (invalidation_note || 'Stop Loss / Invalidation')
+                                        : 'Stop Loss';
+                                    const normalizedSetupParams = {
+                                        ...(cmd.params || {}),
+                                        side,
+                                        validation: gpLevel,
+                                        invalidation: glLevel,
+                                        gp: gpLevel,
+                                        gl: glLevel,
+                                    };
                                     console.log(`[TradingViewConnector] Visualizing Trade Setup: ${side ? side.toUpperCase() : 'UNKNOWN'} @ ${entry}`);
 
                                     const tool = side === 'long' ? 'long_position' : 'short_position';
@@ -709,7 +895,7 @@ export const useTradingViewConnector = (
                                     try {
                                         // 1. ENTRY LINE
                                         const entryLine = chart.createOrderLine()
-                                            .setText(`${side === 'long' ? 'Buy' : 'Sell'} Limit`)
+                                            .setText(`${side === 'long' ? 'Buy' : 'Sell'} Market`)
                                             .setPrice(entry)
                                             .setQuantity("1") // Default qty
                                             .setLineColor("#2962FF")
@@ -746,7 +932,7 @@ export const useTradingViewConnector = (
 
                                         // 3. STOP LOSS LINE
                                         const slLine = chart.createOrderLine()
-                                            .setText("Stop Loss")
+                                            .setText(stopLossLabel)
                                             .setPrice(sl)
                                             .setQuantity("1")
                                             .setLineColor("#F23645")
@@ -870,7 +1056,7 @@ export const useTradingViewConnector = (
                                         }
 
                                         // 10. GL (Generate Loss Decision - AI Tripwire)
-                                        if (glLevel !== undefined && glLevel !== null) {
+                                        if (!mergedInvalidationWithSl && glLevel !== undefined && glLevel !== null) {
                                             const glLine = chart.createOrderLine()
                                                 .setText(invalidation_note || "Invalidation")
                                                 .setPrice(glLevel)
@@ -909,7 +1095,7 @@ export const useTradingViewConnector = (
                                         };
 
                                         console.log(`[TradingViewConnector] Native Order Lines Created!`);
-                                        cmdResult = buildCommandResult(cmd.action, cmd.params, 'Trade setup lines created.');
+                                        cmdResult = buildCommandResult(cmd.action, normalizedSetupParams, 'Trade setup lines created.');
 
                                     } catch (err) {
                                         console.error("[TradingViewConnector] Failed to draw native lines:", err);
@@ -948,11 +1134,17 @@ export const useTradingViewConnector = (
                                             }
                                         };
 
-                                        tryDrawFallbackLine(entry, side === 'long' ? 'Entry Long' : 'Entry Short', '#2962FF');
+                                        tryDrawFallbackLine(
+                                            entry,
+                                            side === 'long' ? 'Buy Market' : 'Sell Market',
+                                            '#2962FF'
+                                        );
                                         tryDrawFallbackLine(tp, 'Take Profit', '#089981');
-                                        tryDrawFallbackLine(sl, 'Stop Loss', '#F23645');
+                                        tryDrawFallbackLine(sl, stopLossLabel, '#F23645');
                                         tryDrawFallbackLine(gpLevel, validation_note || 'Validation', '#089981', 1);
-                                        tryDrawFallbackLine(glLevel, invalidation_note || 'Invalidation', '#F23645', 1);
+                                        if (!mergedInvalidationWithSl) {
+                                            tryDrawFallbackLine(glLevel, invalidation_note || 'Invalidation', '#F23645', 1);
+                                        }
 
                                         window.__tvTradeSetup = {
                                             symbol,
@@ -974,7 +1166,7 @@ export const useTradingViewConnector = (
 
                                         cmdResult = buildCommandResult(
                                             cmd.action,
-                                            cmd.params,
+                                            normalizedSetupParams,
                                             "Trade setup fallback applied (createOrderLine unavailable)."
                                         );
                                         cmdResult.fallback = 'setup_trade_horizontal_line';

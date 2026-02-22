@@ -39,9 +39,58 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
   const widgetRef = useRef<any>(null);
   const [isChartReady, setIsChartReady] = useState(false);
   const hasInitialized = useRef(false);
+  const initRequestIdRef = useRef(0);
+  const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
   // Sync data to backend when chart is ready (Hook v3.1)
   useTradingViewConnector(widgetRef.current, isChartReady, onChartStateChange, onTradeDecisionTrigger);
+
+  const clearInitTimer = () => {
+    if (initTimerRef.current) {
+      clearTimeout(initTimerRef.current);
+      initTimerRef.current = null;
+    }
+  };
+
+  const cleanupWidget = (reason: string, resetReady: boolean = true) => {
+    clearInitTimer();
+    if (resetReady && isMountedRef.current) {
+      setIsChartReady(false);
+    }
+    if (widgetRef.current?.remove) {
+      try {
+        console.log(`[TradingChart] Cleanup widget (${reason})`);
+        widgetRef.current.remove();
+      } catch (e) {
+        console.warn(`[TradingChart] Failed to cleanup widget (${reason})`, e);
+      }
+      widgetRef.current = null;
+    }
+    if (chartContainerRef.current) {
+      chartContainerRef.current.innerHTML = "";
+    }
+  };
+
+  const beginInitialization = (delayMs: number = 0) => {
+    clearInitTimer();
+    const requestId = ++initRequestIdRef.current;
+    hasInitialized.current = true;
+    initTimerRef.current = setTimeout(() => {
+      initTimerRef.current = null;
+      void initializeWidget(requestId);
+    }, delayMs);
+  };
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      hasInitialized.current = false;
+      initRequestIdRef.current += 1;
+      cleanupWidget("unmount", false);
+    };
+  }, []);
 
   // Sync Studies (Indicators)
   useEffect(() => {
@@ -55,11 +104,9 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
       // Find studies to add
       const toAdd = studies.filter(s => !currentNames.includes(s));
 
-      // Find studies to remove (safeguard: don't remove Volume if it's default, but for sync purposes we might want to)
-      // For now, let's only sync "added" indicators from the list.
-      // If we want exact sync (remove what's not in list), we do:
-      const toRemove = currentStudies.filter((s: any) => !studies.includes(s.name) && s.name !== 'Volume');
-      // Note: 'Volume' is often a default study, maybe keep it or handle explicitly.
+      // Exact sync: remove any study that is not in requested `studies` list.
+      // This includes default "Volume", so it no longer stays pinned unexpectedly.
+      const toRemove = currentStudies.filter((s: any) => !studies.includes(s.name));
 
       toRemove.forEach((s: any) => {
         console.log(`[TradingChart] removing study: ${s.name}`);
@@ -120,8 +167,7 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
       if (width > 0 && height > 0 && !hasInitialized.current) {
         console.log('[TradingChart] Container ready, initializing widget', { width, height, source });
-        hasInitialized.current = true;
-        initializeWidget();
+        beginInitialization();
       }
     };
 
@@ -138,9 +184,15 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
     };
   }, [symbol, interval, theme, hideSideToolbar, source]);
 
-  const initializeWidget = async () => {
+  const initializeWidget = async (requestId: number) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      if (!isMountedRef.current || requestId !== initRequestIdRef.current) return;
+
+      const container = chartContainerRef.current;
+      if (!container) {
+        hasInitialized.current = false;
+        return;
+      }
 
       const TradingViewLib = (window as any).TradingView;
       if (!TradingViewLib) {
@@ -159,11 +211,15 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
         Datafeed = await import('../../charting/datafeeds/datafeed_custom.js');
       }
 
+      if (!isMountedRef.current || requestId !== initRequestIdRef.current) return;
+
       const disabledFeatures = [
         "symbol_search_hot_key",
         "header_symbol_search",
         "header_compare",
         "compare_symbol",
+        // Keep Volume in its own pane instead of forcing overlay on price pane.
+        "volume_force_overlay",
       ];
 
       if (hideSideToolbar) {
@@ -173,7 +229,7 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
       const widgetOptions = {
         symbol,
         datafeed: (Datafeed as any).default,
-        container: chartContainerRef.current,
+        container,
         library_path: "/charting_library/",
         interval,
         locale: "en",
@@ -219,9 +275,21 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
       };
 
       const tvWidget = new widget(widgetOptions);
+      if (!isMountedRef.current || requestId !== initRequestIdRef.current) {
+        tvWidget.remove?.();
+        return;
+      }
       widgetRef.current = tvWidget;
 
       tvWidget.onChartReady(() => {
+        if (
+          !isMountedRef.current ||
+          requestId !== initRequestIdRef.current ||
+          widgetRef.current !== tvWidget
+        ) {
+          tvWidget.remove?.();
+          return;
+        }
         console.log('[TradingChart] Chart is ready');
         setIsChartReady(true);
 
@@ -242,8 +310,12 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
         });
       });
     } catch (error) {
+      if (requestId !== initRequestIdRef.current) return;
       console.error("[TradingChart] Failed to load widget:", error);
       hasInitialized.current = false; // Allow retry
+      if (isMountedRef.current) {
+        setIsChartReady(false);
+      }
     }
   };
 
@@ -283,36 +355,12 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
   // Recreate widget when source changes (datafeed can't be hot-swapped)
   useEffect(() => {
-    if (!isChartReady || !widgetRef.current) return;
+    if (!widgetRef.current) return;
 
     console.log('[TradingChart] Source changed, need to recreate widget');
-
-    // Cleanup old widget
-    if (widgetRef.current && widgetRef.current.remove) {
-      widgetRef.current.remove();
-      widgetRef.current = null;
-    }
-
-    // Reset state and reinitialize
-    setIsChartReady(false);
-    hasInitialized.current = false;
-
-    // Reinitialize with new source
-    setTimeout(() => {
-      initializeWidget();
-    }, 100);
+    cleanupWidget('source change');
+    beginInitialization(100);
   }, [source]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (widgetRef.current && widgetRef.current.remove) {
-        console.log('[TradingChart] Cleanup widget');
-        widgetRef.current.remove();
-        widgetRef.current = null;
-      }
-    };
-  }, []);
 
   // Handle resize events
   useEffect(() => {

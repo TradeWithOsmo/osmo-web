@@ -34,10 +34,25 @@ export const DrawingHandler: CommandExecutor = {
         // Helper to resolve points
         const resolvePoint = (pt: any) => {
             if (!pt) return null;
-            if (typeof pt.time === 'undefined' || typeof pt.price === 'undefined') {
+            const rawTime =
+                typeof pt.time !== 'undefined'
+                    ? pt.time
+                    : (typeof pt.timestamp !== 'undefined' ? pt.timestamp : (typeof pt.ts !== 'undefined' ? pt.ts : pt.x));
+            const rawPrice =
+                typeof pt.price !== 'undefined'
+                    ? pt.price
+                    : pt.y;
+            if (typeof rawTime === 'undefined' || typeof rawPrice === 'undefined') {
                 return null;
             }
-            return { time: Number(pt.time), price: Number(pt.price) };
+            const parsedTime = Number(rawTime);
+            const parsedPrice = Number(rawPrice);
+            if (!Number.isFinite(parsedTime) || !Number.isFinite(parsedPrice)) {
+                return null;
+            }
+            // Accept unix milliseconds and normalize to seconds.
+            const normalizedTime = parsedTime > 1_000_000_000_000 ? parsedTime / 1000 : parsedTime;
+            return { time: Number(normalizedTime), price: parsedPrice };
         };
 
         if (action === 'draw_shape') {

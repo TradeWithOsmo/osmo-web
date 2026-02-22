@@ -6,6 +6,7 @@ import {
   leaderboardService,
   type ArenaLeaderboardScope,
   type TraderLeaderboardEntry,
+  type UserRankResponse,
 } from "../api/leaderboardService";
 
 type ArenaSide = "human" | "ai";
@@ -38,6 +39,7 @@ interface ArenaState {
   userPoints: number;
   userLockedPoints: number;
   userRank: number | null;
+  userRankMetrics: UserRankResponse | null;
 
   leaderboardSide: ArenaLeaderboardView;
   leaderboardPage: number;
@@ -73,6 +75,7 @@ export const useArenaStore = create<ArenaState>()(
       userPoints: 0,
       userLockedPoints: 0,
       userRank: null,
+      userRankMetrics: null,
 
       leaderboardSide: "human",
       leaderboardPage: 1,
@@ -171,7 +174,7 @@ export const useArenaStore = create<ArenaState>()(
             set({ picked: data });
           } else {
             localStorage.removeItem(PICK_STORAGE_KEY);
-            set({ picked: null, userRank: null });
+            set({ picked: null, userRank: null, userRankMetrics: null });
           }
 
           const rewards =
@@ -239,10 +242,18 @@ export const useArenaStore = create<ArenaState>()(
             walletAddress,
             side,
           );
-          set({ userRank: rankData.rank });
+          set({
+            userRank: Number.isFinite(rankData.rank) ? rankData.rank : null,
+            userRankMetrics: {
+              rank: Number.isFinite(rankData.rank) ? rankData.rank : 0,
+              pnl: Number.isFinite(rankData.pnl) ? rankData.pnl : 0,
+              roi: Number.isFinite(rankData.roi) ? rankData.roi : 0,
+              volume: Number.isFinite(rankData.volume) ? rankData.volume : 0,
+            },
+          });
         } catch (e) {
           console.error("[ArenaStore] Failed to fetch user rank:", e);
-          set({ userRank: null });
+          set({ userRank: null, userRankMetrics: null });
         }
       },
 
@@ -270,6 +281,7 @@ export const useArenaStore = create<ArenaState>()(
           set({
             picked: null,
             userRank: null,
+            userRankMetrics: null,
             userPoints: 0,
             userLockedPoints: 0,
           });
@@ -284,7 +296,12 @@ export const useArenaStore = create<ArenaState>()(
         }
 
         arenaWallet = normalized;
-        set({ userRank: null, userPoints: 0, userLockedPoints: 0 });
+        set({
+          userRank: null,
+          userRankMetrics: null,
+          userPoints: 0,
+          userLockedPoints: 0,
+        });
         void get().fetchOnchain(normalized);
 
         onchainPollId = window.setInterval(() => {
@@ -313,6 +330,7 @@ export const useArenaStore = create<ArenaState>()(
         userPoints: s.userPoints,
         userLockedPoints: s.userLockedPoints,
         userRank: s.userRank,
+        userRankMetrics: s.userRankMetrics,
         leaderboardSide: s.leaderboardSide,
         leaderboardPage: s.leaderboardPage,
         leaderboardLimit: s.leaderboardLimit,
@@ -320,16 +338,17 @@ export const useArenaStore = create<ArenaState>()(
         leaderboardPagination: s.leaderboardPagination,
         lastLeaderboardFetchedAt: s.lastLeaderboardFetchedAt,
       }),
-      version: 4,
+      version: 5,
       migrate: (persistedState: any, version) => {
         if (!persistedState) return persistedState;
-        if (version < 4) {
+        if (version < 5) {
           return {
             ...persistedState,
             picked: null,
             userPoints: 0,
             userLockedPoints: 0,
             userRank: null,
+            userRankMetrics: null,
           };
         }
         return persistedState;

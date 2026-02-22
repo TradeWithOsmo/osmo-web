@@ -104,6 +104,12 @@ interface PortfolioState {
     historyTimeframe: '1d' | '7d' | '30d' | 'all';
     fundingHistory: FundingHistoryData[]; // New
     summary: AccountSummary | null;
+    onchainBalances: {
+        trading: number;
+        reserved: number;
+        available: number;
+        ai: number;
+    } | null;
     isLoading: boolean;
     error: string | null;
 
@@ -146,6 +152,7 @@ export const usePortfolioStore = create<PortfolioState>()(
     persist(
         (set, get) => ({
     summary: null,
+    onchainBalances: null,
     isLoading: false,
     error: null,
     openOrders: [],
@@ -265,6 +272,7 @@ export const usePortfolioStore = create<PortfolioState>()(
         set({
             positions: [],
             summary: null,
+            onchainBalances: null,
             localTPSL: {},
             openOrders: [],
             orderHistory: [],
@@ -289,11 +297,9 @@ export const usePortfolioStore = create<PortfolioState>()(
             const TRADING_EXCHANGE = import.meta.env.VITE_TRADING_EXCHANGE || 'simulation';
             const isSimulation = TRADING_EXCHANGE.toLowerCase() === 'simulation';
 
-            const [positionsResult, vaultBalances] = await Promise.all([
+            const [positionsResult, onchainBalances] = await Promise.all([
                 fetchWithDedup(`positions:${userAddress}`, () => orderService.getPositions(userAddress)),
-                !isSimulation
-                    ? fetchWithDedup(`vault:${userAddress}`, () => onchainService.getVaultBalances(userAddress).catch(() => null))
-                    : Promise.resolve(null)
+                fetchWithDedup(`vault:${userAddress}`, () => onchainService.getVaultBalances(userAddress).catch(() => null))
             ]);
 
             // If a newer fetch has started, discard this one
@@ -313,13 +319,13 @@ export const usePortfolioStore = create<PortfolioState>()(
             if (isSimulation && positionsResult.success && positionsResult.summary) {
                 console.log("DEBUG: Using Simulation Ledger Summary", positionsResult.summary);
                 summary = positionsResult.summary;
-            } else if (vaultBalances) {
+            } else if (onchainBalances) {
                 console.log("DEBUG: Using Vault Balances as Source of Truth", summary);
                 summary = {
-                    account_value: vaultBalances.trading,
-                    free_collateral: vaultBalances.available,
-                    total_margin_used: vaultBalances.reserved,
-                    margin_usage: vaultBalances.trading > 0 ? (vaultBalances.reserved / vaultBalances.trading) * 100 : 0,
+                    account_value: onchainBalances.trading,
+                    free_collateral: onchainBalances.available,
+                    total_margin_used: onchainBalances.reserved,
+                    margin_usage: onchainBalances.trading > 0 ? (onchainBalances.reserved / onchainBalances.trading) * 100 : 0,
                     leverage: 0 // Will be calc below if positions exist
                 };
             } else if (positionsResult.success && positionsResult.summary) {
@@ -347,6 +353,7 @@ export const usePortfolioStore = create<PortfolioState>()(
                 set({
                     positions: mergedPositions,
                     summary: summary,
+                    onchainBalances: onchainBalances,
                     isLoading: false,
                     error: null
                 });
@@ -354,6 +361,7 @@ export const usePortfolioStore = create<PortfolioState>()(
                 console.warn("Backend Positions fetch failed, retaining old data.");
                 set({
                     summary: summary,
+                    onchainBalances: onchainBalances,
                     isLoading: false
                 });
             }
@@ -692,18 +700,31 @@ export const usePortfolioStore = create<PortfolioState>()(
         }),
         {
             name: 'osmo_portfolio_store',
-            version: 1,
+            version: 2,
             partialize: (s) => ({
-                positions: s.positions,
-                openOrders: s.openOrders,
-                orderHistory: s.orderHistory,
-                tradeHistory: s.tradeHistory,
-                history: s.history,
+                // Keep only lightweight user preferences/state.
+                // Live trading data should always come from backend refresh/websocket.
                 historyTimeframe: s.historyTimeframe,
-                fundingHistory: s.fundingHistory,
-                summary: s.summary,
                 localTPSL: s.localTPSL,
             }),
+            migrate: (persistedState: any, version) => {
+                if (!persistedState) return persistedState;
+                // On version upgrades, drop stale live trading snapshots.
+                if (version < 2) {
+                    return {
+                        ...persistedState,
+                        positions: [],
+                        openOrders: [],
+                        orderHistory: [],
+                        tradeHistory: [],
+                        history: [],
+                        fundingHistory: [],
+                        summary: null,
+                        onchainBalances: null,
+                    };
+                }
+                return persistedState;
+            },
         }
     )
 );

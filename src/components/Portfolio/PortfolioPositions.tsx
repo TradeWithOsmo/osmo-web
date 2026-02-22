@@ -84,6 +84,7 @@ const PortfolioPositions: React.FC = () => {
             id: apiPos.id,
             symbol: apiPos.symbol,
             pair: apiPos.symbol, // backend usually returns pair like SOL-USD
+            exchange: apiPos.exchange,
             side: isLong ? 'Long' : 'Short',
             size: apiPos.size,
             sizeUsd: apiPos.position_value || (apiPos.size * (apiPos.mark_price || apiPos.entry_price)), // Use backend value if avail
