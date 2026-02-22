@@ -219,6 +219,7 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                                     id: pos.id,
                                                     symbol: pos.symbol,
                                                     pair: pos.symbol,
+                                                    exchange: pos.exchange,
                                                     side: pos.side === 'long' ? 'Long' : 'Short',
                                                     size: pos.size,
                                                     sizeUsd: pos.size * marketPrice,

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import styles from './WagerModal.module.css';
-import osmoLogo from '../../assets/Icons/Osmo-Logos.png';
 
 interface WagerModalProps {
     isOpen: boolean;
@@ -48,7 +47,7 @@ export const WagerModal: React.FC<WagerModalProps> = ({ isOpen, onClose, onConfi
                 <div className={styles.content}>
                     <div className={styles.description}>
                         You are backing <strong>{side === 'human' ? 'Humans' : 'AI'}</strong>.
-                        Optionally wager your points to earn <strong>2x <img src={osmoLogo} alt="$OSMO" width={16} height={16} style={{ marginBottom: -3, marginRight: 2 }} /> $OSMO</strong> rewards if your side wins.
+                        Optionally wager your points to earn <strong>2x PTS</strong> rewards if your side wins.
                     </div>
 
                     <div className={styles.amountContainer}>
@@ -75,7 +74,7 @@ export const WagerModal: React.FC<WagerModalProps> = ({ isOpen, onClose, onConfi
                         <div className={styles.infoRow}>
                             <span className={styles.infoLabel}>Potential Reward</span>
                             <span className={styles.infoValue} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {(parsedAmount * 2).toLocaleString()} <img src={osmoLogo} alt="$OSMO" width={16} height={16} /> $OSMO
+                                {(parsedAmount * 2).toLocaleString()} PTS
                             </span>
                         </div>
                     )}

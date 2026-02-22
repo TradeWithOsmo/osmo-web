@@ -6,15 +6,55 @@ import PortfolioChart from './PortfolioChart';
 
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { useWallet } from '../../hooks/useWallet';
+import { onchainService } from '../../api/onchainService';
 
 const Overview: React.FC = () => {
-    const { summary, isLoading } = usePortfolioStore();
+    const { summary, onchainBalances, isLoading } = usePortfolioStore();
     const { authenticated, walletAddress } = useWallet();
+    const tradingExchange = String(import.meta.env.VITE_TRADING_EXCHANGE || 'simulation').toLowerCase();
+    const isSimulation = tradingExchange === 'simulation';
+    const [freeCollateralMode, setFreeCollateralMode] = React.useState<'sim' | 'real'>(isSimulation ? 'sim' : 'real');
+    const [positionMarginMode, setPositionMarginMode] = React.useState<'sim' | 'real'>(isSimulation ? 'sim' : 'real');
+    const [directOnchainBalances, setDirectOnchainBalances] = React.useState<{
+        trading: number;
+        reserved: number;
+        available: number;
+        ai: number;
+    } | null>(null);
+
+    React.useEffect(() => {
+        if (!walletAddress || !authenticated) {
+            setDirectOnchainBalances(null);
+            return;
+        }
+
+        let cancelled = false;
+        const fetchOnchain = async () => {
+            try {
+                const balances = await onchainService.getVaultBalances(walletAddress);
+                if (!cancelled) setDirectOnchainBalances(balances);
+            } catch (error) {
+                if (!cancelled) console.error('Overview on-chain balance fetch failed:', error);
+            }
+        };
+
+        void fetchOnchain();
+        const timer = window.setInterval(fetchOnchain, 10_000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [walletAddress, authenticated]);
 
     // Derive explicit values from summary or use defaults
     const accountValue = summary?.account_value ?? 0;
-    const freeCollateral = summary?.free_collateral ?? 0;
-    const positionMargin = summary?.total_margin_used ?? 0;
+    const simFreeCollateral = summary?.free_collateral ?? 0;
+    const simPositionMargin = summary?.total_margin_used ?? 0;
+    const effectiveOnchainBalances = directOnchainBalances ?? onchainBalances;
+    const realFreeCollateral = effectiveOnchainBalances?.available ?? 0;
+    const realPositionMargin = effectiveOnchainBalances?.reserved ?? 0;
+    const freeCollateral = freeCollateralMode === 'real' ? realFreeCollateral : simFreeCollateral;
+    const positionMargin = positionMarginMode === 'real' ? realPositionMargin : simPositionMargin;
     const marginUsage = summary?.margin_usage ?? 0;
     const leverage = summary?.leverage ?? 0;
 
@@ -61,14 +101,42 @@ const Overview: React.FC = () => {
                         <div className={styles.colorDot} style={{ backgroundColor: '#8B8B9B' }}></div>
                         <div className={styles.legendText}>
                             <div className={styles.legendValue}>{formatVal(freeCollateral)}</div>
-                            <div className={styles.legendLabel}>Free Collateral</div>
+                            <div className={styles.legendLabelRow}>
+                                <div className={styles.legendLabel}>
+                                    {`Free Collateral (${freeCollateralMode === 'real' ? 'Real' : 'Sim'})`}
+                                </div>
+                                {isSimulation && (
+                                    <select
+                                        className={styles.legendSelect}
+                                        value={freeCollateralMode}
+                                        onChange={(e) => setFreeCollateralMode(e.target.value as 'sim' | 'real')}
+                                    >
+                                        <option value="sim">Sim</option>
+                                        <option value="real">Real</option>
+                                    </select>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className={styles.legendItem}>
                         <div className={styles.colorDot} style={{ backgroundColor: '#F2C94C' }}></div>
                         <div className={styles.legendText}>
                             <div className={styles.legendValue}>{formatVal(positionMargin)}</div>
-                            <div className={styles.legendLabel}>Position Margin</div>
+                            <div className={styles.legendLabelRow}>
+                                <div className={styles.legendLabel}>
+                                    {`Position Margin (${positionMarginMode === 'real' ? 'Real' : 'Sim'})`}
+                                </div>
+                                {isSimulation && (
+                                    <select
+                                        className={styles.legendSelect}
+                                        value={positionMarginMode}
+                                        onChange={(e) => setPositionMarginMode(e.target.value as 'sim' | 'real')}
+                                    >
+                                        <option value="sim">Sim</option>
+                                        <option value="real">Real</option>
+                                    </select>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

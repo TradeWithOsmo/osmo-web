@@ -41,7 +41,25 @@ const formatPoints = (value: number) =>
     value || 0,
   );
 
+const formatEstimatedPointsShort = (value: number) => {
+  const safe = Number.isFinite(value) ? value : 0;
+  const digits = Math.abs(safe) < 1 ? 2 : 1;
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(safe);
+};
+
 const DEFAULT_EVENT_END_MS = Date.now() + 7 * 24 * 60 * 60 * 1000;
+
+const resolveEventEndMs = (configuredEndMs: number, nowMs: number) => {
+  if (!Number.isFinite(configuredEndMs)) return DEFAULT_EVENT_END_MS;
+  if (configuredEndMs > nowMs) return configuredEndMs;
+
+  // Auto-roll to the next 7-day window if configured end is already in the past.
+  const cyclesBehind = Math.floor((nowMs - configuredEndMs) / PICK_LOCK_MS) + 1;
+  return configuredEndMs + cyclesBehind * PICK_LOCK_MS;
+};
 
 const ArenaLeaderboardRow: React.FC<{
   item: TraderLeaderboardEntry;
@@ -349,6 +367,7 @@ const Arena: React.FC = () => {
     userPoints,
     userLockedPoints,
     userRank,
+    userRankMetrics,
     leaderboardSide: viewSide,
     leaderboardPage: currentPage,
     leaderboardLimit: rowsPerPage,
@@ -374,10 +393,10 @@ const Arena: React.FC = () => {
       ? storePicked
       : null;
 
-  const eventEndMs = useMemo(() => {
+  const configuredEventEndMs = useMemo(() => {
     const raw = import.meta.env.VITE_ARENA_END_ISO;
     const parsed = raw ? Date.parse(String(raw)) : NaN;
-    return Number.isFinite(parsed) ? parsed : DEFAULT_EVENT_END_MS;
+    return Number.isFinite(parsed) ? parsed : NaN;
   }, []);
 
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -385,6 +404,11 @@ const Arena: React.FC = () => {
     const t = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const eventEndMs = useMemo(
+    () => resolveEventEndMs(configuredEventEndMs, nowMs),
+    [configuredEventEndMs, nowMs],
+  );
 
   const windowStartMs = eventEndMs - PICK_LOCK_MS;
   const isEventActive = nowMs < eventEndMs;
@@ -404,17 +428,20 @@ const Arena: React.FC = () => {
   const isBlindPhase =
     isEventActive && eventEndMs - nowMs <= 24 * 60 * 60 * 1000;
 
-  const performanceSide: ArenaSide | null = useMemo(() => {
-    if (viewSide === "overall") return picked?.side ?? null;
+  const rankSide: ArenaSide | null = useMemo(() => {
+    if (picked?.side) return picked.side;
+    if (viewSide === "overall") return null;
     return viewSide;
-  }, [viewSide, picked?.side]);
+  }, [picked?.side, viewSide]);
+
+  const performanceSide: ArenaSide | null = picked?.side ?? null;
 
   // Fetch rank for the currently visible side (or picked side on overall tab)
   useEffect(() => {
-    if (walletAddress && performanceSide) {
-      fetchUserRank(walletAddress, performanceSide);
+    if (walletAddress && rankSide) {
+      fetchUserRank(walletAddress, rankSide);
     }
-  }, [walletAddress, performanceSide, fetchUserRank]);
+  }, [walletAddress, rankSide, fetchUserRank]);
 
   // Arena data + leaderboard are kept fresh by global store polling started from root App.
 
@@ -572,7 +599,11 @@ const Arena: React.FC = () => {
   const canChoose = !picked && isEventActive;
   const blurAllRows = viewSide !== "overall" && !picked;
   const performanceWager =
-    picked && performanceSide === picked.side ? picked.wager : 0;
+    typeof picked?.wager === "number" && Number.isFinite(picked.wager)
+      ? picked.wager
+      : 0;
+  const estimatedPoints = userRankMetrics?.pnl || 0;
+  const potentialRewardEstimate = performanceWager * 2;
 
   const totalPages = Math.max(1, pagination?.pages || 1);
   const goToPage = (page: number) => {
@@ -1143,6 +1174,16 @@ const Arena: React.FC = () => {
                     </span>
                   </div>
                   <div className={styles.statBox}>
+                    <span className={styles.statLabel}>Estimated Points</span>
+                    <span
+                      className={styles.statValue}
+                      style={{ color: "#9FD6FF" }}
+                    >
+                      {formatEstimatedPointsShort(estimatedPoints)}{" "}
+                      PTS
+                    </span>
+                  </div>
+                  <div className={styles.statBox}>
                     <span className={styles.statLabel}>
                       Potential Reward (Est.)
                     </span>
@@ -1155,8 +1196,10 @@ const Arena: React.FC = () => {
                         gap: "4px",
                       }}
                     >
-                      {(performanceWager * 2).toLocaleString()}{" "}
-                      <img src={osmoLogo} alt="$OSMO" width={14} height={14} />
+                      {potentialRewardEstimate.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      PTS
                     </span>
                   </div>
                 </div>

@@ -209,64 +209,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return raw;
   };
 
-  type MessageContextSummary = {
-    market?: string;
-    timeframe?: string;
-    indicator?: string;
-  };
-
-  const normalizeMarketLabel = (value?: string | null): string => {
-    const raw = String(value || "")
-      .trim()
-      .replace(/\s+/g, "");
-    if (!raw) return "";
-    return raw.replace(/-/g, "/").toUpperCase();
-  };
-
-  const normalizeIndicatorLabel = (value?: string | null): string => {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    const mapped = indicatorAliases[raw.toUpperCase()];
-    if (mapped?.label) return mapped.label;
-    return raw.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
-  };
-
-  const extractMessageContextSummary = (
-    content: string,
-    fallback?: MessageContextSummary,
-  ): MessageContextSummary => {
-    const text = normalizeMarkdownContent(content);
-    if (!text) return {};
-
-    const marketMatch = text.match(
-      /\b(?:market|symbol|pair)\s*(?::|=|-|\s)\s*([A-Z0-9]{2,12}(?:[\/-][A-Z0-9]{2,12})?)/i,
-    );
-    const timeframeMatch = text.match(
-      /\b(?:time\s*frame|timeframe|tf)\s*(?::|=|-|\s)\s*([0-9]{1,4}\s*[mhdw]|[0-9]{1,4}|[1-9][HDWM])/i,
-    );
-    const indicatorMatch = text.match(
-      /\b(?:active\s+indicator(?:s)?|indicator(?:s)?)\s*(?::|=|-|\s)\s*([^\n\r|;,.]+)/i,
-    );
-    const hasContextKeyword =
-      /\b(market|symbol|pair|timeframe|tf|indicator)\b/i.test(text);
-
-    let market = normalizeMarketLabel(marketMatch?.[1]);
-    let timeframe = normalizeTimeframeLabel(timeframeMatch?.[1] || "");
-    let indicator = normalizeIndicatorLabel(indicatorMatch?.[1]);
-
-    if (hasContextKeyword) {
-      if (!market) market = normalizeMarketLabel(fallback?.market);
-      if (!timeframe) timeframe = normalizeTimeframeLabel(fallback?.timeframe);
-      if (!indicator) indicator = normalizeIndicatorLabel(fallback?.indicator);
-    }
-
-    return {
-      market: market || undefined,
-      timeframe: timeframe || undefined,
-      indicator: indicator || undefined,
-    };
-  };
-
   const renderToolNameNodes = (text: string, keyPrefix: string) => {
     const regex =
       /\b(?:get|add|set|place|open|close|fetch|update|list|create|delete|remove|capture|draw|write)_[a-z0-9_]{2,}\b/g;
@@ -473,6 +415,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       storedSessionAddress.toLowerCase() === userAddress.toLowerCase()),
   );
   const hasValidSession = Boolean(hasSession || hasStoredSessionForWallet);
+  const isSessionBlocked = Boolean(
+    !hasValidSession || (isSessionChecking && !hasStoredSessionForWallet),
+  );
 
   // Model Selection State
   const [selectedModel, setSelectedModel] = useState("");
@@ -489,8 +434,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const hasUsageCredit = usageCreditBalance > 0;
   const isUsageBlocked = Boolean(
     hasWalletConnection &&
-    hasValidSession &&
-    !isSessionChecking &&
+    !isSessionBlocked &&
     !hasUsageCredit,
   );
 
@@ -768,8 +712,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const getSelectedModelId = () => {
-    const model = availableModels.find((m) => m.name === selectedModel);
-    return model?.id;
+    const byName = availableModels.find((m) => m.name === selectedModel);
+    if (byName?.id) return byName.id;
+    const byId = availableModels.find((m) => m.id === selectedModel);
+    if (byId?.id) return byId.id;
+    return availableModels[0]?.id;
   };
 
   const buildOutboundToolStates = () => {
@@ -1061,12 +1008,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (runtimeLabel) return runtimeLabel;
     }
 
-    const thoughtObjects = (
-      Array.isArray(msg.thoughts) ? msg.thoughts : []
-    ).filter(
-      (item): item is ThoughtStep =>
-        !!item && typeof item === "object" && "title" in item,
-    );
+    const thoughtObjects = (Array.isArray(msg.thoughts) ? msg.thoughts : [])
+      .filter((item) => {
+        if (!item || typeof item !== "object") return false;
+        const title = String((item as any).title || "").trim();
+        const content = String((item as any).content || "").trim();
+        const combined = `${title}\n${content}`;
+        const isSummary =
+          /reflexion\s+summary/i.test(combined) ||
+          (/steps\s*=\s*\d+/i.test(combined) &&
+            /good\s*=\s*\d+/i.test(combined) &&
+            /errors\s*=\s*\d+/i.test(combined));
+        return !isSummary;
+      })
+      .filter(
+        (item): item is ThoughtStep =>
+          !!item && typeof item === "object" && "title" in item,
+      );
     if (thoughtObjects.length > 0) {
       const thoughtActive = [...thoughtObjects]
         .reverse()
@@ -1205,6 +1163,141 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       .replace(/\r\n/g, "\n")
       .replace(/\\n/g, "\n")
       .trim();
+
+  const isReasoningFallbackText = (value: string): boolean => {
+    const text = String(value || "")
+      .trim()
+      .toLowerCase();
+    if (!text) return true;
+    return (
+      text.includes(
+        "detailed provider reasoning is unavailable for this response",
+      ) ||
+      text.includes("showing execution trace when tool events are available") ||
+      text.includes("provider did not expose explicit reasoning tokens")
+    );
+  };
+
+  const parseReflexionSummaryNumbers = (value: string) => {
+    const text = String(value || "");
+    const parseField = (key: string): number => {
+      const match = text.match(new RegExp(`${key}\\s*=\\s*(\\d+)`, "i"));
+      return match ? Number(match[1]) : 0;
+    };
+    return {
+      steps: parseField("steps"),
+      good: parseField("good"),
+      errors: parseField("errors"),
+      retried: parseField("retried"),
+      reflections: parseField("reflections"),
+    };
+  };
+
+  const isReflexionSummaryText = (value: string): boolean => {
+    const text = String(value || "").trim();
+    if (!text) return false;
+    if (/reflexion\s+summary/i.test(text)) return true;
+    return (
+      /steps\s*=\s*\d+/i.test(text) &&
+      /good\s*=\s*\d+/i.test(text) &&
+      /errors\s*=\s*\d+/i.test(text)
+    );
+  };
+
+  const buildSummaryDerivedThoughts = (summaryText: string): any[] => {
+    const stats = parseReflexionSummaryNumbers(summaryText);
+    if (
+      stats.steps <= 0 &&
+      stats.good <= 0 &&
+      stats.errors <= 0 &&
+      stats.retried <= 0 &&
+      stats.reflections <= 0
+    ) {
+      return [];
+    }
+
+    const derived: any[] = [];
+    const toolWord = stats.steps === 1 ? "tool call" : "tool calls";
+    const retryWord = stats.retried === 1 ? "retry" : "retries";
+    const reflectionWord = stats.reflections === 1 ? "reflection" : "reflections";
+
+    const primaryNarrative =
+      stats.errors > 0
+        ? `I worked through ${stats.steps} ${toolWord}. ${stats.good} completed cleanly, while ${stats.errors} ran into issues before finalizing the answer.`
+        : `I ran ${stats.steps} ${toolWord} to gather context, and ${stats.good} completed successfully before I produced the response.`;
+
+    derived.push({
+      type: "reasoning",
+      title: "How This Response Was Built",
+      content: primaryNarrative,
+      status: stats.errors > 0 ? "failed" : "done",
+    });
+
+    if (stats.reflections > 0 || stats.retried > 0) {
+      const correctionNarrative =
+        stats.retried > 0
+          ? `I made ${stats.retried} ${retryWord} and recorded ${stats.reflections} ${reflectionWord} to adjust the approach.`
+          : `I logged ${stats.reflections} ${reflectionWord} during the process, but no retry was needed.`;
+      derived.push({
+        type: "reasoning",
+        title: "Self-Correction",
+        content: correctionNarrative,
+        status: "done",
+      });
+    }
+
+    return derived;
+  };
+
+  const getRenderableThoughts = (rawThoughts: unknown): any[] => {
+    if (!Array.isArray(rawThoughts)) return [];
+
+    const summaryTexts: string[] = [];
+    const filtered = rawThoughts.filter((item) => {
+      if (!item) return false;
+
+      if (typeof item === "string") {
+        if (isReflexionSummaryText(item)) {
+          summaryTexts.push(item);
+          return false;
+        }
+        return !isReasoningFallbackText(item);
+      }
+
+      if (typeof item !== "object") return false;
+
+      const title = String((item as any).title || "").trim();
+      const content = String((item as any).content || "").trim();
+      const type = String((item as any).type || "")
+        .trim()
+        .toLowerCase();
+      const combined = `${title}\n${content}`.trim();
+
+      if (!title && !content) return false;
+      if (isReflexionSummaryText(combined)) {
+        summaryTexts.push(combined);
+        return false;
+      }
+
+      const isReasoningLike =
+        type === "reasoning" ||
+        type === "thinking" ||
+        /^reasoning(?:\s*(?:trace|\d+))?$/i.test(title);
+      if (isReasoningLike && isReasoningFallbackText(content)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    if (filtered.length > 0) {
+      return filtered;
+    }
+    if (summaryTexts.length > 0) {
+      return buildSummaryDerivedThoughts(summaryTexts[0]);
+    }
+    return filtered;
+  };
 
   type ThoughtRenderType =
     | "text"
@@ -1531,6 +1624,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     const newSteps: { id: string; index: number }[] = [];
     const finished: string[] = [];
+    const startedThinking: string[] = [];
 
     for (const msg of messages) {
       if (msg.role !== "assistant") continue;
@@ -1543,6 +1637,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       const wasThinking = lastThinkingRef.current[msg.id] ?? false;
       const isThinking = !!msg.isThinking;
+      if (!wasThinking && isThinking) {
+        startedThinking.push(msg.id);
+      }
       if (wasThinking && !isThinking) {
         finished.push(msg.id);
       }
@@ -1568,6 +1665,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             next.add(`${s.id}-${s.index}`);
           }
         }
+        return next;
+      });
+    }
+
+    if (startedThinking.length > 0) {
+      setExpandedThoughtIds((prev) => {
+        const next = new Set(prev);
+        for (const id of startedThinking) next.add(id);
         return next;
       });
     }
@@ -1600,7 +1705,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages, isTyping]);
 
   const handleSend = async () => {
-    if (!hasWalletConnection || !hasValidSession || isSessionChecking) return;
+    if (!hasWalletConnection || isSessionBlocked) return;
     if (!ensureUsageCredit()) return;
     if (
       !inputValue.trim() &&
@@ -1698,14 +1803,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     () => activeMarketIndicators.join(", "),
     [activeMarketIndicators],
   );
-  const chatContextFallback = useMemo(
-    () => ({
-      market: activeMarketLabel,
-      timeframe: activeMarketTimeframe,
-      indicator: activeMarketIndicatorsLabel,
-    }),
-    [activeMarketLabel, activeMarketTimeframe, activeMarketIndicatorsLabel],
-  );
   const hintedTimeframes = Array.from(
     new Set(
       selectedTimeframes
@@ -1734,8 +1831,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   );
   const sendBlockedByPrerequisite = Boolean(
     !hasWalletConnection ||
-    !hasValidSession ||
-    isSessionChecking ||
+    isSessionBlocked ||
     !hasUsageCredit,
   );
   const isSendDisabled =
@@ -1743,11 +1839,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     (isPreparingAttachments || sendBlockedByPrerequisite || !hasDraftContent);
   const sendButtonTitle = isTyping
     ? "Stop generation"
-    : isSessionChecking
+    : isSessionChecking && !hasStoredSessionForWallet
       ? "Checking session key..."
-      : !hasWalletConnection
+    : !hasWalletConnection
         ? "Connect wallet first"
-        : !hasValidSession
+        : isSessionBlocked
           ? "Create session key first"
           : !hasUsageCredit
             ? "AI credit empty. Deposit to AI Vault first"
@@ -1775,22 +1871,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className={styles.messageList}>
             {messages.map((msg) =>
               (() => {
-                const thoughtsList = Array.isArray(msg.thoughts)
-                  ? msg.thoughts
+                const thoughtsList = getRenderableThoughts(msg.thoughts);
+                const runtimePhases = Array.isArray(msg.runtimePhases)
+                  ? msg.runtimePhases
                   : [];
-                const messageContextSummary =
-                  msg.role === "assistant"
-                    ? extractMessageContextSummary(
-                        msg.content,
-                        chatContextFallback,
-                      )
-                    : {};
-                const hasMessageContextSummary = Boolean(
-                  messageContextSummary.market ||
-                  messageContextSummary.timeframe ||
-                  messageContextSummary.indicator,
-                );
-                const shouldShowThoughtBlock = thoughtsList.length > 0;
+                const shouldShowThoughtBlock =
+                  thoughtsList.length > 0 ||
+                  (msg.role === "assistant" &&
+                    (Boolean(msg.isThinking) || runtimePhases.length > 0));
+                const visibleThoughts =
+                  thoughtsList.length > 0
+                    ? thoughtsList
+                    : msg.role === "assistant" && msg.isThinking
+                      ? [
+                          {
+                            type: "info",
+                            title: "Initializing analysis",
+                            content: getAssistantLoadingLabel(msg),
+                            status: "running",
+                          },
+                        ]
+                      : [];
                 const hasAssistantContent = Boolean(
                   msg.role === "assistant" &&
                   msg.content &&
@@ -2105,7 +2206,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   <div className={styles.stepTreeLine}></div>
                                 </div>
 
-                                {(msg.thoughts || []).map(
+                                {visibleThoughts.map(
                                   (stepItem, idx, arr) => {
                                     const stepKey = `${msg.id}-${idx}`;
                                     const isStepExpanded =
@@ -2641,7 +2742,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 className={styles.resultList}
                                               >
                                                 {stepResults.map(
-                                                  (result, rIdx) => (
+                                                  (result: any, rIdx: number) => (
                                                     <a
                                                       key={rIdx}
                                                       href={result.url}
@@ -2805,41 +2906,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             </span>
                           </div>
                         )}
-                        {msg.role === "assistant" &&
-                          hasMessageContextSummary && (
-                            <div className={styles.messageContextRow}>
-                              {messageContextSummary.market && (
-                                <div className={styles.messageContextChip}>
-                                  <span className={styles.messageContextLabel}>
-                                    Market
-                                  </span>
-                                  <span className={styles.messageContextValue}>
-                                    {messageContextSummary.market}
-                                  </span>
-                                </div>
-                              )}
-                              {messageContextSummary.timeframe && (
-                                <div className={styles.messageContextChip}>
-                                  <span className={styles.messageContextLabel}>
-                                    Timeframe
-                                  </span>
-                                  <span className={styles.messageContextValue}>
-                                    {messageContextSummary.timeframe}
-                                  </span>
-                                </div>
-                              )}
-                              {messageContextSummary.indicator && (
-                                <div className={styles.messageContextChip}>
-                                  <span className={styles.messageContextLabel}>
-                                    Active Indicator
-                                  </span>
-                                  <span className={styles.messageContextValue}>
-                                    {messageContextSummary.indicator}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
                         <div className={styles.responseContent}>
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
@@ -3205,11 +3271,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ))}
               </div>
             )}
-            {(activeMarketLabel ||
-              activeMarketTimeframe ||
-              activeMarketIndicators.length > 0 ||
-              combinedHintValues.length > 0 ||
-              toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
+            {!isUsageBlocked &&
+              (activeMarketLabel ||
+                activeMarketTimeframe ||
+                activeMarketIndicators.length > 0 ||
+                combinedHintValues.length > 0 ||
+                toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
               <div className={styles.contextChipsRow}>
                 {activeMarketLabel && (
                   <button
@@ -3300,7 +3367,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             )}
             <textarea
-              className={styles.inputField}
+              className={`${styles.inputField} ${isUsageBlocked ? styles.inputFieldBlocked : ""}`}
               placeholder={
                 isUsageBlocked
                   ? "Deposit AI Vault credit to start chatting..."

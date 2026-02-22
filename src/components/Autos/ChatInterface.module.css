@@ -283,6 +283,7 @@
 
 .chatGateNotice {
     margin: 10px 12px 0 12px;
+    margin-bottom: 10px;
     padding: 8px 10px;
     border: 1px solid #5a3a2a;
     border-radius: 10px;
@@ -290,6 +291,8 @@
     color: #ffd8c2;
     font-size: 12px;
     line-height: 1.35;
+    position: relative;
+    z-index: 1;
 }
 
 .aiPlanCard {
@@ -556,6 +559,10 @@
     display: block;
     overflow-y: auto;
     /* Enable scrollbar when max-height is reached */
+}
+
+.inputFieldBlocked {
+    min-height: 64px;
 }
 
 .inputField::placeholder {

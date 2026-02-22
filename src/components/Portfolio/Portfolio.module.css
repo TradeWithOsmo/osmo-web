@@ -277,6 +277,30 @@
     /* Grey similar to screenshot */
 }
 
+.legendLabelRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.legendSelect {
+    background-color: #1E0A14;
+    color: #FFE1F2;
+    border: 1px solid #3A2530;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1;
+    padding: 2px 6px;
+    outline: none;
+}
+
+.legendSubValue {
+    font-size: 12px;
+    color: #A77590;
+    line-height: 1.2;
+}
+
 /* Grid for Account Boxes - Merging to one container look */
 .accountGrid {
     display: flex;
