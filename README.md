@@ -77,6 +77,48 @@ npm run build-storybook
 - `src/contracts/abis/` - smart contract ABI files consumed by the UI
 - `src/store/` - global state stores
 
+## Mermaid Diagram
+
+```mermaid
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'quadrant1Fill': '#2d1b2e',
+    'quadrant2Fill': '#2d1b2e',
+    'quadrant3Fill': '#2d1b2e',
+    'quadrant4Fill': '#2d1b2e',
+    'quadrant1TextFill': '#FFE4FB',
+    'quadrant2TextFill': '#FFE4FB',
+    'quadrant3TextFill': '#FFE4FB',
+    'quadrant4TextFill': '#FFE4FB',
+    'quadrantPointFill': '#ff69b4',
+    'quadrantPointTextFill': '#FFE4FB',
+    'quadrantXAxisTextFill': '#FFE4FB',
+    'quadrantYAxisTextFill': '#FFE4FB',
+    'fontFamily': 'Inter, sans-serif'
+  }
+}}%%
+
+quadrantChart
+    title Competitive Positioning Map
+    x-axis "DISCRETIONARY TRADING" --> "CAPITAL EFFICIENCY"
+    y-axis "MANUAL INTERFACE" --> "AI-AUGMENTED TRADING"
+    quadrant-1 "AI + EFFICIENT"
+    quadrant-2 "AI + DISCRETIONARY"
+    quadrant-3 "MANUAL + DISCRETIONARY"
+    quadrant-4 "MANUAL + EFFICIENT"
+
+    Osmo: [0.88, 0.92]
+    Hyperliquid: [0.82, 0.42]
+    Aster: [0.78, 0.38]
+    Lighter: [0.84, 0.40]
+    Ostium: [0.68, 0.48]
+    vooi: [0.58, 0.52]
+    Variational: [0.38, 0.78]
+    Paradex: [0.48, 0.26]
+    grvt: [0.42, 0.28]
+```
+
 ## TradingView Library Note
 
 TradingView charting library artifacts are intentionally not committed in full.  

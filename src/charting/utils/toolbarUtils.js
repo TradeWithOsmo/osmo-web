@@ -92,18 +92,8 @@ export const addCustomTimeframes = (tvWidget) => {
 };
 
 export const addIndicatorsButton = (tvWidget) => {
-  // Add custom Indicators button
-  const indicatorsButton = tvWidget.createButton({
-    options: {
-      text: '📊 Indicators',
-      onClick: () => {
-        // Open indicators dialog
-        tvWidget.chart().createStudy('MACD');
-      }
-    }
-  });
-
-  return indicatorsButton;
+  // Button removed - indicators are added via AI/agent actions only
+  return null;
 };
 
 export const addTradingButtons = (tvWidget) => {
@@ -144,13 +134,5 @@ export const addTradingButtons = (tvWidget) => {
 };
 
 export const customizeToolbar = (tvWidget) => {
-  // Hide default elements and add custom ones
-  const chart = tvWidget.chart();
-  
-  // Customize header
-  chart.createStudy('Moving Average', false, false, {
-    length: 20,
-    source: 'close',
-    offset: 0
-  });
+  // No auto-added indicators - all indicators are added via user actions only
 };

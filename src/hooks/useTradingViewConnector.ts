@@ -555,12 +555,46 @@ export const useTradingViewConnector = (
                         const value = latestRow[index];
                         indicators[finalName] = value;
                     });
-                } else {
-                    // Fallback to basic extraction if exportData fails
-                    const studies = chart.getAllStudies();
-                    studies.forEach((study: any) => {
-                        indicators[study.name] = { id: study.id, inputs: study.getInputs() };
-                    });
+                }
+
+                // Also extract from overlay studies using getStudyById
+                // This is needed because exportData may not include price overlay studies properly
+                const allStudies = chart.getAllStudies?.() || [];
+                for (const study of allStudies) {
+                    const studyName = String(study?.name || '').trim();
+                    if (!studyName) continue;
+                    
+                    // Skip volume studies (already handled)
+                    if (isVolumeStudyName(studyName)) continue;
+                    
+                    try {
+                        const studyApi = chart.getStudyById?.(study.id);
+                        if (studyApi) {
+                            const inputValues = studyApi.getInputValues?.() || [];
+                            const inputs: Record<string, any> = {};
+                            inputValues.forEach((inp: any) => {
+                                if (inp?.id && inp?.value !== undefined) {
+                                    inputs[inp.id] = inp.value;
+                                }
+                            });
+                            
+                            // Store study info with inputs
+                            const cleanName = studyName
+                                .replace(/\s+/g, '_')
+                                .replace(/[()]/g, '')
+                                .replace(/,/g, '');
+                            
+                            if (!indicators[cleanName] && !indicators[`${cleanName}_overlay`]) {
+                                indicators[`${cleanName}_overlay`] = {
+                                    id: study.id,
+                                    name: studyName,
+                                    inputs,
+                                };
+                            }
+                        }
+                    } catch (e) {
+                        // Silently ignore study API errors
+                    }
                 }
 
                 // Basic payload
