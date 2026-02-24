@@ -433,9 +433,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const usageCreditBalance = Number(stats?.credit_balance ?? 0);
   const hasUsageCredit = usageCreditBalance > 0;
   const isUsageBlocked = Boolean(
-    hasWalletConnection &&
-    !isSessionBlocked &&
-    !hasUsageCredit,
+    hasWalletConnection && !isSessionBlocked && !hasUsageCredit,
   );
 
   const ensureUsageCredit = () => {
@@ -1125,8 +1123,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     rawTitle: string,
     rawContent: string,
   ): { title: string; content: string } => {
-    const title = String(rawTitle || "").trim();
-    const content = String(rawContent || "").trim();
+    let title = String(rawTitle || "").trim();
+    let content = String(rawContent || "").trim();
+    
+    content = content
+      .replace(/<\/?step_\d+\/\d+>/gi, "")
+      .replace(/<\/?reflexion_update>/gi, "")
+      .replace(/<\/?reflection>/gi, "")
+      .replace(/<\/?thinking>/gi, "")
+      .replace(/<\/?scratchpad>/gi, "")
+      .replace(/<\/?internal>/gi, "")
+      .replace(/<\/?analysis>/gi, "");
+    
+    title = title
+      .replace(/<\/?step_\d+\/\d+>/gi, "")
+      .replace(/<\/?reflexion_update>/gi, "")
+      .replace(/<\/?reflection>/gi, "")
+      .replace(/<\/?thinking>/gi, "")
+      .replace(/<\/?scratchpad>/gi, "")
+      .replace(/<\/?internal>/gi, "")
+      .replace(/<\/?analysis>/gi, "")
+      .trim();
+    
     const isGenericTitle =
       !title || /^reasoning(?:\s*(?:trace|\d+))?$/i.test(title);
 
@@ -1162,7 +1180,92 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     String(raw || "")
       .replace(/\r\n/g, "\n")
       .replace(/\\n/g, "\n")
+      .replace(/<\/?step_\d+\/\d+>/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
       .trim();
+
+  const cleanReasoningContent = (raw: string): string => {
+    let content = String(raw || "");
+    
+    content = content.replace(/<\/?step_\d+\/\d+>/gi, "");
+    content = content.replace(/<\/?reflexion_update>/gi, "");
+    content = content.replace(/<\/?reflection>/gi, "");
+    content = content.replace(/<\/?thinking>/gi, "");
+    content = content.replace(/<\/?scratchpad>/gi, "");
+    content = content.replace(/<\/?internal>/gi, "");
+    content = content.replace(/<\/?analysis>/gi, "");
+    content = content.replace(/\[SOURCE\]/gi, "**Source:**");
+    content = content.replace(/\[Tools\]/gi, "**Tools:**");
+    content = content.replace(/\[Active Market\]/gi, "**Active Market:**");
+    content = content.replace(/\[NORMAL\]/gi, "");
+    content = content.replace(/\[TREAT\]/gi, "");
+    content = content.replace(/\[ABOVE\]/gi, "");
+    
+    content = content
+      .replace(/\r\n/g, "\n")
+      .replace(/\\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    
+    return content;
+  };
+
+  const extractResponseContent = (raw: string, thoughts?: (string | ThoughtStep)[]): string => {
+    let content = String(raw || "");
+    
+    const stepTagRegex = /<\/?step_\d+\/\d+>/gi;
+    const hasStepTags = stepTagRegex.test(content);
+    
+    if (hasStepTags) {
+      const parts = content.split(/<\/?step_\d+\/\d+>/i);
+      const nonEmptyParts = parts
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0);
+      
+      if (nonEmptyParts.length > 1) {
+        const lastPart = nonEmptyParts[nonEmptyParts.length - 1];
+        const firstPart = nonEmptyParts[0];
+        
+        if (Array.isArray(thoughts) && thoughts.length > 0) {
+          content = lastPart;
+        } else {
+          const isReasoningFirst = /^(oke|okay|let me|i will|i'll|thinking|analyzing|considering|first|now|so|well)/i.test(firstPart.substring(0, 50));
+          
+          if (isReasoningFirst && nonEmptyParts.length >= 2) {
+            content = lastPart;
+          } else {
+            content = nonEmptyParts.join("\n\n");
+          }
+        }
+      } else if (nonEmptyParts.length === 1) {
+        content = nonEmptyParts[0];
+      }
+    }
+    
+    content = content
+      .replace(stepTagRegex, "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    
+    if (Array.isArray(thoughts) && thoughts.length > 0) {
+      const thoughtTexts = thoughts
+        .map((t) => (typeof t === "string" ? t : t?.content || t?.title || ""))
+        .filter(Boolean)
+        .map((t) => t.trim());
+      
+      for (const thoughtText of thoughtTexts) {
+        if (thoughtText.length > 20 && content.includes(thoughtText)) {
+          content = content.replace(thoughtText, "").trim();
+        }
+      }
+      
+      content = content.replace(/\n{3,}/g, "\n\n").trim();
+    }
+    
+    return content;
+  };
 
   const isReasoningFallbackText = (value: string): boolean => {
     const text = String(value || "")
@@ -1219,7 +1322,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const derived: any[] = [];
     const toolWord = stats.steps === 1 ? "tool call" : "tool calls";
     const retryWord = stats.retried === 1 ? "retry" : "retries";
-    const reflectionWord = stats.reflections === 1 ? "reflection" : "reflections";
+    const reflectionWord =
+      stats.reflections === 1 ? "reflection" : "reflections";
 
     const primaryNarrative =
       stats.errors > 0
@@ -1830,9 +1934,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     inputValue.trim() || attachments.length > 0 || inputLinks.length > 0,
   );
   const sendBlockedByPrerequisite = Boolean(
-    !hasWalletConnection ||
-    isSessionBlocked ||
-    !hasUsageCredit,
+    !hasWalletConnection || isSessionBlocked || !hasUsageCredit,
   );
   const isSendDisabled =
     !isTyping &&
@@ -1841,7 +1943,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     ? "Stop generation"
     : isSessionChecking && !hasStoredSessionForWallet
       ? "Checking session key..."
-    : !hasWalletConnection
+      : !hasWalletConnection
         ? "Connect wallet first"
         : isSessionBlocked
           ? "Create session key first"
@@ -2206,677 +2308,639 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   <div className={styles.stepTreeLine}></div>
                                 </div>
 
-                                {visibleThoughts.map(
-                                  (stepItem, idx, arr) => {
-                                    const stepKey = `${msg.id}-${idx}`;
-                                    const isStepExpanded =
-                                      expandedStepKeys.has(stepKey);
+                                {visibleThoughts.map((stepItem, idx, arr) => {
+                                  const stepKey = `${msg.id}-${idx}`;
+                                  const isStepExpanded =
+                                    expandedStepKeys.has(stepKey);
 
-                                    // Handle legacy string steps or new object steps
-                                    const isObject =
-                                      typeof stepItem === "object";
-                                    const legacyParsed = !isObject
-                                      ? parseLegacyThoughtText(
-                                          String(stepItem || ""),
+                                  // Handle legacy string steps or new object steps
+                                  const isObject = typeof stepItem === "object";
+                                  const legacyParsed = !isObject
+                                    ? parseLegacyThoughtText(
+                                        String(stepItem || ""),
+                                      )
+                                    : null;
+                                  const rawStepTitle = String(
+                                    isObject
+                                      ? stepItem.title || ""
+                                      : legacyParsed?.title || String(stepItem),
+                                  );
+                                  const stepType = normalizeThoughtType(
+                                    isObject
+                                      ? (stepItem as any).type
+                                      : legacyParsed?.type || "text",
+                                    rawStepTitle,
+                                  );
+                                  const rawStepContent = String(
+                                    isObject
+                                      ? (stepItem as any).content || ""
+                                      : legacyParsed?.content || "",
+                                  );
+                                  const reasoningPresentation =
+                                    stepType === "reasoning"
+                                      ? deriveReasoningPresentation(
+                                          rawStepTitle,
+                                          rawStepContent,
                                         )
                                       : null;
-                                    const rawStepTitle = String(
-                                      isObject
-                                        ? stepItem.title || ""
-                                        : legacyParsed?.title ||
-                                            String(stepItem),
-                                    );
-                                    const stepType = normalizeThoughtType(
-                                      isObject
-                                        ? (stepItem as any).type
-                                        : legacyParsed?.type || "text",
-                                      rawStepTitle,
-                                    );
-                                    const rawStepContent = String(
-                                      isObject
-                                        ? (stepItem as any).content || ""
-                                        : legacyParsed?.content || "",
-                                    );
-                                    const reasoningPresentation =
-                                      stepType === "reasoning"
-                                        ? deriveReasoningPresentation(
-                                            rawStepTitle,
-                                            rawStepContent,
-                                          )
-                                        : null;
-                                    const stepTitle =
-                                      reasoningPresentation?.title ||
-                                      rawStepTitle;
-                                    const stepContent =
-                                      reasoningPresentation?.content ||
-                                      rawStepContent;
-                                    const stepResults =
-                                      isObject && stepItem.type === "browsing"
-                                        ? stepItem.results
-                                        : undefined;
-                                    const stepToolName = isObject
-                                      ? (stepItem as any).toolName
-                                      : String(legacyParsed?.toolName || "");
-                                    const stepPhase = isObject
-                                      ? String((stepItem as any).phase || "")
-                                      : String(legacyParsed?.phase || "");
-                                    const stepStatus = isObject
-                                      ? String(
-                                          (stepItem as any).status || "",
-                                        ).toLowerCase()
-                                      : "";
-                                    const stepMeta = isObject
-                                      ? (stepItem as any).meta
-                                      : {};
+                                  const stepTitle =
+                                    reasoningPresentation?.title ||
+                                    rawStepTitle;
+                                  const stepContent =
+                                    reasoningPresentation?.content ||
+                                    rawStepContent;
+                                  const stepResults =
+                                    isObject && stepItem.type === "browsing"
+                                      ? stepItem.results
+                                      : undefined;
+                                  const stepToolName = isObject
+                                    ? (stepItem as any).toolName
+                                    : String(legacyParsed?.toolName || "");
+                                  const stepPhase = isObject
+                                    ? String((stepItem as any).phase || "")
+                                    : String(legacyParsed?.phase || "");
+                                  const stepStatus = isObject
+                                    ? String(
+                                        (stepItem as any).status || "",
+                                      ).toLowerCase()
+                                    : "";
+                                  const stepMeta = isObject
+                                    ? (stepItem as any).meta
+                                    : {};
 
-                                    // HITL: Check for trade proposal
-                                    if (
-                                      stepToolName === "place_order" &&
-                                      stepMeta?.status === "proposal"
-                                    ) {
-                                      const order = stepMeta.order || {};
-                                      return (
-                                        <div
-                                          key={idx}
-                                          style={{
-                                            border: "1px solid #3A2530",
-                                            borderRadius: 8,
-                                            padding: 12,
-                                            margin: "8px 0",
-                                            background: "rgba(58, 37, 48, 0.3)",
-                                          }}
-                                        >
-                                          <div
-                                            style={{
-                                              fontWeight: "bold",
-                                              marginBottom: 8,
-                                              color: "#FF9800",
-                                            }}
-                                          >
-                                            Trade Proposal Requires Approval
-                                          </div>
-                                          <div
-                                            style={{
-                                              display: "grid",
-                                              gridTemplateColumns:
-                                                "min-content 1fr",
-                                              gap: "4px 12px",
-                                              fontSize: "0.9em",
-                                              marginBottom: 12,
-                                            }}
-                                          >
-                                            <span style={{ color: "#A77590" }}>
-                                              Symbol:
-                                            </span>{" "}
-                                            <span>{order.symbol}</span>
-                                            <span style={{ color: "#A77590" }}>
-                                              Side:
-                                            </span>{" "}
-                                            <span
-                                              style={{
-                                                textTransform: "uppercase",
-                                                color:
-                                                  order.side === "buy"
-                                                    ? "#4CAF50"
-                                                    : "#F44336",
-                                              }}
-                                            >
-                                              {order.side}
-                                            </span>
-                                            <span style={{ color: "#A77590" }}>
-                                              Amount:
-                                            </span>{" "}
-                                            <span>${order.amount_usd}</span>
-                                            <span style={{ color: "#A77590" }}>
-                                              Lev:
-                                            </span>{" "}
-                                            <span>{order.leverage || 1}x</span>
-                                          </div>
-                                          <div
-                                            style={{ display: "flex", gap: 8 }}
-                                          >
-                                            <button
-                                              disabled={
-                                                !toolStates.execution ||
-                                                !hasUsageCredit
-                                              }
-                                              onClick={async (e) => {
-                                                e.stopPropagation();
-                                                if (!toolStates.execution)
-                                                  return;
-                                                if (!ensureUsageCredit())
-                                                  return;
-                                                const content = `Execute order for ${order.symbol} now.`;
-                                                const modelId =
-                                                  getSelectedModelId();
-                                                if (!modelId) return;
-                                                const outboundToolStates =
-                                                  await resolveDispatchToolStates();
-                                                onSendMessage(
-                                                  content,
-                                                  modelId,
-                                                  [],
-                                                  outboundToolStates,
-                                                );
-                                              }}
-                                              style={{
-                                                background: "#4CAF50",
-                                                color: "white",
-                                                border: "none",
-                                                padding: "6px 12px",
-                                                borderRadius: 4,
-                                                cursor: toolStates.execution
-                                                  ? hasUsageCredit
-                                                    ? "pointer"
-                                                    : "not-allowed"
-                                                  : "not-allowed",
-                                                opacity:
-                                                  toolStates.execution &&
-                                                  hasUsageCredit
-                                                    ? 1
-                                                    : 0.6,
-                                                fontWeight: 500,
-                                                fontSize: "0.9em",
-                                              }}
-                                            >
-                                              Approve
-                                            </button>
-                                            <button
-                                              disabled={!hasUsageCredit}
-                                              onClick={async (e) => {
-                                                e.stopPropagation();
-                                                if (!ensureUsageCredit())
-                                                  return;
-                                                const modelId =
-                                                  getSelectedModelId();
-                                                if (!modelId) return;
-                                                const outboundToolStates =
-                                                  await resolveDispatchToolStates();
-                                                onSendMessage(
-                                                  "Cancel the proposed order.",
-                                                  modelId,
-                                                  [],
-                                                  outboundToolStates,
-                                                );
-                                              }}
-                                              style={{
-                                                background: "transparent",
-                                                color: "#F44336",
-                                                border: "1px solid #F44336",
-                                                padding: "6px 12px",
-                                                borderRadius: 4,
-                                                cursor: hasUsageCredit
-                                                  ? "pointer"
-                                                  : "not-allowed",
-                                                opacity: hasUsageCredit
-                                                  ? 1
-                                                  : 0.6,
-                                                fontWeight: 500,
-                                                fontSize: "0.9em",
-                                              }}
-                                            >
-                                              Reject
-                                            </button>
-                                          </div>
-                                        </div>
-                                      );
-                                    }
-
-                                    const hasDetail =
-                                      (stepType === "browsing" &&
-                                        Array.isArray(stepResults) &&
-                                        stepResults.length > 0) ||
-                                      (stepType === "code" &&
-                                        !!stepContent.trim()) ||
-                                      (stepType === "tool" &&
-                                        !!stepContent.trim() &&
-                                        stepContent.trim() !==
-                                          stepTitle.trim()) ||
-                                      (stepType === "reasoning" &&
-                                        !!stepContent.trim()) ||
-                                      (stepType === "text" &&
-                                        !!stepContent.trim() &&
-                                        stepContent.trim() !==
-                                          stepTitle.trim());
-
-                                    // Reasoning type icons and colors
-                                    const getReasoningStyle = (
-                                      title: string,
-                                    ) => {
-                                      const t = title.toLowerCase();
-                                      if (t.includes("intent"))
-                                        return {
-                                          icon: "🎯",
-                                          color: "#4CAF50",
-                                          label: "User Intent",
-                                        };
-                                      if (t.includes("context"))
-                                        return {
-                                          icon: "📊",
-                                          color: "#2196F3",
-                                          label: "Context",
-                                        };
-                                      if (t.includes("evidence needed"))
-                                        return {
-                                          icon: "🔍",
-                                          color: "#9C27B0",
-                                          label: "Evidence Needed",
-                                        };
-                                      if (t.includes("evidence gathered"))
-                                        return {
-                                          icon: "✅",
-                                          color: "#00BCD4",
-                                          label: "Evidence Gathered",
-                                        };
-                                      if (t.includes("analysis"))
-                                        return {
-                                          icon: "📈",
-                                          color: "#FF9800",
-                                          label: "Analysis",
-                                        };
-                                      if (t.includes("risk"))
-                                        return {
-                                          icon: "⚠️",
-                                          color: "#F44336",
-                                          label: "Risks",
-                                        };
-                                      if (t.includes("confidence"))
-                                        return {
-                                          icon: "💯",
-                                          color: "#8BC34A",
-                                          label: "Confidence",
-                                        };
-                                      if (
-                                        t.includes("react") ||
-                                        t.includes("strict")
-                                      )
-                                        return {
-                                          icon: "🔄",
-                                          color: "#607D8B",
-                                          label: "Process",
-                                        };
-                                      return {
-                                        icon: "💭",
-                                        color: "#A77590",
-                                        label: title,
-                                      };
-                                    };
-
+                                  // HITL: Check for trade proposal
+                                  if (
+                                    stepToolName === "place_order" &&
+                                    stepMeta?.status === "proposal"
+                                  ) {
+                                    const order = stepMeta.order || {};
                                     return (
                                       <div
                                         key={idx}
                                         style={{
-                                          borderBottom:
-                                            idx === arr.length - 1
-                                              ? "none"
-                                              : "1px solid #3A2530",
+                                          border: "1px solid #3A2530",
+                                          borderRadius: 8,
+                                          padding: 12,
+                                          margin: "8px 0",
+                                          background: "rgba(58, 37, 48, 0.3)",
                                         }}
                                       >
                                         <div
-                                          className={styles.thinkingStep}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (hasDetail) {
-                                              toggleStep(msg.id, idx);
-                                            }
+                                          style={{
+                                            fontWeight: "bold",
+                                            marginBottom: 8,
+                                            color: "#FF9800",
                                           }}
-                                          role={
-                                            hasDetail ? "button" : undefined
-                                          }
-                                          aria-expanded={
-                                            hasDetail
-                                              ? isStepExpanded
-                                              : undefined
-                                          }
-                                          style={{ borderBottom: "none" }}
                                         >
-                                          {stepType === "browsing" ? (
-                                            <div
-                                              className={styles.browsingHeader}
-                                            >
-                                              <div
-                                                className={styles.browsingLeft}
-                                              >
-                                                {/* Globe Icon for Browsing */}
-                                                <div
-                                                  className={styles.stepIcon}
-                                                >
-                                                  <svg
-                                                    width="14"
-                                                    height="14"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                  >
-                                                    <circle
-                                                      cx="12"
-                                                      cy="12"
-                                                      r="10"
-                                                    />
-                                                    <path d="M2 12h20" />
-                                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                                                  </svg>
-                                                </div>
-                                                <span>{stepTitle}</span>
-                                              </div>
-                                              <div
-                                                className={
-                                                  styles.stepResultCount
-                                                }
-                                              >
-                                                {stepResults
-                                                  ? `${stepResults.length} results`
-                                                  : ""}
-                                                {hasDetail && (
-                                                  <svg
-                                                    width="14"
-                                                    height="14"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    style={{
-                                                      transform: isStepExpanded
-                                                        ? "rotate(180deg)"
-                                                        : "rotate(0deg)",
-                                                      transition:
-                                                        "transform 0.2s",
-                                                    }}
-                                                  >
-                                                    <path d="M6 9l6 6 6-6" />
-                                                  </svg>
-                                                )}
-                                              </div>
-                                            </div>
-                                          ) : stepType === "code" ? (
-                                            // Code Step
-                                            <div
-                                              style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "12px",
-                                                width: "100%",
-                                              }}
-                                            >
-                                              <div className={styles.stepIcon}>
-                                                {/* Code Icon */}
-                                                <svg
-                                                  width="14"
-                                                  height="14"
-                                                  viewBox="0 0 24 24"
-                                                  fill="none"
-                                                  stroke="#3B2030"
-                                                  strokeWidth="2"
-                                                >
-                                                  <polyline points="16 18 22 12 16 6" />
-                                                  <polyline points="8 6 2 12 8 18" />
-                                                </svg>
-                                              </div>
-                                              <span style={{ flex: 1 }}>
-                                                {stepTitle}
-                                              </span>
-                                              {hasDetail && (
-                                                <svg
-                                                  width="14"
-                                                  height="14"
-                                                  viewBox="0 0 24 24"
-                                                  fill="none"
-                                                  stroke="#3A2530"
-                                                  strokeWidth="2"
-                                                  style={{
-                                                    transform: isStepExpanded
-                                                      ? "rotate(180deg)"
-                                                      : "rotate(0deg)",
-                                                    transition:
-                                                      "transform 0.2s",
-                                                  }}
-                                                >
-                                                  <path d="M6 9l6 6 6-6" />
-                                                </svg>
-                                              )}
-                                            </div>
-                                          ) : stepType === "tool" ? (
-                                            <div
-                                              className={styles.toolStepContent}
-                                            >
-                                              <div className={styles.stepIcon}>
-                                                <svg
-                                                  width="14"
-                                                  height="14"
-                                                  viewBox="0 0 24 24"
-                                                  fill="none"
-                                                  stroke="#A77590"
-                                                  strokeWidth="2"
-                                                >
-                                                  <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-3.2-3.2 2.4-2z" />
-                                                </svg>
-                                              </div>
-                                              <span style={{ flex: 1 }}>
-                                                {stepTitle}
-                                              </span>
-                                              <span
-                                                className={`${styles.toolStepPill} ${stepStatus === "error" ? styles.toolStepPillError : styles.toolStepPillOk}`}
-                                              >
-                                                {stepToolName ||
-                                                  (stepPhase
-                                                    ? stepPhase.replace(
-                                                        /_/g,
-                                                        " ",
-                                                      )
-                                                    : "tool")}
-                                              </span>
-                                              {hasDetail && (
-                                                <svg
-                                                  width="14"
-                                                  height="14"
-                                                  viewBox="0 0 24 24"
-                                                  fill="none"
-                                                  stroke="#3A2530"
-                                                  strokeWidth="2"
-                                                  style={{
-                                                    transform: isStepExpanded
-                                                      ? "rotate(180deg)"
-                                                      : "rotate(0deg)",
-                                                    transition:
-                                                      "transform 0.2s",
-                                                  }}
-                                                >
-                                                  <path d="M6 9l6 6 6-6" />
-                                                </svg>
-                                              )}
-                                            </div>
-                                          ) : (
-                                            // Text Step
-                                            <div
-                                              style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "12px",
-                                                width: "100%",
-                                              }}
-                                            >
-                                              <div className={styles.stepIcon}>
-                                                {/* Dot Icon for Text */}
-                                                <div
-                                                  style={{
-                                                    width: "6px",
-                                                    height: "6px",
-                                                    backgroundColor: "#3A2530",
-                                                    borderRadius: "50%",
-                                                  }}
-                                                ></div>
-                                              </div>
-                                              <span style={{ flex: 1 }}>
-                                                {stepTitle}
-                                              </span>
-                                              {hasDetail && (
-                                                <svg
-                                                  width="14"
-                                                  height="14"
-                                                  viewBox="0 0 24 24"
-                                                  fill="none"
-                                                  stroke="#3A2530"
-                                                  strokeWidth="2"
-                                                  style={{
-                                                    transform: isStepExpanded
-                                                      ? "rotate(180deg)"
-                                                      : "rotate(0deg)",
-                                                    transition:
-                                                      "transform 0.2s",
-                                                  }}
-                                                >
-                                                  <path d="M6 9l6 6 6-6" />
-                                                </svg>
-                                              )}
-                                            </div>
-                                          )}
+                                          Trade Proposal Requires Approval
                                         </div>
+                                        <div
+                                          style={{
+                                            display: "grid",
+                                            gridTemplateColumns:
+                                              "min-content 1fr",
+                                            gap: "4px 12px",
+                                            fontSize: "0.9em",
+                                            marginBottom: 12,
+                                          }}
+                                        >
+                                          <span style={{ color: "#A77590" }}>
+                                            Symbol:
+                                          </span>{" "}
+                                          <span>{order.symbol}</span>
+                                          <span style={{ color: "#A77590" }}>
+                                            Side:
+                                          </span>{" "}
+                                          <span
+                                            style={{
+                                              textTransform: "uppercase",
+                                              color:
+                                                order.side === "buy"
+                                                  ? "#4CAF50"
+                                                  : "#F44336",
+                                            }}
+                                          >
+                                            {order.side}
+                                          </span>
+                                          <span style={{ color: "#A77590" }}>
+                                            Amount:
+                                          </span>{" "}
+                                          <span>${order.amount_usd}</span>
+                                          <span style={{ color: "#A77590" }}>
+                                            Lev:
+                                          </span>{" "}
+                                          <span>{order.leverage || 1}x</span>
+                                        </div>
+                                        <div
+                                          style={{ display: "flex", gap: 8 }}
+                                        >
+                                          <button
+                                            disabled={
+                                              !toolStates.execution ||
+                                              !hasUsageCredit
+                                            }
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              if (!toolStates.execution) return;
+                                              if (!ensureUsageCredit()) return;
+                                              const content = `Execute order for ${order.symbol} now.`;
+                                              const modelId =
+                                                getSelectedModelId();
+                                              if (!modelId) return;
+                                              const outboundToolStates =
+                                                await resolveDispatchToolStates();
+                                              onSendMessage(
+                                                content,
+                                                modelId,
+                                                [],
+                                                outboundToolStates,
+                                              );
+                                            }}
+                                            style={{
+                                              background: "#4CAF50",
+                                              color: "white",
+                                              border: "none",
+                                              padding: "6px 12px",
+                                              borderRadius: 4,
+                                              cursor: toolStates.execution
+                                                ? hasUsageCredit
+                                                  ? "pointer"
+                                                  : "not-allowed"
+                                                : "not-allowed",
+                                              opacity:
+                                                toolStates.execution &&
+                                                hasUsageCredit
+                                                  ? 1
+                                                  : 0.6,
+                                              fontWeight: 500,
+                                              fontSize: "0.9em",
+                                            }}
+                                          >
+                                            Approve
+                                          </button>
+                                          <button
+                                            disabled={!hasUsageCredit}
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              if (!ensureUsageCredit()) return;
+                                              const modelId =
+                                                getSelectedModelId();
+                                              if (!modelId) return;
+                                              const outboundToolStates =
+                                                await resolveDispatchToolStates();
+                                              onSendMessage(
+                                                "Cancel the proposed order.",
+                                                modelId,
+                                                [],
+                                                outboundToolStates,
+                                              );
+                                            }}
+                                            style={{
+                                              background: "transparent",
+                                              color: "#F44336",
+                                              border: "1px solid #F44336",
+                                              padding: "6px 12px",
+                                              borderRadius: 4,
+                                              cursor: hasUsageCredit
+                                                ? "pointer"
+                                                : "not-allowed",
+                                              opacity: hasUsageCredit ? 1 : 0.6,
+                                              fontWeight: 500,
+                                              fontSize: "0.9em",
+                                            }}
+                                          >
+                                            Reject
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
 
-                                        {/* Expanded Content */}
-                                        {hasDetail && isStepExpanded && (
-                                          <div className={styles.stepDetail}>
-                                            {stepType === "browsing" &&
-                                            stepResults ? (
-                                              <div
-                                                className={styles.resultList}
-                                              >
-                                                {stepResults.map(
-                                                  (result: any, rIdx: number) => (
-                                                    <a
-                                                      key={rIdx}
-                                                      href={result.url}
-                                                      className={
-                                                        styles.resultItem
-                                                      }
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                      onClick={(e) =>
-                                                        e.stopPropagation()
-                                                      }
-                                                    >
-                                                      <img
-                                                        src={
-                                                          result.icon ||
-                                                          `https://www.google.com/s2/favicons?domain=${result.domain}`
-                                                        }
-                                                        alt=""
-                                                        onError={(e) => {
-                                                          e.currentTarget.style.display =
-                                                            "none";
-                                                        }}
-                                                      />
-                                                      <div
-                                                        className={
-                                                          styles.resultText
-                                                        }
-                                                      >
-                                                        <div
-                                                          className={
-                                                            styles.resultTitle
-                                                          }
-                                                        >
-                                                          {result.title}
-                                                        </div>
-                                                        <div
-                                                          className={
-                                                            styles.resultDomain
-                                                          }
-                                                        >
-                                                          {result.domain}
-                                                        </div>
-                                                      </div>
-                                                    </a>
-                                                  ),
-                                                )}
+                                  const hasDetail =
+                                    (stepType === "browsing" &&
+                                      Array.isArray(stepResults) &&
+                                      stepResults.length > 0) ||
+                                    (stepType === "code" &&
+                                      !!stepContent.trim()) ||
+                                    (stepType === "tool" &&
+                                      !!stepContent.trim() &&
+                                      stepContent.trim() !==
+                                        stepTitle.trim()) ||
+                                    (stepType === "reasoning" &&
+                                      !!stepContent.trim()) ||
+                                    (stepType === "text" &&
+                                      !!stepContent.trim() &&
+                                      stepContent.trim() !== stepTitle.trim());
+
+                                  // Reasoning type icons and colors
+                                  const getReasoningStyle = (title: string) => {
+                                    const t = title.toLowerCase();
+                                    if (t.includes("intent"))
+                                      return {
+                                        icon: "🎯",
+                                        color: "#4CAF50",
+                                        label: "User Intent",
+                                      };
+                                    if (t.includes("context"))
+                                      return {
+                                        icon: "📊",
+                                        color: "#2196F3",
+                                        label: "Context",
+                                      };
+                                    if (t.includes("evidence needed"))
+                                      return {
+                                        icon: "🔍",
+                                        color: "#9C27B0",
+                                        label: "Evidence Needed",
+                                      };
+                                    if (t.includes("evidence gathered"))
+                                      return {
+                                        icon: "✅",
+                                        color: "#00BCD4",
+                                        label: "Evidence Gathered",
+                                      };
+                                    if (t.includes("analysis"))
+                                      return {
+                                        icon: "📈",
+                                        color: "#FF9800",
+                                        label: "Analysis",
+                                      };
+                                    if (t.includes("risk"))
+                                      return {
+                                        icon: "⚠️",
+                                        color: "#F44336",
+                                        label: "Risks",
+                                      };
+                                    if (t.includes("confidence"))
+                                      return {
+                                        icon: "💯",
+                                        color: "#8BC34A",
+                                        label: "Confidence",
+                                      };
+                                    if (
+                                      t.includes("react") ||
+                                      t.includes("strict")
+                                    )
+                                      return {
+                                        icon: "🔄",
+                                        color: "#607D8B",
+                                        label: "Process",
+                                      };
+                                    return {
+                                      icon: "💭",
+                                      color: "#A77590",
+                                      label: title,
+                                    };
+                                  };
+
+                                  return (
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        borderBottom:
+                                          idx === arr.length - 1
+                                            ? "none"
+                                            : "1px solid #3A2530",
+                                      }}
+                                    >
+                                      <div
+                                        className={styles.thinkingStep}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (hasDetail) {
+                                            toggleStep(msg.id, idx);
+                                          }
+                                        }}
+                                        role={hasDetail ? "button" : undefined}
+                                        aria-expanded={
+                                          hasDetail ? isStepExpanded : undefined
+                                        }
+                                        style={{ borderBottom: "none" }}
+                                      >
+                                        {stepType === "browsing" ? (
+                                          <div
+                                            className={styles.browsingHeader}
+                                          >
+                                            <div
+                                              className={styles.browsingLeft}
+                                            >
+                                              {/* Globe Icon for Browsing */}
+                                              <div className={styles.stepIcon}>
+                                                <svg
+                                                  width="14"
+                                                  height="14"
+                                                  viewBox="0 0 24 24"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  strokeWidth="2"
+                                                >
+                                                  <circle
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                  />
+                                                  <path d="M2 12h20" />
+                                                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                                </svg>
                                               </div>
-                                            ) : stepType === "code" ? (
-                                              <div
-                                                style={{
-                                                  marginLeft: "28px",
-                                                  marginTop: "8px",
-                                                  background: "#12000A",
-                                                  padding: "12px",
-                                                  borderRadius: "6px",
-                                                  fontSize: "12px",
-                                                  fontFamily: "monospace",
-                                                  color: "#A77590",
-                                                  border: "1px solid #3A2530",
-                                                }}
-                                              >
-                                                <pre
+                                              <span>{stepTitle}</span>
+                                            </div>
+                                            <div
+                                              className={styles.stepResultCount}
+                                            >
+                                              {stepResults
+                                                ? `${stepResults.length} results`
+                                                : ""}
+                                              {hasDetail && (
+                                                <svg
+                                                  width="14"
+                                                  height="14"
+                                                  viewBox="0 0 24 24"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  strokeWidth="2"
                                                   style={{
-                                                    margin: 0,
-                                                    whiteSpace: "pre-wrap",
+                                                    transform: isStepExpanded
+                                                      ? "rotate(180deg)"
+                                                      : "rotate(0deg)",
+                                                    transition:
+                                                      "transform 0.2s",
                                                   }}
                                                 >
-                                                  {(typeof stepItem ===
-                                                    "object" &&
-                                                    stepItem.content) ||
-                                                    "Writing code..."}
-                                                </pre>
-                                              </div>
-                                            ) : stepType === "reasoning" ? (
-                                              <div
-                                                className={
-                                                  styles.reasoningDetail
-                                                }
+                                                  <path d="M6 9l6 6 6-6" />
+                                                </svg>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ) : stepType === "code" ? (
+                                          // Code Step
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "12px",
+                                              width: "100%",
+                                            }}
+                                          >
+                                            <div className={styles.stepIcon}>
+                                              {/* Code Icon */}
+                                              <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="#3B2030"
+                                                strokeWidth="2"
+                                              >
+                                                <polyline points="16 18 22 12 16 6" />
+                                                <polyline points="8 6 2 12 8 18" />
+                                              </svg>
+                                            </div>
+                                            <span style={{ flex: 1 }}>
+                                              {stepTitle}
+                                            </span>
+                                            {hasDetail && (
+                                              <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="#3A2530"
+                                                strokeWidth="2"
                                                 style={{
-                                                  color:
-                                                    getReasoningStyle(stepTitle)
-                                                      .color,
+                                                  transform: isStepExpanded
+                                                    ? "rotate(180deg)"
+                                                    : "rotate(0deg)",
+                                                  transition: "transform 0.2s",
                                                 }}
                                               >
-                                                <ReactMarkdown
-                                                  remarkPlugins={[remarkGfm]}
-                                                  className={
-                                                    styles.reasoningMarkdown
-                                                  }
-                                                  components={
-                                                    markdownComponents
-                                                  }
-                                                >
-                                                  {normalizeMarkdownContent(
-                                                    stepContent || stepTitle,
-                                                  )}
-                                                </ReactMarkdown>
-                                              </div>
-                                            ) : stepType === "tool" ? (
-                                              <div
-                                                className={
-                                                  styles.toolStepDetail
-                                                }
+                                                <path d="M6 9l6 6 6-6" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                        ) : stepType === "tool" ? (
+                                          <div
+                                            className={styles.toolStepContent}
+                                          >
+                                            <div className={styles.stepIcon}>
+                                              <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="#A77590"
+                                                strokeWidth="2"
                                               >
-                                                {stepContent ||
-                                                  "Tool phase completed."}
-                                              </div>
-                                            ) : (
-                                              <div
-                                                className={
-                                                  styles.reasoningDetail
-                                                }
+                                                <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-3.2-3.2 2.4-2z" />
+                                              </svg>
+                                            </div>
+                                            <span style={{ flex: 1 }}>
+                                              {stepTitle}
+                                            </span>
+                                            <span
+                                              className={`${styles.toolStepPill} ${stepStatus === "error" ? styles.toolStepPillError : styles.toolStepPillOk}`}
+                                            >
+                                              {stepToolName ||
+                                                (stepPhase
+                                                  ? stepPhase.replace(/_/g, " ")
+                                                  : "tool")}
+                                            </span>
+                                            {hasDetail && (
+                                              <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="#3A2530"
+                                                strokeWidth="2"
+                                                style={{
+                                                  transform: isStepExpanded
+                                                    ? "rotate(180deg)"
+                                                    : "rotate(0deg)",
+                                                  transition: "transform 0.2s",
+                                                }}
                                               >
-                                                <ReactMarkdown
-                                                  remarkPlugins={[remarkGfm]}
-                                                  className={
-                                                    styles.reasoningMarkdown
-                                                  }
-                                                  components={
-                                                    markdownComponents
-                                                  }
-                                                >
-                                                  {normalizeMarkdownContent(
-                                                    stepContent || stepTitle,
-                                                  )}
-                                                </ReactMarkdown>
-                                              </div>
+                                                <path d="M6 9l6 6 6-6" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          // Text Step
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "12px",
+                                              width: "100%",
+                                            }}
+                                          >
+                                            <div className={styles.stepIcon}>
+                                              {/* Dot Icon for Text */}
+                                              <div
+                                                style={{
+                                                  width: "6px",
+                                                  height: "6px",
+                                                  backgroundColor: "#3A2530",
+                                                  borderRadius: "50%",
+                                                }}
+                                              ></div>
+                                            </div>
+                                            <span style={{ flex: 1 }}>
+                                              {stepTitle}
+                                            </span>
+                                            {hasDetail && (
+                                              <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="#3A2530"
+                                                strokeWidth="2"
+                                                style={{
+                                                  transform: isStepExpanded
+                                                    ? "rotate(180deg)"
+                                                    : "rotate(0deg)",
+                                                  transition: "transform 0.2s",
+                                                }}
+                                              >
+                                                <path d="M6 9l6 6 6-6" />
+                                              </svg>
                                             )}
                                           </div>
                                         )}
                                       </div>
-                                    );
-                                  },
-                                )}
+
+                                      {/* Expanded Content */}
+                                      {hasDetail && isStepExpanded && (
+                                        <div className={styles.stepDetail}>
+                                          {stepType === "browsing" &&
+                                          stepResults ? (
+                                            <div className={styles.resultList}>
+                                              {stepResults.map(
+                                                (result: any, rIdx: number) => (
+                                                  <a
+                                                    key={rIdx}
+                                                    href={result.url}
+                                                    className={
+                                                      styles.resultItem
+                                                    }
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) =>
+                                                      e.stopPropagation()
+                                                    }
+                                                  >
+                                                    <img
+                                                      src={
+                                                        result.icon ||
+                                                        `https://www.google.com/s2/favicons?domain=${result.domain}`
+                                                      }
+                                                      alt=""
+                                                      onError={(e) => {
+                                                        e.currentTarget.style.display =
+                                                          "none";
+                                                      }}
+                                                    />
+                                                    <div
+                                                      className={
+                                                        styles.resultText
+                                                      }
+                                                    >
+                                                      <div
+                                                        className={
+                                                          styles.resultTitle
+                                                        }
+                                                      >
+                                                        {result.title}
+                                                      </div>
+                                                      <div
+                                                        className={
+                                                          styles.resultDomain
+                                                        }
+                                                      >
+                                                        {result.domain}
+                                                      </div>
+                                                    </div>
+                                                  </a>
+                                                ),
+                                              )}
+                                            </div>
+                                          ) : stepType === "code" ? (
+                                            <div
+                                              style={{
+                                                marginLeft: "28px",
+                                                marginTop: "8px",
+                                                background: "#12000A",
+                                                padding: "12px",
+                                                borderRadius: "6px",
+                                                fontSize: "12px",
+                                                fontFamily: "monospace",
+                                                color: "#A77590",
+                                                border: "1px solid #3A2530",
+                                              }}
+                                            >
+                                              <pre
+                                                style={{
+                                                  margin: 0,
+                                                  whiteSpace: "pre-wrap",
+                                                }}
+                                              >
+                                                {(typeof stepItem ===
+                                                  "object" &&
+                                                  stepItem.content) ||
+                                                  "Writing code..."}
+                                              </pre>
+                                            </div>
+                                          ) : stepType === "reasoning" ? (
+                                            <div
+                                              className={styles.reasoningDetail}
+                                              style={{
+                                                color:
+                                                  getReasoningStyle(stepTitle)
+                                                    .color,
+                                              }}
+                                            >
+                                              <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                className={
+                                                  styles.reasoningMarkdown
+                                                }
+                                                components={markdownComponents}
+                                              >
+                                                {cleanReasoningContent(
+                                                  stepContent || stepTitle,
+                                                )}
+                                              </ReactMarkdown>
+                                            </div>
+                                          ) : stepType === "tool" ? (
+                                            <div
+                                              className={styles.toolStepDetail}
+                                            >
+                                              {stepContent ||
+                                                "Tool phase completed."}
+                                            </div>
+                                          ) : (
+                                            <div
+                                              className={styles.reasoningDetail}
+                                            >
+                                              <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                className={
+                                                  styles.reasoningMarkdown
+                                                }
+                                                components={markdownComponents}
+                                              >
+                                                {cleanReasoningContent(
+                                                  stepContent || stepTitle,
+                                                )}
+                                              </ReactMarkdown>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -2911,7 +2975,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             remarkPlugins={[remarkGfm]}
                             components={markdownComponents}
                           >
-                            {normalizeMarkdownContent(msg.content)}
+                            {extractResponseContent(msg.content, msg.thoughts)}
                           </ReactMarkdown>
                         </div>
 
@@ -3277,77 +3341,79 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 activeMarketIndicators.length > 0 ||
                 combinedHintValues.length > 0 ||
                 toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
-              <div className={styles.contextChipsRow}>
-                {activeMarketLabel && (
-                  <button
-                    type="button"
-                    className={`${styles.contextChip} ${styles.marketContextChip}`}
-                    onClick={() => onOpenChart?.(activeMarketLabel)}
-                    title={`Open ${activeMarketLabel}`}
-                  >
-                    <span className={styles.contextChipKey}>Market</span>
-                    <span className={styles.contextChipValue}>
-                      {activeMarketLabel}
-                    </span>
-                  </button>
-                )}
-                {activeMarketTimeframe && (
-                  <div
-                    className={`${styles.contextChip} ${styles.timeframeContextChip}`}
-                  >
-                    <span className={styles.contextChipKey}>Timeframe</span>
-                    <span className={styles.contextChipValue}>
-                      {activeMarketTimeframe}
-                    </span>
-                  </div>
-                )}
-                {activeMarketIndicators.length > 0 && (
-                  <div
-                    className={`${styles.contextChip} ${styles.indicatorContextChip}`}
-                  >
-                    <span className={styles.contextChipKey}>
-                      {activeMarketIndicators.length > 1
-                        ? "Active Indicators"
-                        : "Active Indicator"}
-                    </span>
-                    <span className={styles.contextChipValue}>
-                      {activeMarketIndicatorsLabel}
-                    </span>
-                  </div>
-                )}
-                {combinedHintValues.length > 0 && (
-                  <div
-                    className={`${styles.contextChip} ${styles.indicatorContextChip}`}
-                  >
-                    <span className={styles.contextChipKey}>Hint</span>
-                    <span className={styles.contextChipValue}>
-                      {combinedHintValues.join(", ")}
-                    </span>
+                <div className={styles.contextChipsRow}>
+                  {activeMarketLabel && (
                     <button
                       type="button"
-                      className={styles.contextChipRemove}
-                      onClick={() => {
-                        setToolStates((prev) => ({
-                          ...prev,
-                          timeframe: [],
-                          indicators: [],
-                        }));
-                      }}
+                      className={`${styles.contextChip} ${styles.marketContextChip}`}
+                      onClick={() => onOpenChart?.(activeMarketLabel)}
+                      title={`Open ${activeMarketLabel}`}
                     >
-                      x
+                      <span className={styles.contextChipKey}>Market</span>
+                      <span className={styles.contextChipValue}>
+                        {activeMarketLabel}
+                      </span>
                     </button>
-                  </div>
-                )}
-                {toolStates.maxThinking !== DEFAULT_MAX_THINKING && (
-                  <div className={styles.contextChip}>
-                    <span className={styles.contextChipKey}>Max Thinking</span>
-                    <span className={styles.contextChipValue}>
-                      {toolStates.maxThinking}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                  {activeMarketTimeframe && (
+                    <div
+                      className={`${styles.contextChip} ${styles.timeframeContextChip}`}
+                    >
+                      <span className={styles.contextChipKey}>Timeframe</span>
+                      <span className={styles.contextChipValue}>
+                        {activeMarketTimeframe}
+                      </span>
+                    </div>
+                  )}
+                  {activeMarketIndicators.length > 0 && (
+                    <div
+                      className={`${styles.contextChip} ${styles.indicatorContextChip}`}
+                    >
+                      <span className={styles.contextChipKey}>
+                        {activeMarketIndicators.length > 1
+                          ? "Active Indicators"
+                          : "Active Indicator"}
+                      </span>
+                      <span className={styles.contextChipValue}>
+                        {activeMarketIndicatorsLabel}
+                      </span>
+                    </div>
+                  )}
+                  {combinedHintValues.length > 0 && (
+                    <div
+                      className={`${styles.contextChip} ${styles.indicatorContextChip}`}
+                    >
+                      <span className={styles.contextChipKey}>Hint</span>
+                      <span className={styles.contextChipValue}>
+                        {combinedHintValues.join(", ")}
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.contextChipRemove}
+                        onClick={() => {
+                          setToolStates((prev) => ({
+                            ...prev,
+                            timeframe: [],
+                            indicators: [],
+                          }));
+                        }}
+                      >
+                        x
+                      </button>
+                    </div>
+                  )}
+                  {toolStates.maxThinking !== DEFAULT_MAX_THINKING && (
+                    <div className={styles.contextChip}>
+                      <span className={styles.contextChipKey}>
+                        Max Thinking
+                      </span>
+                      <span className={styles.contextChipValue}>
+                        {toolStates.maxThinking}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             {isPreparingAttachments && (
               <div
                 className={styles.loadingRow}

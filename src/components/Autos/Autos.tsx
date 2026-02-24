@@ -508,6 +508,83 @@ const Autos: React.FC<AutosProps> = ({
       });
     };
 
+    const parseThoughtString = (raw: string): any => {
+      const text = String(raw || "").trim();
+      if (!text) return { type: "text", title: "", content: "" };
+
+      // Detect tool call pattern: "calling tool_name()..." or "calling tool_name(args)..."
+      const callMatch = text.match(
+        /^calling\s+([a-z_][a-z0-9_]*)\s*\((.*)\)?\s*\.\.\.?$/i,
+      );
+      if (callMatch) {
+        return {
+          type: "tool_call",
+          title: "Tool Call",
+          content: text,
+          toolName: callMatch[1],
+          status: "running",
+        };
+      }
+
+      // Detect tool result pattern: "result: STATUS - message" or "result tool_name(): ..."
+      // Also handles: "retry result: STATUS - message", "context review: STATUS - message"
+      const resultMatch = text.match(
+        /^(?:retry\s+|context\s+review:\s*)?result(?:\s+([a-z_][a-z0-9_]*))?\s*:\s*(.+)$/i,
+      );
+      if (resultMatch) {
+        const toolName = resultMatch[1] || "";
+        const detail = resultMatch[2] || "";
+        // Extract status from detail (e.g., "POOR - No indicators" or "SUCCESS - message (123ms)")
+        const statusMatch = detail.match(/^([A-Z]+)\s*-\s*(.+)$/);
+        const evalStatus = statusMatch ? statusMatch[1].toLowerCase() : "";
+        const statusText = statusMatch ? statusMatch[2] : detail;
+        const isDone =
+          statusText.toLowerCase().includes("ms") ||
+          evalStatus === "good" ||
+          evalStatus === "success";
+        return {
+          type: "tool_result",
+          title: "Tool Result",
+          content: text,
+          toolName: toolName || undefined,
+          status: isDone ? "done" : "running",
+          evalStatus: evalStatus || undefined,
+        };
+      }
+
+      // Detect reasoning/thinking pattern - analysis commentary
+      const lower = text.toLowerCase();
+      if (
+        lower.includes("checking") ||
+        lower.includes("analyzing") ||
+        lower.includes("rsi") ||
+        lower.includes("macd") ||
+        lower.includes("switching") ||
+        lower.includes("let me") ||
+        lower.includes("starting") ||
+        lower.includes("adding") ||
+        lower.includes("great") ||
+        lower.includes("good") ||
+        lower.includes("now") ||
+        lower.includes("first")
+      ) {
+        return {
+          type: "reasoning",
+          title: "Analysis",
+          content: text,
+          status: "running",
+        };
+      }
+
+      // Default: treat as text/reasoning
+      return {
+        type: "reasoning",
+        title: "Thinking",
+        content: text,
+        status: "running",
+      };
+    };
+
     const appendThought = (thought: any) => {
       if (!thought) return;
       if (typeof thought === "string" && isRuntimeNoiseThoughtLine(thought))
@@ -678,7 +755,7 @@ const Autos: React.FC<AutosProps> = ({
       setTypingStatus((prev) => ({ ...prev, [currentSessionId]: false }));
     };
 
-    const THOUGHT_DELAY_MS = 35;
+    const THOUGHT_DELAY_MS = 20;
     let thoughtQueue: any[] = [];
     let thoughtTimer: ReturnType<typeof setTimeout> | null = null;
     let sawRuntimePhaseEvent = false;
@@ -821,7 +898,9 @@ const Autos: React.FC<AutosProps> = ({
           },
           onThoughtDelta: (thought) => {
             if (!thought) return;
-            thoughtQueue.push(thought);
+            // Parse raw thought string into structured thought object
+            const parsedThought = parseThoughtString(thought);
+            thoughtQueue.push(parsedThought);
             scheduleThoughtFlush();
           },
           onRuntime: (runtime) => {
