@@ -1,5 +1,3 @@
-const BACKEND_URL = 'http://localhost:8000';
-
 const toMillis = (ts) => {
   const n = Number(ts || 0);
   if (!Number.isFinite(n) || n <= 0) return 0;
@@ -13,62 +11,38 @@ export const getBars = async (
   onHistoryCallback,
   onErrorCallback
 ) => {
-
   try {
-    const fromMs = toMillis(periodParams?.from || 0);
-    const toMs = toMillis(periodParams?.to || 0);
-    const symbol = symbolInfo.name.replace('/', '-');
-    const limit = periodParams.countBack || 300;
-    const url = `${BACKEND_URL}/api/candles/${symbol}?limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
+    const API_ORIGIN = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000').replace(/,$/, '');
+    const symbol = encodeURIComponent(symbolInfo.name);
+    const limit = periodParams.countBack || 500;
+
+    // Choose exchange source
+    const exchange = (symbolInfo.listed_exchange || symbolInfo.exchange || 'hyperliquid').toLowerCase();
+
+    const url = `${API_ORIGIN}/api/candles/${symbol}?exchange=${exchange}&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
 
     const response = await fetch(url);
-
     if (!response.ok) {
-      console.error(`[Hyperliquid] ❌ HTTP ${response.status} for ${symbol}`);
       onHistoryCallback([], { noData: true });
       return;
     }
 
     const data = await response.json();
+    const bars = data.map(b => ({
+      time: toMillis(b.timestamp || b.time || b.t),
+      open: parseFloat(b.open || b.o),
+      high: parseFloat(b.high || b.h),
+      low: parseFloat(b.low || b.l),
+      close: parseFloat(b.close || b.c),
+      volume: parseFloat(b.volume || b.v || 0)
+    })).sort((a, b) => a.time - b.time);
 
-    if (!Array.isArray(data) || data.length === 0) {
-      console.warn(`[Hyperliquid] ⚠️ No data for ${symbol}`);
-      onHistoryCallback([], { noData: true });
-      return;
-    }
-
-    // Format for TradingView
-    // Backend returns [{timestamp, open, high, low, close, volume}, ...] (Hyperliquid)
-    // or [{t, o, h, l, c, i}, ...] (Ostium)
-    // TradingView expects [{time, open, high, low, close, volume}, ...]
-    const bars = data.map(b => {
-      return {
-        // TradingView Charting Library expects epoch in milliseconds.
-        time: toMillis(b.time || b.timestamp || b.t),
-        open: parseFloat(b.open || b.o),
-        high: parseFloat(b.high || b.h),
-        low: parseFloat(b.low || b.l),
-        close: parseFloat(b.close || b.c),
-        volume: parseFloat(b.volume || b.v || 0)
-      };
-    })
-      .filter((bar) => {
-        if (!fromMs && !toMs) return true;
-        if (fromMs && bar.time < fromMs) return false;
-        if (toMs && bar.time > toMs) return false;
-        return true;
-      })
-      .sort((a, b) => a.time - b.time);
-
-    console.log(`[getBars]: Returning ${bars.length} bars, time range: ${bars[0]?.time} - ${bars[bars.length - 1]?.time}`);
-    onHistoryCallback(bars, { noData: false });
+    onHistoryCallback(bars, { noData: bars.length === 0 });
   } catch (err) {
-    console.error('[Hyperliquid] ❌ Error:', err.message);
     onErrorCallback(err);
   }
 };
 
-// Store active subscriptions and their cleanup functions
 const activeSubscriptions = new Map();
 
 export const subscribeBars = (
@@ -80,8 +54,13 @@ export const subscribeBars = (
 ) => {
   console.log('[subscribeBars]: Method call with subscriberUID:', subscriberUID);
 
-  const symbol = symbolInfo.name.replace('/', '-');
-  const wsUrl = `ws://localhost:8000/ws/hyperliquid/${symbol}`;
+  const symbol = encodeURIComponent(symbolInfo.name);
+
+  // Choose weboscket endpoint based on listed exchange
+  const API_ORIGIN = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000').replace(/,$/, '');
+  const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws');
+  const exchangePath = (symbolInfo.listed_exchange || symbolInfo.exchange || 'hyperliquid').toLowerCase();
+  const wsUrl = `${WS_ORIGIN}/ws/${exchangePath}/${symbol}`;
   const ws = new WebSocket(wsUrl);
 
   let lastBar = {
@@ -97,21 +76,16 @@ export const subscribeBars = (
     try {
       const message = JSON.parse(event.data);
       if (message.type === 'price_update' && message.data) {
-        const data = message.data;
-        const price = parseFloat(data.price);
+        const price = parseFloat(message.data.price);
         const now = Date.now();
-
-        // TradingView expect updates for the CURRENT bar interval
-        // For simplicity, we create/update a 1m bar (or matching resolution)
-        // TradingView handles merging multiple ticks into the same bar if timing matches
 
         const bar = {
           time: now,
           open: lastBar.close || price,
-          high: Math.max(lastBar.high || price, price),
-          low: Math.min(lastBar.low || price, price),
+          high: lastBar.high ? Math.max(lastBar.high, price) : price,
+          low: lastBar.low ? Math.min(lastBar.low, price) : price,
           close: price,
-          volume: data.volume_24h || 0
+          volume: parseFloat(message.data.volume_24h || 0)
         };
 
         lastBar = bar;
@@ -122,20 +96,16 @@ export const subscribeBars = (
     }
   };
 
-  ws.onclose = () => console.log('[subscribeBars]: WS closed');
-
   activeSubscriptions.set(subscriberUID, {
-    ws: ws,
+    ws,
     close: () => ws.close()
   });
 };
 
 export const unsubscribeBars = (subscriberUID) => {
-  console.log('[unsubscribeBars]: Method call with subscriberUID:', subscriberUID);
-
-  const subscription = activeSubscriptions.get(subscriberUID);
-  if (subscription) {
-    subscription.close();
+  const sub = activeSubscriptions.get(subscriberUID);
+  if (sub) {
+    sub.close();
     activeSubscriptions.delete(subscriberUID);
   }
 };

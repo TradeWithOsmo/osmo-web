@@ -30,7 +30,6 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
     const { authenticated, walletAddress } = useWallet();
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
-    const [expandedGroup, setExpandedGroup] = useState<'hyperliquid' | 'ostium' | null>(null);
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' } | null>({ key: 'change24hPercent', direction: 'desc' });
@@ -100,6 +99,13 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         setCurrentPage(1);
     }, [filter, search]);
 
+    // Auto-reset to 'All' if user is on Watchlist tab but removes all favorites
+    useEffect(() => {
+        if (filter === 'Watchlist' && favorites.size === 0) {
+            setFilter('All');
+        }
+    }, [favorites.size, filter]);
+
     const handleSort = (key: keyof MarketData) => {
         let direction: 'asc' | 'desc' = 'desc'; // Default to descending
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
@@ -109,17 +115,31 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
     };
 
     const filteredDataAll = markets.filter(item => {
-        const matchesSearch = item.symbol.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch =
+            item.symbol.toLowerCase().includes(search.toLowerCase()) ||
+            (item.category || '').toLowerCase().includes(search.toLowerCase()) ||
+            (item.subCategory || '').toLowerCase().includes(search.toLowerCase());
+
         if (!matchesSearch) return false;
+
+        // Strictly show only canonical markets in the selector lists
+        if (!item.canonical && filter !== 'Watchlist') return false;
 
         if (filter === 'All') return true;
         if (filter === 'Watchlist') {
             return favorites.has(`${item.source || 'hyperliquid'}:${item.symbol}`);
         }
+
+        const isStandardCategory = ['Forex', 'Stocks', 'Commodities', 'Index'].some(cat => item.category?.toLowerCase() === cat.toLowerCase());
+
         if (filter === 'Crypto') {
-            return item.source === 'hyperliquid' || item.category === 'Crypto';
+            return !isStandardCategory;
         }
-        return item.category === filter;
+
+        const matchesCategory = item.category?.toLowerCase() === filter.toLowerCase();
+        const matchesSubCategory = (item.subCategory || '').toLowerCase().includes(filter.toLowerCase());
+
+        return matchesCategory || matchesSubCategory;
     });
 
     // Sorting Logic
@@ -186,16 +206,8 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         if (!isEmbedded) onClose();
     }
 
-    // Categories Groups
-    const HL_CATEGORIES = ['Crypto', 'Meme', 'Layer 1', 'Layer 2', 'DeFi', 'AI & Big Data', 'Infrastructure', 'DePIN', 'Gaming', 'RWA'];
-    const OST_CATEGORIES = ['Forex', 'Stocks', 'Commodities', 'index'];
-
-    const getGroupCount = (group: 'hyperliquid' | 'ostium') => {
-        if (group === 'hyperliquid') {
-            return markets.filter(m => m.source === 'hyperliquid' || m.category === 'Crypto').length;
-        }
-        return markets.filter(m => m.source === 'ostium').length;
-    };
+    // Categories
+    const CATEGORIES = ['Crypto', 'AI', 'MEME', 'DEFI', 'L1', 'L2', 'GAMING', 'RWA', 'DEGEN', 'STABLE', 'LST', 'BTC-ECO', 'Forex', 'Stocks', 'Commodities', 'Index'];
 
     const SortIcon = ({ columnKey }: { columnKey: keyof MarketData }) => {
         const active = sortConfig?.key === columnKey;
@@ -272,91 +284,44 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                 {/* 1. All */}
                 <button
                     className={`${styles.filterChip} ${filter === 'All' ? styles.active : ''}`}
-                    onClick={() => {
-                        setFilter('All');
-                        setExpandedGroup(null);
-                    }}
+                    onClick={() => setFilter('All')}
                 >
                     All
-                    <span className={styles.countBadge}>{markets.length}</span>
+                    <span className={styles.countBadge}>{markets.filter(m => m.canonical).length}</span>
                 </button>
 
-                {/* Watchlist */}
-                <button
-                    className={`${styles.filterChip} ${filter === 'Watchlist' ? styles.active : ''}`}
-                    onClick={() => {
-                        setFilter('Watchlist');
-                        setExpandedGroup(null);
-                    }}
-                >
-                    Watchlist
-                    <span className={styles.countBadge}>{favorites.size}</span>
-                </button>
-
-                {/* 2. Hyperliquid Group */}
-                <div className={`${styles.groupContainer} ${expandedGroup === 'hyperliquid' ? styles.expanded : ''}`}>
+                {/* Watchlist — only shown when there are favorites */}
+                {favorites.size > 0 && (
                     <button
-                        className={`${styles.filterChip} ${expandedGroup === 'hyperliquid' ? styles.activeGroup : ''}`}
-                        onClick={() => setExpandedGroup(expandedGroup === 'hyperliquid' ? null : 'hyperliquid')}
+                        className={`${styles.filterChip} ${filter === 'Watchlist' ? styles.active : ''}`}
+                        onClick={() => setFilter('Watchlist')}
                     >
-                        Hyperliquid
-                        <span className={styles.countBadge}>{getGroupCount('hyperliquid')}</span>
+                        Watchlist
+                        <span className={styles.countBadge}>{favorites.size}</span>
                     </button>
+                )}
 
-                    <div className={styles.subCategories}>
-                        {HL_CATEGORIES.map(f => {
-                            const count = f === 'Crypto'
-                                ? markets.filter(m => m.source === 'hyperliquid' || m.category === 'Crypto').length
-                                : markets.filter(m => m.category === f).length;
-
-                            if (count === 0) return null;
-                            return (
-                                <button
-                                    key={f}
-                                    className={`${styles.filterChip} ${styles.subChip} ${filter === f ? styles.active : ''}`}
-                                    onClick={() => {
-                                        setFilter(f);
-                                        setExpandedGroup(null);
-                                    }}
-                                >
-                                    {f}
-                                    <span className={styles.countBadge}>{count}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* 3. Ostium Group */}
-                <div className={`${styles.groupContainer} ${expandedGroup === 'ostium' ? styles.expanded : ''}`}>
-                    <button
-                        className={`${styles.filterChip} ${expandedGroup === 'ostium' ? styles.activeGroup : ''}`}
-                        onClick={() => setExpandedGroup(expandedGroup === 'ostium' ? null : 'ostium')}
-                    >
-                        Ostium
-                        <span className={styles.countBadge}>{getGroupCount('ostium')}</span>
-                    </button>
-
-                    <div className={styles.subCategories}>
-                        {OST_CATEGORIES.map(f => {
-                            const count = markets.filter(m => m.category === f).length;
-                            if (count === 0) return null;
-                            return (
-                                <button
-                                    key={f}
-                                    className={`${styles.filterChip} ${styles.subChip} ${filter === f ? styles.active : ''}`}
-                                    onClick={() => {
-                                        setFilter(f);
-                                        setExpandedGroup(null);
-                                    }}
-                                >
-                                    {f}
-                                    <span className={styles.countBadge}>{count}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                {/* Category Tabs */}
+                {CATEGORIES.map(category => {
+                    const count = markets.filter(m => {
+                        if (!m.canonical) return false;
+                        const isStandard = ['Forex', 'Stocks', 'Commodities', 'Index'].some(c => m.category?.toLowerCase() === c.toLowerCase());
+                        if (category === 'Crypto') return !isStandard;
+                        return m.category?.toLowerCase() === category.toLowerCase();
+                    }).length;
+                    if (count === 0) return null;
+                    return (
+                        <button
+                            key={category}
+                            className={`${styles.filterChip} ${filter === category ? styles.active : ''}`}
+                            onClick={() => setFilter(category)}
+                            title={`Filter by ${category}`}
+                        >
+                            {category}
+                            <span className={styles.countBadge}>{count}</span>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* 2. Search Section */}
@@ -440,9 +405,6 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                             )}
                                         </div>
                                         <span className={styles.symbol}>{item.symbol}</span>
-                                        <div className={styles.badges}>
-                                            <span className={styles.feeBadge}>{item.source}</span>
-                                        </div>
                                     </td>
                                     <td className={`${styles.tdRight} ${styles.hideOnSmallMobile}`}>{formatPrice(item.price)}</td>
                                     <td className={`${styles.tdRight} ${!isPositive ? styles.negative : styles.positive}`}>

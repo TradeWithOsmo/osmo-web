@@ -1,31 +1,77 @@
 // Symbol search functionality for TradingView chart
-export const searchSymbols = (
+
+export const searchSymbols = async (
   userInput,
   exchange,
   symbolType,
   onResultReadyCallback,
   onErrorCallback
 ) => {
-  // Common trading pairs that can be searched
-  const symbols = [
-    { symbol: 'BTC', full_name: 'BTC/USDT', description: 'Bitcoin', type: 'crypto', exchange: 'Binance' },
-    { symbol: 'ETH', full_name: 'ETH/USDT', description: 'Ethereum', type: 'crypto', exchange: 'Binance' },
-    { symbol: 'USDT', full_name: 'USDT/WETH', description: 'Tether', type: 'crypto', exchange: 'Uniswap' },
-    { symbol: 'USDC', full_name: 'USDC/USDT', description: 'USD Coin', type: 'crypto', exchange: 'Binance' },
-    { symbol: 'BNB', full_name: 'BNB/USDT', description: 'Binance Coin', type: 'crypto', exchange: 'Binance' },
-    { symbol: 'SOL', full_name: 'SOL/USDT', description: 'Solana', type: 'crypto', exchange: 'Binance' },
-    { symbol: 'ADA', full_name: 'ADA/USDT', description: 'Cardano', type: 'crypto', exchange: 'Binance' },
-    { symbol: 'XRP', full_name: 'XRP/USDT', description: 'Ripple', type: 'crypto', exchange: 'Binance' },
-    { symbol: 'DOGE', full_name: 'DOGE/USDT', description: 'Dogecoin', type: 'crypto', exchange: 'Binance' },
-    { symbol: 'AVAX', full_name: 'AVAX/USDT', description: 'Avalanche', type: 'crypto', exchange: 'Binance' },
-  ];
+  const normalizeToken = (value) =>
+    String(value || '')
+      .trim()
+      .toUpperCase()
+      .replace(/[\/_]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
 
-  // Filter symbols based on user input
-  const filteredSymbols = symbols.filter(item =>
-    item.symbol.toLowerCase().includes(userInput.toLowerCase()) ||
-    item.full_name.toLowerCase().includes(userInput.toLowerCase()) ||
-    item.description.toLowerCase().includes(userInput.toLowerCase())
-  );
+  const normalizePairSymbol = (value, defaultQuote = 'USD') => {
+    const raw = normalizeToken(value);
+    if (!raw) return '';
+    const compact = raw.replace(/-/g, '');
+    if (raw.endsWith('-LIGHTER')) return `${raw.slice(0, -8)}-${defaultQuote}`;
+    if (raw.endsWith('-PERP')) return `${raw.slice(0, -5)}-${defaultQuote}`;
+    if (raw.includes('-')) {
+      const [base, quote] = raw.split('-');
+      if (base && quote) return `${base}-${quote}`;
+    }
+    for (const quote of ['USDC', 'USDT', 'USD']) {
+      if (compact.endsWith(quote) && compact.length > quote.length) {
+        return `${compact.slice(0, -quote.length)}-${quote}`;
+      }
+    }
+    return `${raw}-${defaultQuote}`;
+  };
 
-  onResultReadyCallback(filteredSymbols);
+  try {
+    const API_ORIGIN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000';
+    // Fetch canonical symbols from backend
+    const response = await fetch(`${API_ORIGIN}/api/markets/symbols?canonical_only=true`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch symbols: HTTP ${response.status}`);
+    }
+
+    // The endpoint returns { count, generated_at, symbols: [...] }
+    const data = await response.json();
+    const symbolsData = data.symbols || [];
+
+    // Match TradingView search expected format
+    const symbols = symbolsData.map(s => ({
+      symbol: normalizePairSymbol(s.chainlinkSymbol || s.tradingSymbol || `${s.baseSymbol || ''}-USD`),
+      full_name: `${normalizePairSymbol(s.chainlinkSymbol || s.tradingSymbol || `${s.baseSymbol || ''}-USD`)} (${s.exchange})`,
+      description: normalizePairSymbol(s.chainlinkSymbol || s.tradingSymbol || `${s.baseSymbol || ''}-USD`),
+      type: s.category || 'Crypto',
+      exchange: s.exchange || 'Osmosis',
+    }));
+
+    // Filter based on user input, exchange (if provided), and type (if provided)
+    const query = userInput.toLowerCase();
+    const filteredSymbols = symbols.filter(item => {
+      const matchText = (
+        item.symbol.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        item.exchange.toLowerCase().includes(query)
+      );
+
+      const matchExchange = !exchange || exchange === '' || item.exchange === exchange;
+      const matchType = !symbolType || symbolType === '' || item.type.toLowerCase() === symbolType.toLowerCase();
+
+      return matchText && matchExchange && matchType;
+    });
+
+    onResultReadyCallback(filteredSymbols);
+  } catch (error) {
+    console.error('[searchSymbols]: Error fetching symbols:', error);
+    onErrorCallback(error);
+  }
 };

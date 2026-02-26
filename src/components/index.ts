@@ -6,3 +6,4 @@ export { default as PositionsPanel } from './Positions/PositionsPanel';
 export { default as OrderBookPanel } from './OrderBook/OrderBookPanel';
 export { default as Resizer } from './Resizer/Resizer';
 export { default as Autos } from './Autos/Autos';
+export { default as Footer } from './Footer/Footer';

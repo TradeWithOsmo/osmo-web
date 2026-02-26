@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MarketDetails, TradingChart, OrderForm, PositionsPanel, OrderBookPanel, Resizer, Autos } from '../components';
+import { MarketDetails, TradingChart, OrderForm, PositionsPanel, OrderBookPanel, Resizer, Autos, Footer } from '../components';
 import BottomNav from '../components/BottomNav/BottomNav';
 import styles from './Trade.module.css';
 import { useMarketStore } from '../store/useMarketStore';
@@ -37,8 +37,19 @@ const Trade: React.FC = () => {
         });
     };
 
-    const chartSymbol = selectedMarket?.symbol?.replace('-', '/') || 'BTC/USDT';
+    const chartSymbol = selectedMarket?.symbol || 'BTC-USD';
     const chartSource = selectedMarket?.source || 'hyperliquid'; // Derive source from market
+
+    // Helper to determine if the exchange supports L2 orderbook/trades
+    const lowerSource = chartSource.toLowerCase();
+    const hasL2 = !lowerSource.includes('ostium') && !lowerSource.includes('avantis');
+
+    // Reset mobile tab to Chart if switching to a non-L2 market
+    React.useEffect(() => {
+        if (!hasL2 && (mobileTab === 'Order Book' || mobileTab === 'Trades')) {
+            setMobileTab('Chart');
+        }
+    }, [hasL2, mobileTab]);
 
     return (
         <div className={styles.pageContainer}>
@@ -66,7 +77,7 @@ const Trade: React.FC = () => {
                                     <div className={styles.chartContainer} style={{ flex: 1, minWidth: 0 }}>
                                         <TradingChart
                                             symbol={chartSymbol}
-                                            source={chartSource}
+                                            source={chartSource as any}
                                             height="100%"
                                             interval={targetChartConfig.interval}
                                             studies={targetChartConfig.studies}
@@ -75,7 +86,7 @@ const Trade: React.FC = () => {
                                     </div>
 
                                     {/* Resizer for OrderBook */}
-                                    {chartSource !== 'ostium' && (
+                                    {hasL2 && (
                                         <Resizer
                                             direction="horizontal"
                                             onResize={(delta) => setOrderBookWidth(prev => Math.max(220, Math.min(600, prev - delta)))}
@@ -83,14 +94,14 @@ const Trade: React.FC = () => {
                                     )}
 
                                     {/* OrderBook */}
-                                    {chartSource !== 'ostium' && (
+                                    {hasL2 && (
                                         <div className={styles.orderBookContainer} style={{ width: orderBookWidth, flexShrink: 0 }}>
                                             <OrderBookPanel />
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Resizer for Positions Panel - Only show if expanded (or if you want resizing to expand it, keep it shown but logic needs update. User requested 'fixed' when collapsed) */}
+                                {/* Resizer for Positions Panel */}
                                 {isPositionsExpanded && (
                                     <Resizer
                                         direction="vertical"
@@ -122,12 +133,11 @@ const Trade: React.FC = () => {
                         /* Assist Layout */
                         <div style={{ display: 'flex', width: '100%', height: '100%' }}>
                             {/* Left Side: Chart and Positions */}
-                            {/* Use flex: 1 to fill remaining space */}
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid #3A2530' }}>
                                 <div style={{ flex: 1, minHeight: 0 }}>
                                     <TradingChart
                                         symbol={chartSymbol}
-                                        source={chartSource}
+                                        source={chartSource as any}
                                         height="100%"
                                         interval={targetChartConfig.interval}
                                         studies={targetChartConfig.studies}
@@ -159,22 +169,18 @@ const Trade: React.FC = () => {
 
                             {/* Right Side: Trading Assist Module */}
                             <div style={{ width: assistWidthPx, flexShrink: 0, borderLeft: '1px solid #3A2530', backgroundColor: '#12000A', height: '100%', overflow: 'hidden' }}>
-                                {/* Right Side: Trading Assist Module */}
-                                <div style={{ width: assistWidthPx, flexShrink: 0, borderLeft: '1px solid #3A2530', backgroundColor: '#12000A', height: '100%', overflow: 'hidden' }}>
-                                    <Autos
-                                        compact={true}
-                                        currentSymbol={chartSymbol}
-                                        chartState={activeChartState}
-                                        onRestoreChartState={handleRestoreChartState}
-                                    />
-                                </div>
+                                <Autos
+                                    compact={true}
+                                    currentSymbol={chartSymbol}
+                                    chartState={activeChartState}
+                                    onRestoreChartState={handleRestoreChartState}
+                                />
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* --- MOBILE LAYOUT --- */}
-                {/* Controlled by CSS media queries */}
                 <div className={styles.mobileMainContainer}>
                     {/* Trade Tab Content (Mobile) */}
                     {bottomNavTab === 'trade' && (
@@ -187,12 +193,12 @@ const Trade: React.FC = () => {
                             </div>
 
                             <div className={styles.tradeTabRow}>
-                                {chartSource !== 'ostium' && (
+                                {hasL2 && (
                                     <div className={styles.orderBookContainer}>
                                         <OrderBookPanel />
                                     </div>
                                 )}
-                                <div className={styles.orderFormContainer} style={{ width: chartSource === 'ostium' ? '100%' : '50%' }}>
+                                <div className={styles.orderFormContainer} style={{ width: !hasL2 ? '100%' : '50%' }}>
                                     <OrderForm />
                                 </div>
                             </div>
@@ -203,10 +209,10 @@ const Trade: React.FC = () => {
                         </>
                     )}
 
-                    {/* Account Tab Content (Mobile) - Autos Page */}
+                    {/* Account Tab Content (Mobile) */}
                     {bottomNavTab === 'account' && <Autos />}
 
-                    {/* Markets Tab Content (Mobile) - Full trading content */}
+                    {/* Markets Tab Content (Mobile) */}
                     {bottomNavTab === 'market' && (
                         <>
                             {/* Mobile Tabs */}
@@ -217,7 +223,7 @@ const Trade: React.FC = () => {
                                 >
                                     Chart
                                 </button>
-                                {chartSource !== 'ostium' && (
+                                {hasL2 && (
                                     <>
                                         <button
                                             className={`${styles.mobileTab} ${mobileTab === 'Order Book' ? styles.active : ''}`}
@@ -239,15 +245,15 @@ const Trade: React.FC = () => {
                             <div className={styles.mobileContentArea}>
                                 {mobileTab === 'Chart' && (
                                     <div className={styles.chartContainer}>
-                                        <TradingChart symbol={chartSymbol} source={chartSource} height="100%" />
+                                        <TradingChart symbol={chartSymbol} source={chartSource as any} height="100%" />
                                     </div>
                                 )}
-                                {chartSource !== 'ostium' && mobileTab === 'Order Book' && (
+                                {hasL2 && mobileTab === 'Order Book' && (
                                     <div className={styles.orderBookContainer}>
                                         <OrderBookPanel key="order-book" forcedTab="Order Book" />
                                     </div>
                                 )}
-                                {chartSource !== 'ostium' && mobileTab === 'Trades' && (
+                                {hasL2 && mobileTab === 'Trades' && (
                                     <div className={styles.orderBookContainer}>
                                         <OrderBookPanel key="trades" forcedTab="Trades" />
                                     </div>
@@ -261,14 +267,15 @@ const Trade: React.FC = () => {
                         </>
                     )}
                 </div>
-
-
             </div>
 
             {/* Bottom Navigation */}
             <div className={styles.bottomNavWrapper}>
                 <BottomNav activeTab={bottomNavTab} onTabChange={setBottomNavTab} />
             </div>
+
+            {/* Desktop Footer */}
+            <Footer />
         </div>
     );
 };

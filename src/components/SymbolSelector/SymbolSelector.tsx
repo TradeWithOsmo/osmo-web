@@ -1,15 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { Search, ChevronDown } from 'lucide-react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { Search, ChevronDown, Star } from 'lucide-react'
 import styles from './SymbolSelector.module.css'
-
-export interface Symbol {
-  symbol: string
-  name: string
-  description: string
-  exchange?: string
-  price?: number
-  change?: number
-}
+import { useMarketStore } from '../../store/useMarketStore'
+import { useWatchlistStore } from '../../store/useWatchlistStore'
+import { type MarketData } from '../../api/marketService'
 
 export interface SymbolSelectorProps {
   selectedSymbol?: string
@@ -17,35 +11,72 @@ export interface SymbolSelectorProps {
   theme?: 'light' | 'dark'
 }
 
-const symbols: Symbol[] = [
-  { symbol: 'BTC/USDT', name: 'BTC', description: 'Bitcoin', exchange: 'Binance', price: 43250, change: 2.5 },
-  { symbol: 'ETH/USDT', name: 'ETH', description: 'Ethereum', exchange: 'Binance', price: 2280, change: -1.2 },
-  { symbol: 'USDT/WETH', name: 'USDT', description: 'Tether', exchange: 'Uniswap', price: 1.00, change: 0.1 },
-  { symbol: 'BNB/USDT', name: 'BNB', description: 'Binance Coin', exchange: 'Binance', price: 315, change: 3.8 },
-  { symbol: 'SOL/USDT', name: 'SOL', description: 'Solana', exchange: 'Binance', price: 98, change: -2.1 },
-  { symbol: 'ADA/USDT', name: 'ADA', description: 'Cardano', exchange: 'Binance', price: 0.58, change: 1.5 },
-]
+const CATEGORIES = [
+  'All',
+  'AI',
+  'MEME',
+  'DEFI',
+  'L1',
+  'L2',
+  'GAMING',
+  'RWA',
+  'DEGEN',
+  'STABLE',
+  'LST',
+  'BTC-ECO',
+  'DEPIN',
+  'MODULAR',
+  'Forex',
+  'Stocks',
+  'Commodities'
+];
 
 export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
-  selectedSymbol = 'BTC/USDT',
+  selectedSymbol,
   onSymbolChange,
   theme = 'dark',
 }) => {
+  const { markets, selectedMarket, setMarket, fetchMarkets } = useMarketStore()
+  const { favorites } = useWatchlistStore()
+
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filteredSymbols, setFilteredSymbols] = useState<Symbol[]>(symbols)
+  const [activeCategory, setActiveCategory] = useState('All')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const currentSymbol = symbols.find(s => s.symbol === selectedSymbol) || symbols[0]
-
   useEffect(() => {
-    const filtered = symbols.filter(symbol =>
-      symbol.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      symbol.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      symbol.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    setFilteredSymbols(filtered)
-  }, [searchTerm])
+    if (markets.length === 0) fetchMarkets()
+  }, [markets.length, fetchMarkets])
+
+  const currentMarket = selectedMarket || markets.find(m => m.symbol === selectedSymbol) || markets[0]
+
+  const filteredSymbols = useMemo(() => {
+    return markets.filter(market => {
+      // Basic search
+      const matchesSearch =
+        market.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (market.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (market.subCategory || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      // Category filter
+      if (activeCategory === 'All') return market.canonical !== false; // Default to canonicals
+
+      const cat = activeCategory.toUpperCase();
+      const mCat = (market.category || '').toUpperCase();
+      const mSub = (market.subCategory || '').toUpperCase();
+
+      if (activeCategory === 'Watchlist') {
+        return favorites.has(`${market.source}:${market.symbol}`);
+      }
+
+      if (mCat === cat) return true;
+      if (mSub.includes(cat)) return true;
+
+      return false;
+    });
+  }, [markets, searchTerm, activeCategory, favorites]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,10 +89,18 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleSymbolSelect = (symbol: string) => {
-    onSymbolChange?.(symbol)
+  const handleSymbolSelect = (market: MarketData) => {
+    setMarket(market.symbol)
+    onSymbolChange?.(market.symbol)
     setIsOpen(false)
     setSearchTerm('')
+  }
+
+  const formatPrice = (p?: number) => {
+    if (p === undefined) return '-';
+    if (p < 0.1) return p.toLocaleString(undefined, { minimumFractionDigits: 6 });
+    if (p < 2) return p.toLocaleString(undefined, { minimumFractionDigits: 4 });
+    return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   return (
@@ -72,21 +111,20 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className={styles.symbolInfo}>
-          <span className={styles.symbol}>{currentSymbol.name}</span>
-          <span className={styles.pair}>{currentSymbol.symbol.split('/')[1]}</span>
+          <span className={styles.symbol}>{currentMarket?.symbol || 'Select Market'}</span>
         </div>
-        
-        {currentSymbol.price && (
+
+        {currentMarket?.price && (
           <div className={styles.priceInfo}>
-            <span className={styles.price}>${currentSymbol.price.toLocaleString()}</span>
-            <span className={`${styles.change} ${currentSymbol.change && currentSymbol.change >= 0 ? styles.positive : styles.negative}`}>
-              {currentSymbol.change && currentSymbol.change >= 0 ? '+' : ''}{currentSymbol.change}%
+            <span className={styles.price}>${formatPrice(currentMarket.price)}</span>
+            <span className={`${styles.change} ${currentMarket.change24hPercent >= 0 ? styles.positive : styles.negative}`}>
+              {currentMarket.change24hPercent >= 0 ? '+' : ''}{currentMarket.change24hPercent?.toFixed(2)}%
             </span>
           </div>
         )}
-        
-        <ChevronDown 
-          size={16} 
+
+        <ChevronDown
+          size={16}
           className={`${styles.arrow} ${isOpen ? styles.open : ''}`}
         />
       </button>
@@ -99,7 +137,7 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
             <Search size={16} className={styles.searchIcon} />
             <input
               type="text"
-              placeholder="Search symbols..."
+              placeholder="Search markets..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className={styles.searchInput}
@@ -107,33 +145,51 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
             />
           </div>
 
+          {/* Categories */}
+          <div className={styles.filters}>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                className={`${styles.filterChip} ${activeCategory === cat ? styles.active : ''}`}
+                onClick={() => setActiveCategory(cat)}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
           {/* Symbol List */}
           <div className={styles.symbolList}>
             {filteredSymbols.length > 0 ? (
-              filteredSymbols.map((symbol) => (
+              filteredSymbols.map((market) => (
                 <button
-                  key={symbol.symbol}
-                  className={`${styles.symbolItem} ${symbol.symbol === selectedSymbol ? styles.selected : ''}`}
-                  onClick={() => handleSymbolSelect(symbol.symbol)}
+                  key={`${market.source}:${market.symbol}`}
+                  className={`${styles.symbolItem} ${market.symbol === currentMarket?.symbol ? styles.selected : ''}`}
+                  onClick={() => handleSymbolSelect(market)}
                 >
                   <div className={styles.itemMain}>
                     <div className={styles.itemSymbol}>
-                      <span className={styles.itemName}>{symbol.name}</span>
-                      <span className={styles.itemPair}>/{symbol.symbol.split('/')[1]}</span>
+                      <span className={styles.itemName}>{market.symbol}</span>
+                      {favorites.has(`${market.source}:${market.symbol}`) && (
+                        <Star size={10} fill="#ff6b6b" color="#ff6b6b" style={{ marginLeft: 4 }} />
+                      )}
                     </div>
-                    {symbol.exchange && (
-                      <span className={styles.exchange}>{symbol.exchange}</span>
-                    )}
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <span className={styles.exchange}>{market.source}</span>
+                      {market.subCategory && (
+                        <span style={{ fontSize: '9px', color: '#6d4c5e', background: 'rgba(255,225,242,0.1)', padding: '1px 4px', borderRadius: 3 }}>
+                          {market.subCategory.split(',')[0]}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  
-                  {symbol.price && (
-                    <div className={styles.itemPrice}>
-                      <span className={styles.priceValue}>${symbol.price.toLocaleString()}</span>
-                      <span className={`${styles.changeValue} ${symbol.change && symbol.change >= 0 ? styles.positive : styles.negative}`}>
-                        {symbol.change && symbol.change >= 0 ? '+' : ''}{symbol.change}%
-                      </span>
-                    </div>
-                  )}
+
+                  <div className={styles.itemPrice}>
+                    <span className={styles.priceValue}>${formatPrice(market.price)}</span>
+                    <span className={`${styles.changeValue} ${market.change24hPercent >= 0 ? styles.positive : styles.negative}`}>
+                      {market.change24hPercent >= 0 ? '+' : ''}{market.change24hPercent?.toFixed(2)}%
+                    </span>
+                  </div>
                 </button>
               ))
             ) : (

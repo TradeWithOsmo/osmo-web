@@ -9,7 +9,7 @@ interface TVChartContainerProps {
   height?: string;
   hideTopToolbar?: boolean;
   hideSideToolbar?: boolean;
-  source?: 'hyperliquid' | 'ostium'; // Add source prop
+  source?: 'hyperliquid' | 'ostium' | 'aster' | 'vest' | 'avantis' | 'lighter';
   customColors?: {
     background?: string;
     grid?: string;
@@ -202,14 +202,25 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
       // Dynamically load datafeed based on source
       console.log(`[TradingChart] Loading datafeed for source: ${source}`);
-      let Datafeed: any;
-      if (source === 'ostium') {
-        // @ts-ignore - JS datafeed module has no TS declarations
-        Datafeed = await import('../../charting/datafeeds/Ostium/datafeed_ostium.js');
+      let importedModule;
+
+      const lowerSource = (source || 'hyperliquid').toLowerCase();
+
+      if (lowerSource === 'ostium') {
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/Ostium/datafeed_ostium.js');
+      } else if (lowerSource === 'aster') {
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/Aster/datafeed_aster.js');
+      } else if (lowerSource === 'vest') {
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/Vest/datafeed_vest.js');
       } else {
-        // @ts-ignore - JS datafeed module has no TS declarations
-        Datafeed = await import('../../charting/datafeeds/datafeed_custom.js');
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/datafeed_custom.js');
       }
+
+      const resolvedDatafeed = importedModule.default || importedModule;
 
       if (!isMountedRef.current || requestId !== initRequestIdRef.current) return;
 
@@ -228,7 +239,7 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
       const widgetOptions = {
         symbol,
-        datafeed: (Datafeed as any).default,
+        datafeed: (resolvedDatafeed as any),
         container,
         library_path: "/charting_library/",
         interval,

@@ -95,7 +95,7 @@
 }
 
 .arrowToggle {
-    width: 40px;
+    width: 60px;
     height: 100%;
     display: flex;
     align-items: center;
@@ -209,7 +209,7 @@
 }
 
 .row:hover {
-    background-color: rgba(255, 225, 242, 0.05);
+    background-color: #1A0A13;
     cursor: pointer;
 }
 
@@ -692,24 +692,16 @@
     }
 }
 
-.refreshBtn {
-    background: none;
-    border: none;
-    color: #A77590;
+.refreshIcon {
     cursor: pointer;
-    padding: 8px;
-    margin-right: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s, transform 0.2s;
+    transition: color 0.2s, transform 0.3s;
 }
 
-.refreshBtn:hover {
+.arrowToggle:hover .refreshIcon {
     color: #FFE1F2;
     transform: rotate(30deg);
 }
 
-.refreshBtn:active {
+.arrowToggle:active .refreshIcon {
     transform: rotate(180deg);
 }
