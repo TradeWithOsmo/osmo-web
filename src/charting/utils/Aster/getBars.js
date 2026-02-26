@@ -19,8 +19,11 @@ export const getBars = async (
         const API_ORIGIN = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000').replace(/,$/, '');
         const symbol = symbolInfo.name.replace('/', '-');
         const limit = periodParams.countBack || 500;
-        const url = `${API_ORIGIN}/api/candles/${symbol}?exchange=ostium&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
 
+        // Specifically route to ASTER source
+        const url = `${API_ORIGIN}/api/candles/${encodeURIComponent(symbol)}?exchange=aster&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
+
+        console.log(`[Aster getBars]: Fetching ${url}`);
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -35,35 +38,27 @@ export const getBars = async (
             return;
         }
 
-        const bars = data.map(b => {
-            return {
-                time: toMillis(b.t || b.time || b.timestamp),
-                open: parseFloat(b.o || b.open),
-                high: parseFloat(b.h || b.high),
-                low: parseFloat(b.l || b.low),
-                close: parseFloat(b.c || b.close),
-                volume: 0
-            };
-        }).filter(bar => {
+        const bars = data.map(b => ({
+            time: toMillis(b.timestamp || b.time || b.t),
+            open: parseFloat(b.open || b.o),
+            high: parseFloat(b.high || b.h),
+            low: parseFloat(b.low || b.l),
+            close: parseFloat(b.close || b.c),
+            volume: parseFloat(b.volume || b.v || 0)
+        })).filter(bar => {
             if (!fromMs && !toMs) return true;
             if (fromMs && bar.time < fromMs) return false;
             if (toMs && bar.time > toMs) return false;
             return true;
-        })
-            .sort((a, b) => a.time - b.time);
-
-        if (bars.length === 0 && !firstDataRequest) {
-            onHistoryCallback([], { noData: true });
-            return;
-        }
+        }).sort((a, b) => a.time - b.time);
 
         onHistoryCallback(bars, { noData: bars.length === 0 });
     } catch (err) {
+        console.error('[Aster getBars]: ❌ Error:', err.message);
         onErrorCallback(err);
     }
 };
 
-// Store active subscriptions and their cleanup functions
 const activeSubscriptions = new Map();
 
 export const subscribeBars = (
@@ -75,53 +70,47 @@ export const subscribeBars = (
     const API_ORIGIN = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000').replace(/,$/, '');
     const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws');
     const symbol = symbolInfo.name.replace('/', '-');
-    const wsUrl = `${WS_ORIGIN}/ws/ostium/${symbol}`;
+
+    // Connect to Aster-specific trade/price stream
+    const wsUrl = `${WS_ORIGIN}/ws/aster/${encodeURIComponent(symbol)}`;
     const ws = new WebSocket(wsUrl);
 
-    let lastBar = {
-        time: 0,
-        open: 0,
-        high: 0,
-        low: 0,
-        close: 0,
-        volume: 0
-    };
+    let lastBar = null;
 
     ws.onmessage = (event) => {
         try {
             const message = JSON.parse(event.data);
             if (message.type === 'price_update' && message.data) {
-                const data = message.data;
-                const price = parseFloat(data.price);
+                const price = parseFloat(message.data.price);
                 const now = Date.now();
 
                 const bar = {
                     time: now,
-                    open: lastBar.close || price,
-                    high: Math.max(lastBar.high || price, price),
-                    low: Math.min(lastBar.low || price, price),
+                    open: lastBar ? lastBar.close : price,
+                    high: lastBar ? Math.max(lastBar.high, price) : price,
+                    low: lastBar ? Math.min(lastBar.low, price) : price,
                     close: price,
-                    volume: 0
+                    volume: parseFloat(message.data.volume_24h || 0)
                 };
 
                 lastBar = bar;
                 onRealtimeCallback(bar);
             }
         } catch (e) {
-            console.error('[Ostium subscribeBars]: WS error', e);
+            console.error('[Aster subscribeBars]: WS error', e);
         }
     };
 
     activeSubscriptions.set(subscriberUID, {
-        ws: ws,
+        ws,
         close: () => ws.close()
     });
 };
 
 export const unsubscribeBars = (subscriberUID) => {
-    const subscription = activeSubscriptions.get(subscriberUID);
-    if (subscription) {
-        subscription.close();
+    const sub = activeSubscriptions.get(subscriberUID);
+    if (sub) {
+        sub.close();
         activeSubscriptions.delete(subscriberUID);
     }
 };

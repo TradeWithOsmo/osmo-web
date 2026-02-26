@@ -13,9 +13,11 @@ export interface MarketData {
     high24h: number;
     low24h: number;
     volume24h: number; // USD volume
-    source: 'hyperliquid' | 'ostium';
+    source: string;
     category: string;
+    subCategory?: string;
     maxLeverage?: number;
+    canonical?: boolean;
 }
 
 export interface Trade {
@@ -41,66 +43,37 @@ export const marketService = {
     // Fetch all available markets/tickers
     getMarkets: async (): Promise<MarketData[]> => {
         try {
-            console.log("🔍 Fetching markets from:", `${API_URL}/connectors/hyperliquid/prices`, `${API_URL}/connectors/ostium/prices`);
+            console.log("🔍 Fetching unified markets from:", `${API_URL}/markets`);
 
-            const [hlResponse, ostResponse] = await Promise.allSettled([
-                axios.get(`${API_URL}/connectors/hyperliquid/prices`, { timeout: 30000 }),
-                axios.get(`${API_URL}/connectors/ostium/prices`, { timeout: 30000 })
-            ]);
+            const response = await axios.get(`${API_URL}/markets`, { timeout: 30000, params: { canonical_only: true } });
 
-            let markets: MarketData[] = [];
-
-            if (hlResponse.status === 'fulfilled') {
-                console.log("✅ Hyperliquid response:", hlResponse.value.status, "Markets:", hlResponse.value.data.length);
-                // Transform Hyperliquid data
-                markets = markets.concat(hlResponse.value.data.map((item: any) => ({
-                    symbol: item.symbol, // Backend already returns "BTC-USD"
-                    price: parseFloat(item.price) || 0,
-                    change24h: parseFloat(item.change_24h || 0),
-                    change24hPercent: parseFloat(item.change_percent_24h || 0),
-                    high24h: parseFloat(item.high_24h || 0),
-                    low24h: parseFloat(item.low_24h || 0),
-                    volume24h: parseFloat(item.volume_24h || 0),
-                    source: 'hyperliquid' as const,
-                    category: item.category || 'Crypto' // Use backend category
-                })));
-                console.log(`📊 Loaded ${markets.length} Hyperliquid markets`);
-            } else {
-                console.error("❌ Hyperliquid fetch failed:", hlResponse.reason?.message || hlResponse.reason);
+            if (response.status !== 200 || !response.data || !response.data.markets) {
+                console.warn("⚠️ No markets loaded or invalid response!", response);
+                return [];
             }
 
-            if (ostResponse.status === 'fulfilled') {
-                console.log("✅ Ostium response:", ostResponse.value.status, "Markets:", ostResponse.value.data.length);
-                // Create set of existing symbols (from Hyperliquid) to avoid duplicates
-                const existingSymbols = new Set(markets.map(m => m.symbol));
+            const rawMarkets = response.data.markets;
+            console.log(`✅ Unified markets response. Loaded ${rawMarkets.length} markets total.`);
 
-                const ostiumMarkets = ostResponse.value.data.map((item: any) => {
-                    return {
-                        symbol: item.symbol,
-                        price: parseFloat(item.price) || 0,
-                        change24h: parseFloat(item.change_24h || 0),
-                        change24hPercent: parseFloat(item.change_percent_24h || 0),
-                        high24h: parseFloat(item.high_24h || 0),
-                        low24h: parseFloat(item.low_24h || 0),
-                        volume24h: parseFloat(item.volume_24h || 0),
-                        source: 'ostium' as const,
-                        category: item.category || 'Forex' // Use backend category
-                    };
-                }).filter((m: any) => m.category !== 'Crypto' && !existingSymbols.has(m.symbol));
-                markets = markets.concat(ostiumMarkets);
-                console.log(`📊 Loaded ${ostiumMarkets.length} Ostium markets (Total: ${markets.length})`);
-            } else {
-                console.error("❌ Ostium fetch failed:", ostResponse.reason?.message || ostResponse.reason);
-            }
-
-            if (markets.length === 0) {
-                console.warn("⚠️ No markets loaded! Both endpoints failed or returned empty data.");
-            }
+            const markets: MarketData[] = rawMarkets.map((item: any) => ({
+                symbol: item.symbol,
+                price: parseFloat(item.price) || 0,
+                change24h: parseFloat(item.change_24h || 0),
+                change24hPercent: parseFloat(item.change_percent_24h || item.change24hPercent || 0),
+                high24h: parseFloat(item.high_24h || item.high24h || 0),
+                low24h: parseFloat(item.low_24h || item.low24h || 0),
+                volume24h: parseFloat(item.volume_24h || item.volume24h || 0),
+                source: item.source || 'hyperliquid',
+                category: item.category || 'Crypto',
+                subCategory: item.subCategory || item.sub_category,
+                maxLeverage: item.maxLeverage ? parseFloat(item.maxLeverage) : undefined,
+                canonical: item.canonical || false
+            }));
 
             return markets;
 
         } catch (error) {
-            console.error("❌ Failed to fetch markets:", error);
+            console.error("❌ Failed to fetch aggregated markets:", error);
             return [];
         }
     },

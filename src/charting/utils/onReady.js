@@ -8,10 +8,12 @@ const configurationData = {
     }
   ],
   symbols_types: [
-    {
-      name: 'Crypto',
-      value: 'crypto'
-    }
+    { name: 'All', value: '' },
+    { name: 'Crypto', value: 'Crypto' },
+    { name: 'Forex', value: 'Forex' },
+    { name: 'Stocks', value: 'Stocks' },
+    { name: 'Commodities', value: 'Commodities' },
+    { name: 'Index', value: 'Index' },
   ],
   supports_marks: false,
   supports_timescale_marks: false,

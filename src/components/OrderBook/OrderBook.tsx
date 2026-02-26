@@ -21,47 +21,71 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
     const [bids, setBids] = useState<OrderRowData[]>([]);
     const [rowCount, setRowCount] = useState<number>(15);
     const containerRef = useRef<HTMLDivElement>(null);
-    const isOstium = selectedMarket?.source === 'ostium';
+    const [isAvailable, setIsAvailable] = useState<boolean>(true); // Assume available until proven otherwise
+    const WS_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/,$/, '').replace(/^http/, 'ws');
+
+    // Clear stale data when the market changes
+    useEffect(() => {
+        setAsks([]);
+        setBids([]);
+    }, [selectedMarket?.symbol]);
 
     useEffect(() => {
-        if (isOstium || !selectedMarket) return;
+        if (!selectedMarket) return;
 
         const symbol = selectedMarket.symbol;
-        const ws = new WebSocket(`ws://localhost:8000/ws/orderbook/${symbol}`);
+        const ws = new WebSocket(`${WS_ORIGIN}/ws/orderbook/${symbol}`);
+
+        let dataReceived = false;
+        const timeout = setTimeout(() => {
+            if (!dataReceived && selectedMarket.source !== 'hyperliquid') {
+                setIsAvailable(false);
+            }
+        }, 5000);
 
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
                 if (message.type === 'l2Book' && message.data.levels) {
+                    dataReceived = true;
+                    setIsAvailable(true);
                     const [hlBids, hlAsks] = message.data.levels;
 
                     let askTotal = 0;
                     const processedAsks = hlAsks.slice(0, rowCount).map((l: any, i: number) => {
+                        const price = parseFloat(l.px);
                         const amount = parseFloat(l.sz);
+                        if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(amount) || amount <= 0) {
+                            return null;
+                        }
                         askTotal += amount;
                         return {
                             id: `ask-${i}`,
-                            price: parseFloat(l.px),
+                            price,
                             amount,
                             total: askTotal,
                             type: 'ask' as const,
                             depthPercent: 0
                         };
-                    });
+                    }).filter(Boolean) as OrderRowData[];
 
                     let bidTotal = 0;
                     const processedBids = hlBids.slice(0, rowCount).map((l: any, i: number) => {
+                        const price = parseFloat(l.px);
                         const amount = parseFloat(l.sz);
+                        if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(amount) || amount <= 0) {
+                            return null;
+                        }
                         bidTotal += amount;
                         return {
                             id: `bid-${i}`,
-                            price: parseFloat(l.px),
+                            price,
                             amount,
                             total: bidTotal,
                             type: 'bid' as const,
                             depthPercent: 0
                         };
-                    });
+                    }).filter(Boolean) as OrderRowData[];
 
                     const maxTotal = Math.max(
                         processedAsks.length > 0 ? processedAsks[processedAsks.length - 1].total : 0,
@@ -81,8 +105,11 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
             }
         };
 
-        return () => ws.close();
-    }, [selectedMarket?.symbol, isOstium, rowCount]);
+        return () => {
+            ws.close();
+            clearTimeout(timeout);
+        };
+    }, [selectedMarket?.symbol, rowCount, WS_ORIGIN]);
 
     useEffect(() => {
         const calculateRows = () => {
@@ -132,7 +159,7 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
         setPendingLimitPrice(selectedMarket.symbol, clickedPrice);
     };
 
-    if (isOstium) return null;
+    if (!isAvailable) return null;
 
     // Calculate spread
     const bestBid = bids.length > 0 ? bids[0].price : 0;

@@ -1,0 +1,134 @@
+.footer {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    height: 38px;
+    background-color: #12000A;
+    border-top: 1px solid #3A2530;
+    padding: 0;
+    /* padding removed to allow dividers to touch top/bottom, items handle their own padding */
+    font-size: 12px;
+    color: #A77590;
+    flex-shrink: 0;
+    width: 100%;
+    position: relative;
+}
+
+.leftSection {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+.statusGroup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* space between dot, text, and icon */
+    padding: 0 15px;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* Base styles for the color classes. 
+   Apply color to text and background-color to dot */
+.textConnected {
+    color: #4CAF50;
+    /* Green */
+    background-color: #4CAF50;
+}
+
+.textConnecting {
+    color: #FFC107;
+    /* Yellow */
+    background-color: #FFC107;
+}
+
+.textDisconnected {
+    color: #F44336;
+    /* Red */
+    background-color: #F44336;
+}
+
+.statusIcon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    display: flex;
+}
+
+.statusText {
+    font-weight: 500;
+    background-color: transparent !important;
+    /* Ensure text doesn't take background */
+}
+
+.divider {
+    width: 1px;
+    min-height: 100%;
+    align-self: stretch;
+    background-color: #3A2530;
+}
+
+.link {
+    display: flex;
+    align-items: center;
+    color: #A77590;
+    text-decoration: none;
+    transition: color 0.2s;
+    padding: 0 15px;
+}
+
+.link:hover {
+    color: #FFE1F2;
+}
+
+.infoText {
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+}
+
+.learnMore {
+    color: #FFE1F2;
+    text-decoration: underline;
+    margin-left: 4px;
+}
+
+.rightSection {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+.socialLink {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+    padding: 0 15px;
+}
+
+.socialLink:hover {
+    opacity: 0.8;
+}
+
+.socialLink img {
+    height: 18px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* Hide on mobile and tablet as requested or just let it stay */
+@media (max-width: 1024px) {
+    .footer {
+        display: none;
+    }
+}

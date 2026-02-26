@@ -19,25 +19,49 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
     const [trades, setTrades] = useState<TradeRowData[]>([]);
     const [tradeRowCount, setTradeRowCount] = useState<number>(20);
     const tradesContainerRef = useRef<HTMLDivElement>(null);
-    const isOstium = selectedMarket?.source === 'ostium';
+    const [isAvailable, setIsAvailable] = useState<boolean>(true);
+    const WS_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/,$/, '').replace(/^http/, 'ws');
+
+    // Clear stale data when the market changes
+    useEffect(() => {
+        setTrades([]);
+    }, [selectedMarket?.symbol]);
 
     useEffect(() => {
-        if (isOstium || !selectedMarket) return;
+        if (!selectedMarket) return;
 
         const symbol = selectedMarket.symbol;
-        const ws = new WebSocket(`ws://localhost:8000/ws/trades/${symbol}`);
+        const ws = new WebSocket(`${WS_ORIGIN}/ws/trades/${symbol}`);
+
+        let dataReceived = false;
+        const timeout = setTimeout(() => {
+            if (!dataReceived && selectedMarket.source !== 'hyperliquid') {
+                setIsAvailable(false);
+            }
+        }, 5000);
 
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
                 if (message.type === 'trades' && Array.isArray(message.data)) {
-                    const formatted: TradeRowData[] = message.data.map((t: any) => ({
-                        id: t.hash || `${t.time}-${t.px}-${t.sz}`,
-                        price: parseFloat(t.px),
-                        size: parseFloat(t.sz),
-                        time: new Date(t.time).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                        side: t.side === 'B' ? 'buy' : 'sell'
-                    }));
+                    dataReceived = true;
+                    setIsAvailable(true);
+                    const formatted: TradeRowData[] = message.data
+                        .map((t: any) => {
+                            const price = parseFloat(t.px);
+                            const size = parseFloat(t.sz);
+                            if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(size) || size <= 0) {
+                                return null;
+                            }
+                            return {
+                                id: t.hash || t.tx_hash || `${t.time}-${t.px}-${t.sz}`,
+                                price,
+                                size,
+                                time: new Date(t.time).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                                side: t.side === 'B' ? 'buy' : 'sell'
+                            };
+                        })
+                        .filter(Boolean) as TradeRowData[];
 
                     setTrades(prev => [...formatted, ...prev].slice(0, 100));
                 }
@@ -46,8 +70,11 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
             }
         };
 
-        return () => ws.close();
-    }, [selectedMarket?.symbol, isOstium]);
+        return () => {
+            ws.close();
+            clearTimeout(timeout);
+        };
+    }, [selectedMarket?.symbol, WS_ORIGIN]);
 
     useEffect(() => {
         const calculateRows = () => {
@@ -74,7 +101,7 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
         });
     };
 
-    if (isOstium) return null;
+    if (!isAvailable) return null;
 
     const isLoading = trades.length === 0;
 

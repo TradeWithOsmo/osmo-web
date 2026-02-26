@@ -14,7 +14,8 @@ const OrderBookPanel: React.FC<OrderBookPanelProps> = ({ forcedTab }) => {
     const [grouping, setGrouping] = useState(0.01);
 
     const activeTab = forcedTab || internalTab;
-    const isOstium = selectedMarket?.source === 'ostium';
+    // We let the components decide availability now
+    const isAvailable = true;
 
     return (
         <div className={styles.container}>
@@ -36,10 +37,10 @@ const OrderBookPanel: React.FC<OrderBookPanelProps> = ({ forcedTab }) => {
                 </div>
             )}
 
-            {isOstium ? (
+            {!isAvailable ? (
                 <div className={styles.notAvailable}>
                     <div className={styles.notAvailableText}>
-                        Order Book and Trade history are not available for {selectedMarket?.category} assets from Ostium.
+                        Order Book and Trade history are not available for {selectedMarket?.category} assets from {selectedMarket?.source}.
                     </div>
                 </div>
             ) : (
@@ -52,7 +53,7 @@ const OrderBookPanel: React.FC<OrderBookPanelProps> = ({ forcedTab }) => {
                 </div>
             )}
 
-            {!isOstium && (
+            {isAvailable && (
                 <div className={styles.footer}>
                     <button className={styles.groupBtn} onClick={() => setGrouping(prev => Math.max(0.001, prev / 10))}>−</button>
                     <button className={styles.groupBtn} onClick={() => setGrouping(prev => Math.min(1, prev * 10))}>+</button>

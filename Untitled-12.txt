@@ -1,0 +1,115 @@
+); // assume the url is formaated as /:lng/futures/:symbol
+});
+FuturesSDK.eventListener.on("invalidSymbol", () =>
+  console.log("invalid symbol")
+);
+FuturesSDK.eventListener.on("startLoad", () =>
+  console.log("startLoad event received")
+);
+FuturesSDK.eventListener.on("lngChange", (data) => {
+  console.log("lng change", data.lng);
+  window.history.pushState(
+    {},
+    null,
+    `/${data.lng}/futures/${getSymbolFromUrl()}`
+  ); // assume the url is formaated as /:lng/futures/:symbol
+});
+```
+
+## Color Palette
+
+[https://www.figma.com/design/9dUDUHgsJI4mKvRvwfGQQz/Aster-Branding?node-id=25-84&t=Wz7o70tBaURpFigK-0](https://www.figma.com/design/9dUDUHgsJI4mKvRvwfGQQz/Aster-Branding?node-id=25-84&t=Wz7o70tBaURpFigK-0)
+
+## Proxy setup (only if you change the API domain in the SDK)
+
+### API
+
+```
+https://api.your.domain/bapi/* --- proxy to --> https://www.asterdex.com/bapi/*
+https://api.your.domain/fapi/* --- proxy to --> https://www.asterdex.com/fapi/*
+```
+
+### WS
+
+```
+wss://fstream.your.domain/compress/stream --- proxyt to --> wss://fstream.asterdex.com/compress/stream
+```
+
+### Static files
+
+```
+https://static.your.domain --- proxy to --> https://static.asterdex.com
+```
+
+## FAQ
+
+### Q: How to remove the theme toggle component?
+
+Set `config.enableThemeToggle` to false.
+
+### Q: How to change the font?
+
+Set `config.fontFamily`, or set `config.fontUrl` for custom font.
+
+### Q: How to set the price display on the navigation bar?
+
+There are few configs related to the price display:
+
+- `config.headerConfig.token.pricePrecision`: the number of decimal places to display.
+- `config.headerConfig.token.lpPairAddress`: the contract address of the liquidity pool pair. Example: 0xa0ee789a8f581cb92dd9742ed0b5d54a0916976c is the address for the APX/BUSD pair in Pancake Pool.
+- `config.headerConfig.token.lpBaseAddress`: the base asset address in the LP pair.
+- `config.headerConfig.token.lpQuoteAddress`: the quote asset address in the LP pair.
+
+The section above is only needed if you want to perform a two-step price calculation. For example, if the CAKE token already has a CAKE/USDT LP configured, you can add a BUSD/USDT LP here to derive the CAKE price in USDT.
+
+- `config.headerConfig.token.quote.lpPairAddress`: the contract address of the pair in the liquidity pool. Example: 0xa0ee789a8f581cb92dd9742ed0b5d54a0916976c is the address of APX/BUSD in Pancake Pool.
+- `config.headerConfig.token.quote.lpBaseAddress`: the base asset address in the LP pair.
+- `config.headerConfig.token.quote.lpQuoteAddress`: the quote asset address in the LP pair.
+
+### Q: How to change title or favicon?
+
+The SDK inserts an iframe into your specified DOM. You can modify the title or favicon in your HTML as usual. See [w3school](​​https://www.w3schools.com/howto/howto_html_favicon.asp)
+
+### Q: How to change the logo in the header and add a link to it?
+
+Since we support both dark and light themes, as well as responsive design (RWD), there are 5 configuration options for the logo:
+
+- `config.headerCnfig.logo.darkImgUrl`: image URL for dark theme.
+- `config.headerCnfig.logo.lightImgUrl`: image URL for light theme.
+
+### Q: How to change border-radius of the widgets?
+
+Use `config.variants.widget.default` to change the style of the widgets.
+
+### Q: How to migrate to the latest SDK?
+
+1. Go to [releases](https://github.com/asterdex/aster-broker-pro-sdk/releases) and download the latest SDK zip.
+2. Unzip the file and upload to your CDN.
+3. Update the SDK version in your HTML file ``
+
+### Q: What are the `br` and `gz`?
+
+`br` => `brotil`
+`gz` => `gzip`
+
+These are two of the most common compression algorithms, widely used on the modern web. They help users download data faster. Check out this article to learn more: https://www.siteground.com/blog/brotli-vs-gzip-compression/
+
+### Q: How to use `br` and `gz` static file
+
+Same as before, but make sure to download the `br.zip` or `gz.zip` version.
+
+1. Go to [releases](https://github.com/asterdex/aster-broker-pro-sdk/releases) and download the latest SDK zip file.
+2. Unzip the file, and upload to your CDN.
+3. Update the SDK version in your HTML file ``
+
+### Q: How to integrate the SDK with a customized URL (e.g. /en/futures/BTCUSD)?
+
+1. Make sure `/:lng/futures/:symbol` can redirect to your HTML. This is usually handled by your infra team.
+2. Parse the url to get `lng`, `symbol`
+
+```js
+function getLngFromUrl() {
+  return location.pathname.split("/")[1] || "en";
+}
+
+function getSymbolFromUrl() {

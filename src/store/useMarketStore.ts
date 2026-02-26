@@ -77,10 +77,12 @@ interface MarketState {
     pendingLimitPrice: { symbol: string; price: number } | null;
     isLoading: boolean;
     error: string | null;
+    wsStatus: 'connected' | 'connecting' | 'disconnected';
+    setWsStatus: (status: 'connected' | 'connecting' | 'disconnected') => void;
 
     // Actions
     fetchMarkets: () => Promise<void>;
-    setMarket: (symbol: string, source?: 'hyperliquid' | 'ostium') => void;
+    setMarket: (symbol: string, source?: string) => void;
     updateMarketData: (symbol: string, data: Partial<MarketData>) => void; // For real-time updates
     updatePrices: (prices: Record<string, any>) => void; // Bulk price updates
     getPrice: (symbol: string) => number; // Helper to get latest price
@@ -94,6 +96,9 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     pendingLimitPrice: null,
     isLoading: false,
     error: null,
+    wsStatus: 'connecting',
+
+    setWsStatus: (status) => set({ wsStatus: status }),
 
     fetchMarkets: async () => {
         set({ isLoading: true, error: null });
@@ -124,9 +129,9 @@ export const useMarketStore = create<MarketState>((set, get) => ({
         }
     },
 
-    setMarket: (symbol: string, source?: 'hyperliquid' | 'ostium') => {
+    setMarket: (symbol: string, source?: string) => {
         const market = get().markets.find((candidate) => {
-            if (source && candidate.source !== source) return false;
+            if (source && candidate.source?.toLowerCase() !== source.toLowerCase()) return false;
             const found = findMarketBySymbol([candidate], symbol);
             return Boolean(found);
         }) || findMarketBySymbol(get().markets, symbol);
@@ -171,6 +176,8 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                         low24h: priceData.low_24h !== undefined ? priceData.low_24h : market.low24h,
                         maxLeverage: priceData.maxLeverage !== undefined ? priceData.maxLeverage : market.maxLeverage,
                         category: priceData.category || market.category,
+                        subCategory: priceData.subCategory || priceData.sub_category || market.subCategory,
+                        canonical: priceData.canonical !== undefined ? priceData.canonical : market.canonical,
                     };
                 }
                 return market;
@@ -189,9 +196,11 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                     high24h: payload?.high_24h ?? parsedPrice,
                     low24h: payload?.low_24h ?? parsedPrice,
                     volume24h: payload?.volume_24h ?? 0,
-                    source: payload?.source === 'ostium' ? 'ostium' : 'hyperliquid',
+                    source: payload?.source || 'hyperliquid',
                     category: payload?.category || 'Crypto',
+                    subCategory: payload?.subCategory || payload?.sub_category,
                     maxLeverage: payload?.maxLeverage,
+                    canonical: payload?.canonical || false,
                 });
             });
 
@@ -209,6 +218,8 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                     low24h: p.low_24h !== undefined ? p.low_24h : updatedSelected.low24h,
                     maxLeverage: p.maxLeverage !== undefined ? p.maxLeverage : updatedSelected.maxLeverage,
                     category: p.category || updatedSelected.category,
+                    subCategory: p.subCategory || p.sub_category || updatedSelected.subCategory,
+                    canonical: p.canonical !== undefined ? p.canonical : updatedSelected.canonical,
                 };
             }
 

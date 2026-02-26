@@ -2,14 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useMarketStore } from '../store/useMarketStore';
 import { usePortfolioStore } from '../store/usePortfolioStore';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/,$/, '');
 const WS_URL = API_URL.replace('http', 'ws') + '/ws/hyperliquid/ALL';
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 30000; // 30 seconds
 const MAX_RETRIES = Infinity; // Never give up, keep trying to reconnect
 
 export const useGlobalMarketStream = () => {
-    const { updatePrices } = useMarketStore();
+    const { updatePrices, setWsStatus } = useMarketStore();
     const { updateMarkPrices } = usePortfolioStore();
     const wsRef = useRef<WebSocket | null>(null);
     const retryCountRef = useRef(0);
@@ -38,11 +38,13 @@ export const useGlobalMarketStream = () => {
                 wsRef.current = null;
             }
 
+            setWsStatus('connecting');
             const ws = new WebSocket(WS_URL);
             wsRef.current = ws;
 
             ws.onopen = () => {
                 console.log(`✅ Global Market Stream Connected`);
+                setWsStatus('connected');
                 retryCountRef.current = 0;
 
                 // Clear old heartbeat and start new one (Ping every 30s)
@@ -80,6 +82,7 @@ export const useGlobalMarketStream = () => {
             };
 
             ws.onclose = (event) => {
+                setWsStatus('disconnected');
                 if (heartbeatIntervalRef.current) {
                     clearInterval(heartbeatIntervalRef.current);
                     heartbeatIntervalRef.current = null;

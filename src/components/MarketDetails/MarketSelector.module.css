@@ -521,63 +521,8 @@
     }
 }
 
-/* Hierarchical Dropdown Styles */
-.groupContainer {
-    display: flex;
-    align-items: center;
-    transition: all 0.3s ease-in-out;
-}
-
-.subCategories {
-    display: flex;
-    max-width: 0;
-    overflow: hidden;
-    opacity: 0;
-    transition: all 0.3s ease-in-out;
-}
-
-.groupContainer.expanded .subCategories {
-    max-width: 2000px;
-    /* Large enough to show all */
-    opacity: 1;
-}
-
-
-.arrowIcon {
-    width: 16px;
-    height: 16px;
-    margin-left: 8px;
-    transition: transform 0.3s ease;
-}
-
-.collapsedArrow {
-    transform: rotate(90deg);
-    /* Points RIGHT */
-}
-
-.expandedArrow {
-    transform: rotate(180deg);
-    /* Points DOWN */
-}
-
-
-.activeGroup {
-    color: #FFE1F2;
-    background-color: rgba(255, 225, 242, 0.05);
-}
-
 .countBadge {
     opacity: 0.5;
     font-size: 0.85em;
     margin-left: 6px;
-}
-
-.subChip {
-    padding: 16px 18px;
-    font-size: 13px;
-    color: #A77590;
-}
-
-.subChip:hover {
-    color: #FFE1F2;
 }

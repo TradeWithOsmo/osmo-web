@@ -108,30 +108,29 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                     Order History
                 </button>
 
-                <div className={styles.filler} style={{ flex: 1, borderBottom: '1px solid #3A2530', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                     <button
-                        type="button"
-                        onClick={() => {
-                            if (!walletAddress) return;
-                            // Ensure global sync is running (in case user navigated here before wallet was ready).
-                            startGlobalSync(walletAddress);
-                            void refreshAll(walletAddress);
-                        }}
-                         className={styles.refreshBtn}
-                         title="Refresh Data"
-                     >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M23 4v6h-6"></path>
-                            <path d="M1 20v-6h6"></path>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                    </button>
+                <div className={styles.filler} style={{ flex: 1, borderBottom: '1px solid #3A2530' }}></div>
+
+                <div
+                    className={styles.arrowToggle}
+                    onClick={() => {
+                        if (!walletAddress) return;
+                        startGlobalSync(walletAddress);
+                        void refreshAll(walletAddress);
+                    }}
+                    style={{ borderBottom: '1px solid #3A2530', height: '100%' }}
+                    title="Refresh Data"
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A77590" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.refreshIcon}>
+                        <path d="M23 4v6h-6"></path>
+                        <path d="M1 20v-6h6"></path>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
                 </div>
 
                 <div
                     className={styles.arrowToggle}
                     onClick={handleToggle}
-                    style={{ borderBottom: '1px solid #3A2530', height: 'auto', display: 'flex', alignItems: 'center' }}
+                    style={{ borderBottom: '1px solid #3A2530', height: '100%' }}
                 >
                     <img
                         src={arrowDownIcon}
@@ -139,7 +138,7 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                         style={{
                             width: '16px',
                             height: '16px',
-                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', // If Expanded, arrow points UP (180deg from down). If Collapsed, arrow points DOWN (0deg).
+                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                             transition: 'transform 0.2s'
                         }}
                     />
@@ -190,13 +189,13 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                                 Loading positions...
                                             </td>
                                         </tr>
-                                     ) : error ? (
-                                         <tr>
-                                             <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0' }}>
-                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                    ) : error ? (
+                                        <tr>
+                                            <td colSpan={10} style={{ textAlign: 'center', padding: '40px 0' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                                                     <span style={{ color: '#FF4560', fontSize: '14px' }}>Failed to load positions</span>
                                                     <span style={{ color: '#A77590', fontSize: '12px' }}>{error}</span>
-                                                     <button
+                                                    <button
                                                         type="button"
                                                         onClick={() => {
                                                             if (!walletAddress) return;
