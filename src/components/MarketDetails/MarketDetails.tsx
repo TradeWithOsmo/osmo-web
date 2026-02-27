@@ -10,7 +10,6 @@ import TokenIcon from './TokenIcon'
 import OstiumIcon from './OstiumIcon'
 import { useMarketStore } from '../../store/useMarketStore'
 import { useWatchlistStore } from '../../store/useWatchlistStore'
-// import { useRealTimePrice } from '../../hooks/useRealTimePrice' // Removed
 
 export interface MarketDetailsProps {
     isFavorite?: boolean
@@ -26,7 +25,6 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
 }) => {
     const { selectedMarket, isLoading, error, fetchMarkets } = useMarketStore()
     const { favorites, toggleFavorite, fetchWatchlist } = useWatchlistStore()
-    // Global stream handled in App.tsx
 
     const [isExpanded, setIsExpanded] = useState(false)
     const [isMarketSelectorOpen, setIsMarketSelectorOpen] = useState(false)
@@ -74,63 +72,62 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
         )
     }
 
-    // Format helpers
+    // ── Format helpers ────────────────────────────────────────────────────────
     const formatPrice = (val: number) => {
         if (!val && val !== 0) return '-';
         if (val === 0) return '0.0000';
-
-        // Use 'en-US' to FORCE dot separator and comma for thousands
         const locale = 'en-US';
-
-        // High value: 2 decimals (e.g. $42,000.50)
-        if (val >= 100) {
-            return `${val.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        }
-
-        // Mid/Low value: 4 decimals as requested (e.g. $1.6432)
-        // This covers Forex and mid-price cryptos
-        return `${val.toLocaleString(locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
+        if (val >= 100) return val.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (val >= 1) return val.toLocaleString(locale, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+        // Sub-dollar: show 6 significant decimals
+        return val.toLocaleString(locale, { minimumFractionDigits: 6, maximumFractionDigits: 6 });
     }
 
     const formatChange = (val: number, price: number) => {
         const absVal = Math.abs(val);
         if (absVal === 0) return '0.00';
-        // If the absolute change is very small relative to price, show more decimals
         if (price < 1 || absVal < 0.01) {
             return val.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
         }
         return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    const formatVol = (val: number) => {
+    const formatVol = (val?: number) => {
         if (!val && val !== 0) return '-';
         if (val === 0) return '0.00';
-
-        if (val >= 1000000000) return `${(val / 1000000000).toFixed(2)}B`;
-        if (val >= 1000000) return `${(val / 1000000).toFixed(2)}M`;
-        if (val >= 1000) return `${(val / 1000).toFixed(2)}K`;
-        return `${val.toFixed(2)}`;
+        if (val >= 1_000_000_000) return `${(val / 1_000_000_000).toFixed(2)}B`;
+        if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(2)}M`;
+        if (val >= 1_000) return `${(val / 1_000).toFixed(2)}K`;
+        return val.toFixed(2);
     }
 
     const formatPercent = (val: number) => {
         if (!val && val !== 0) return '0.00%';
         const absVal = Math.abs(val);
-        if (absVal === 0) return '0.00%';
-
-        // If percent change is very small, show more decimals
         if (absVal < 0.1) {
             return `${val.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}%`;
         }
         return `${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
     }
 
-    const isPositiveChange = selectedMarket.change24h >= 0
+    const formatFundingRate = (val?: number) => {
+        if (val === undefined || val === null) return null;
+        return `${(val * 100).toFixed(4)}%`;
+    }
+
+    const isPositiveChange = (selectedMarket.change24h ?? 0) >= 0
     const changeSign = isPositiveChange ? '+' : ''
+    const fundingFmt = formatFundingRate(selectedMarket.fundingRate)
+
+    // Only show funding if exchange supports it (val defined and non-zero)
+    const hasFunding = selectedMarket.fundingRate !== undefined && selectedMarket.fundingRate !== 0
+    const hasOI = selectedMarket.openInterest !== undefined && selectedMarket.openInterest > 0
+    const hasLeverage = selectedMarket.maxLeverage !== undefined && selectedMarket.maxLeverage > 0
 
     return (
         <div className={styles.wrapper}>
             <div className={styles.container}>
-                {/* Left Section */}
+                {/* Left Section: star + icon + symbol + market dropdown */}
                 <div className={styles.leftSection}>
                     <button
                         className={styles.starButton}
@@ -154,28 +151,16 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
 
                     <div className={styles.pairName} onClick={() => setIsMarketSelectorOpen(!isMarketSelectorOpen)} style={{ cursor: 'pointer' }}>
                         {selectedMarket.symbol}
-                        <svg
-                            width="10"
-                            height="6"
-                            viewBox="0 0 10 6"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            className={`${styles.mobileDropdownArrow} ${isMarketSelectorOpen ? styles.rotate : ''}`}
-                        >
+                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"
+                            className={`${styles.mobileDropdownArrow} ${isMarketSelectorOpen ? styles.rotate : ''}`}>
                             <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </div>
 
                     <div className={styles.marketDropdown} onClick={() => setIsMarketSelectorOpen(!isMarketSelectorOpen)}>
                         <span className={styles.marketDropdownText}>All markets</span>
-                        <svg
-                            width="10"
-                            height="6"
-                            viewBox="0 0 10 6"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            className={`${styles.marketDropdownArrow} ${isMarketSelectorOpen ? styles.rotate : ''}`}
-                        >
+                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"
+                            className={`${styles.marketDropdownArrow} ${isMarketSelectorOpen ? styles.rotate : ''}`}>
                             <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </div>
@@ -188,7 +173,7 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                             {formatPrice(selectedMarket.price)}
                         </span>
                         <span className={`${styles.statLabel} ${isPositiveChange ? styles.positive : styles.negative}`} style={{ marginLeft: '4px' }}>
-                            {changeSign}{formatPercent(selectedMarket.change24hPercent)}
+                            {changeSign}{formatPercent(selectedMarket.change24hPercent ?? 0)}
                         </span>
                     </div>
                     <button className={styles.expandButton} onClick={toggleExpand}>
@@ -196,7 +181,7 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                     </button>
                 </div>
 
-                {/* Desktop Stats Section - inside container */}
+                {/* Desktop Stats Section */}
                 <div className={`${styles.statsContainer} ${styles.desktopStats}`}>
                     <div className={styles.statItem}>
                         <span className={styles.statLabel}>Price</span>
@@ -204,14 +189,10 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                     </div>
 
                     <div className={styles.statItem}>
-                        <span className={styles.statLabel}>24h Volume</span>
-                        <span className={styles.statValue}>{formatVol(selectedMarket.volume24h)}</span>
-                    </div>
-
-                    <div className={styles.statItem}>
                         <span className={styles.statLabel}>24h Change</span>
                         <span className={`${styles.statValue} ${isPositiveChange ? styles.positive : styles.negative}`}>
-                            {changeSign}{formatChange(selectedMarket.change24h, selectedMarket.price)} / {changeSign}{formatPercent(selectedMarket.change24hPercent)}
+                            {changeSign}{formatChange(selectedMarket.change24h ?? 0, selectedMarket.price)}&ensp;
+                            ({changeSign}{formatPercent(selectedMarket.change24hPercent ?? 0)})
                         </span>
                     </div>
 
@@ -224,9 +205,44 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                         <span className={styles.statLabel}>24h Low</span>
                         <span className={styles.statValue}>{selectedMarket.low24h ? formatPrice(selectedMarket.low24h) : '-'}</span>
                     </div>
+
+                    <div className={styles.statItem}>
+                        <span className={styles.statLabel}>24h Volume</span>
+                        <span className={styles.statValue}>{formatVol(selectedMarket.volume24h)}</span>
+                    </div>
+
+                    {hasOI && (
+                        <div className={styles.statItem}>
+                            <span className={styles.statLabel}>Open Interest</span>
+                            <span className={styles.statValue}>{formatVol(selectedMarket.openInterest)}</span>
+                        </div>
+                    )}
+
+                    {hasFunding && (
+                        <div className={styles.statItem}>
+                            <span className={styles.statLabel}>Funding Rate</span>
+                            <span className={`${styles.statValue} ${(selectedMarket.fundingRate ?? 0) >= 0 ? styles.positive : styles.negative}`}>
+                                {fundingFmt}
+                            </span>
+                        </div>
+                    )}
+
+                    {hasLeverage && (
+                        <div className={styles.statItem}>
+                            <span className={styles.statLabel}>Max Leverage</span>
+                            <span className={styles.statValue}>{selectedMarket.maxLeverage}×</span>
+                        </div>
+                    )}
+
+                    <div className={styles.statItem}>
+                        <span className={styles.statLabel}>Exchange</span>
+                        <span className={styles.statValue} style={{ textTransform: 'capitalize' }}>
+                            {selectedMarket.source || 'hyperliquid'}
+                        </span>
+                    </div>
                 </div>
 
-                {/* Layout Switcher (Desktop Only usually, but let's keep it generally available if space permits, or hide on mobile if needed) */}
+                {/* Layout Switcher */}
                 {layoutMode && setLayoutMode && (
                     <div className={styles.rightSection}>
                         <div className={styles.layoutTabs}>
@@ -257,14 +273,55 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                 </div>
 
                 <div className={styles.statItem}>
+                    <span className={styles.statLabel}>24h Change</span>
+                    <span className={`${styles.statValue} ${isPositiveChange ? styles.positive : styles.negative}`}>
+                        {changeSign}{formatChange(selectedMarket.change24h ?? 0, selectedMarket.price)}&ensp;
+                        ({changeSign}{formatPercent(selectedMarket.change24hPercent ?? 0)})
+                    </span>
+                </div>
+
+                <div className={styles.statItem}>
+                    <span className={styles.statLabel}>24h High</span>
+                    <span className={styles.statValue}>{selectedMarket.high24h ? formatPrice(selectedMarket.high24h) : '-'}</span>
+                </div>
+
+                <div className={styles.statItem}>
+                    <span className={styles.statLabel}>24h Low</span>
+                    <span className={styles.statValue}>{selectedMarket.low24h ? formatPrice(selectedMarket.low24h) : '-'}</span>
+                </div>
+
+                <div className={styles.statItem}>
                     <span className={styles.statLabel}>24h Volume</span>
                     <span className={styles.statValue}>{formatVol(selectedMarket.volume24h)}</span>
                 </div>
 
+                {hasOI && (
+                    <div className={styles.statItem}>
+                        <span className={styles.statLabel}>Open Interest</span>
+                        <span className={styles.statValue}>{formatVol(selectedMarket.openInterest)}</span>
+                    </div>
+                )}
+
+                {hasFunding && (
+                    <div className={styles.statItem}>
+                        <span className={styles.statLabel}>Funding Rate</span>
+                        <span className={`${styles.statValue} ${(selectedMarket.fundingRate ?? 0) >= 0 ? styles.positive : styles.negative}`}>
+                            {fundingFmt}
+                        </span>
+                    </div>
+                )}
+
+                {hasLeverage && (
+                    <div className={styles.statItem}>
+                        <span className={styles.statLabel}>Max Leverage</span>
+                        <span className={styles.statValue}>{selectedMarket.maxLeverage}×</span>
+                    </div>
+                )}
+
                 <div className={styles.statItem}>
-                    <span className={styles.statLabel}>24h Change</span>
-                    <span className={`${styles.statValue} ${isPositiveChange ? styles.positive : styles.negative}`}>
-                        {changeSign}{formatChange(selectedMarket.change24h, selectedMarket.price)} / {changeSign}{formatPercent(selectedMarket.change24hPercent)}
+                    <span className={styles.statLabel}>Exchange</span>
+                    <span className={styles.statValue} style={{ textTransform: 'capitalize' }}>
+                        {selectedMarket.source || 'hyperliquid'}
                     </span>
                 </div>
             </div>
