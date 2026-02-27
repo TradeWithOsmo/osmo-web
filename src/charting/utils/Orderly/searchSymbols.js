@@ -11,22 +11,23 @@ export const searchSymbols = async (
         if (!response.ok) throw new Error('Failed to fetch markets');
 
         const data = await response.json();
-        const lighterMarkets = (data.markets || []).filter(m => m.source.toLowerCase() === 'lighter');
+        // Filter specifically for Orderly markets
+        const orderlyMarkets = (data.markets || []).filter(m => m.source.toLowerCase() === 'orderly');
 
         const query = userInput.toLowerCase();
-        const filtered = lighterMarkets
+        const filtered = orderlyMarkets
             .filter(m => m.symbol.toLowerCase().includes(query))
             .map(m => ({
                 symbol: m.symbol,
-                full_name: `${m.symbol} (Lighter)`,
+                full_name: `${m.symbol} (Orderly)`,
                 description: `${m.from}/${m.to}`,
-                exchange: 'Lighter',
+                exchange: 'Orderly',
                 type: 'crypto',
             }));
 
         onResultReadyCallback(filtered);
     } catch (err) {
-        console.error('[Lighter searchSymbols]: Error:', err);
+        console.error('[Orderly searchSymbols]: Error:', err);
         onErrorCallback(err);
     }
 };

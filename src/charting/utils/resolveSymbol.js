@@ -11,8 +11,17 @@ const normalizePairSymbol = (value, defaultQuote = 'USD') => {
   if (!raw) return '';
   const compact = raw.replace(/-/g, '');
 
-  if (raw.endsWith('-LIGHTER')) {
+  if (raw.endsWith('-ORDERLY')) {
     return `${raw.slice(0, -8)}-${defaultQuote}`;
+  }
+  if (raw.endsWith('-PARADEX')) {
+    return `${raw.slice(0, -8)}-${defaultQuote}`;
+  }
+  if (raw.endsWith('-DYDX')) {
+    return `${raw.slice(0, -5)}-${defaultQuote}`;
+  }
+  if (raw.endsWith('-AEVO')) {
+    return `${raw.slice(0, -5)}-${defaultQuote}`;
   }
   if (raw.endsWith('-PERP')) {
     return `${raw.slice(0, -5)}-${defaultQuote}`;

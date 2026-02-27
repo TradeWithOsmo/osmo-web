@@ -9,7 +9,7 @@ interface TVChartContainerProps {
   height?: string;
   hideTopToolbar?: boolean;
   hideSideToolbar?: boolean;
-  source?: 'hyperliquid' | 'ostium' | 'aster' | 'vest' | 'avantis' | 'lighter';
+  source?: 'hyperliquid' | 'ostium' | 'aster' | 'vest' | 'avantis' | 'orderly' | 'paradex' | 'aevo' | 'dydx';
   customColors?: {
     background?: string;
     grid?: string;
@@ -229,9 +229,18 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
       } else if (lowerSource === 'avantis') {
         // @ts-ignore
         importedModule = await import('../../charting/datafeeds/Avantis/datafeed_avantis.js');
-      } else if (lowerSource === 'lighter') {
+      } else if (lowerSource === 'orderly') {
         // @ts-ignore
-        importedModule = await import('../../charting/datafeeds/Lighter/datafeed_lighter.js');
+        importedModule = await import('../../charting/datafeeds/Orderly/datafeed_orderly.js');
+      } else if (lowerSource === 'paradex') {
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/Paradex/datafeed_paradex.js');
+      } else if (lowerSource === 'aevo') {
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/Aevo/datafeed_aevo.js');
+      } else if (lowerSource === 'dydx') {
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/dYdX/datafeed_dydx.js');
       } else {
         // @ts-ignore
         importedModule = await import('../../charting/datafeeds/datafeed_custom.js');
