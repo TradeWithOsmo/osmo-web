@@ -46,8 +46,9 @@ const GlobalChat: React.FC = () => {
     const symbol = selectedMarket?.symbol ? selectedMarket.symbol : 'BTC-USD';
 
     const fetchMessages = async () => {
+        const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:8000';
         try {
-            const res = await fetch(`http://localhost:8000/api/chat/global?symbol=${encodeURIComponent(symbol)}`);
+            const res = await fetch(`${API_ORIGIN}/api/chat/global?symbol=${encodeURIComponent(symbol)}`);
             if (res.ok) {
                 const data = await res.json();
                 setMessages(data.messages || []);
@@ -226,8 +227,9 @@ const GlobalChat: React.FC = () => {
         setLastMessageTime(now);
         setTimeLeft(10);
 
+        const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:8000';
         try {
-            await fetch('http://localhost:8000/api/chat/global', {
+            await fetch(`${API_ORIGIN}/api/chat/global`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

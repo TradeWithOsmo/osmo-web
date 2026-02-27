@@ -258,7 +258,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const tokenUpper = token.toUpperCase();
       const market = !isTimeframe
         ? marketBySymbol.get(tokenUpper) ||
-          marketByBase.get(tokenUpper.split(/[-/]/)[0])
+        marketByBase.get(tokenUpper.split(/[-/]/)[0])
         : undefined;
 
       if (!isTimeframe && !market) continue;
@@ -813,9 +813,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         : timeframeList,
       ...(tradingStylePrompt
         ? {
-            trading_style: styleProfile,
-            trading_style_prompt: tradingStylePrompt,
-          }
+          trading_style: styleProfile,
+          trading_style_prompt: tradingStylePrompt,
+        }
         : {}),
     };
   };
@@ -841,7 +841,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         );
         alert(
           "Allow Write dimatikan otomatis untuk request ini karena TradingView chart belum aktif. " +
-            "Buka chart dulu lalu coba lagi.",
+          "Buka chart dulu lalu coba lagi.",
         );
         return {
           ...outbound,
@@ -1125,7 +1125,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   ): { title: string; content: string } => {
     let title = String(rawTitle || "").trim();
     let content = String(rawContent || "").trim();
-    
+
     content = content
       .replace(/<\/?step_\d+\/\d+>/gi, "")
       .replace(/<\/?reflexion_update>/gi, "")
@@ -1134,7 +1134,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       .replace(/<\/?scratchpad>/gi, "")
       .replace(/<\/?internal>/gi, "")
       .replace(/<\/?analysis>/gi, "");
-    
+
     title = title
       .replace(/<\/?step_\d+\/\d+>/gi, "")
       .replace(/<\/?reflexion_update>/gi, "")
@@ -1144,7 +1144,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       .replace(/<\/?internal>/gi, "")
       .replace(/<\/?analysis>/gi, "")
       .trim();
-    
+
     const isGenericTitle =
       !title || /^reasoning(?:\s*(?:trace|\d+))?$/i.test(title);
 
@@ -1176,61 +1176,48 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return { title: title || "Reasoning", content };
   };
 
-  const normalizeMarkdownContent = (raw: string) =>
-    String(raw || "")
+  const cleanReasoningContent = (raw: string): string => {
+    let clean = raw;
+    clean = clean.replace(/\[SOURCE\]/gi, "**Source:**");
+    clean = clean.replace(/\[Tools\]/gi, "**Tools:**");
+    clean = clean.replace(/\[Active Market\]/gi, "**Active Market:**");
+    clean = clean.replace(/\[Current Timeframe\]/gi, "**Timeframe:**");
+    clean = clean.replace(/\[Current Indicators\]/gi, "**Indicators:**");
+    clean = clean.replace(/\[SYSTEM\]/gi, "**System:**");
+    clean = clean.replace(/\[NORMAL\]/gi, "");
+    clean = clean.replace(/\[TREAT\]/gi, "");
+    clean = clean.replace(/\[ABOVE\]/gi, "");
+
+    clean = clean
       .replace(/\r\n/g, "\n")
       .replace(/\\n/g, "\n")
-      .replace(/<\/?step_\d+\/\d+>/gi, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
 
-  const cleanReasoningContent = (raw: string): string => {
-    let content = String(raw || "");
-    
-    content = content.replace(/<\/?step_\d+\/\d+>/gi, "");
-    content = content.replace(/<\/?reflexion_update>/gi, "");
-    content = content.replace(/<\/?reflection>/gi, "");
-    content = content.replace(/<\/?thinking>/gi, "");
-    content = content.replace(/<\/?scratchpad>/gi, "");
-    content = content.replace(/<\/?internal>/gi, "");
-    content = content.replace(/<\/?analysis>/gi, "");
-    content = content.replace(/\[SOURCE\]/gi, "**Source:**");
-    content = content.replace(/\[Tools\]/gi, "**Tools:**");
-    content = content.replace(/\[Active Market\]/gi, "**Active Market:**");
-    content = content.replace(/\[NORMAL\]/gi, "");
-    content = content.replace(/\[TREAT\]/gi, "");
-    content = content.replace(/\[ABOVE\]/gi, "");
-    
-    content = content
-      .replace(/\r\n/g, "\n")
-      .replace(/\\n/g, "\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-    
-    return content;
+    return clean;
   };
 
   const extractResponseContent = (raw: string, thoughts?: (string | ThoughtStep)[]): string => {
     let content = String(raw || "");
-    
+
     const stepTagRegex = /<\/?step_\d+\/\d+>/gi;
     const hasStepTags = stepTagRegex.test(content);
-    
+
     if (hasStepTags) {
       const parts = content.split(/<\/?step_\d+\/\d+>/i);
       const nonEmptyParts = parts
         .map((p) => p.trim())
         .filter((p) => p.length > 0);
-      
+
       if (nonEmptyParts.length > 1) {
         const lastPart = nonEmptyParts[nonEmptyParts.length - 1];
         const firstPart = nonEmptyParts[0];
-        
+
         if (Array.isArray(thoughts) && thoughts.length > 0) {
           content = lastPart;
         } else {
           const isReasoningFirst = /^(oke|okay|let me|i will|i'll|thinking|analyzing|considering|first|now|so|well)/i.test(firstPart.substring(0, 50));
-          
+
           if (isReasoningFirst && nonEmptyParts.length >= 2) {
             content = lastPart;
           } else {
@@ -1241,29 +1228,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         content = nonEmptyParts[0];
       }
     }
-    
+
     content = content
       .replace(stepTagRegex, "")
       .replace(/\r\n/g, "\n")
       .replace(/\\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-    
+
     if (Array.isArray(thoughts) && thoughts.length > 0) {
       const thoughtTexts = thoughts
         .map((t) => (typeof t === "string" ? t : t?.content || t?.title || ""))
         .filter(Boolean)
         .map((t) => t.trim());
-      
+
       for (const thoughtText of thoughtTexts) {
         if (thoughtText.length > 20 && content.includes(thoughtText)) {
           content = content.replace(thoughtText, "").trim();
         }
       }
-      
+
       content = content.replace(/\n{3,}/g, "\n\n").trim();
     }
-    
+
     return content;
   };
 
@@ -1986,13 +1973,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     ? thoughtsList
                     : msg.role === "assistant" && msg.isThinking
                       ? [
-                          {
-                            type: "info",
-                            title: "Initializing analysis",
-                            content: getAssistantLoadingLabel(msg),
-                            status: "running",
-                          },
-                        ]
+                        {
+                          type: "info",
+                          title: "Initializing analysis",
+                          content: getAssistantLoadingLabel(msg),
+                          status: "running",
+                        },
+                      ]
                       : [];
                 const hasAssistantContent = Boolean(
                   msg.role === "assistant" &&
@@ -2230,9 +2217,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               style={
                                 expandedThoughtIds.has(msg.id)
                                   ? {
-                                      borderRadius: "8px 8px 0 0",
-                                      borderBottom: "none",
-                                    }
+                                    borderRadius: "8px 8px 0 0",
+                                    borderBottom: "none",
+                                  }
                                   : {}
                               }
                             >
@@ -2317,8 +2304,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   const isObject = typeof stepItem === "object";
                                   const legacyParsed = !isObject
                                     ? parseLegacyThoughtText(
-                                        String(stepItem || ""),
-                                      )
+                                      String(stepItem || ""),
+                                    )
                                     : null;
                                   const rawStepTitle = String(
                                     isObject
@@ -2339,9 +2326,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   const reasoningPresentation =
                                     stepType === "reasoning"
                                       ? deriveReasoningPresentation(
-                                          rawStepTitle,
-                                          rawStepContent,
-                                        )
+                                        rawStepTitle,
+                                        rawStepContent,
+                                      )
                                       : null;
                                   const stepTitle =
                                     reasoningPresentation?.title ||
@@ -2361,8 +2348,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     : String(legacyParsed?.phase || "");
                                   const stepStatus = isObject
                                     ? String(
-                                        (stepItem as any).status || "",
-                                      ).toLowerCase()
+                                      (stepItem as any).status || "",
+                                    ).toLowerCase()
                                     : "";
                                   const stepMeta = isObject
                                     ? (stepItem as any).meta
@@ -2469,7 +2456,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                                 : "not-allowed",
                                               opacity:
                                                 toolStates.execution &&
-                                                hasUsageCredit
+                                                  hasUsageCredit
                                                   ? 1
                                                   : 0.6,
                                               fontWeight: 500,
@@ -2525,7 +2512,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     (stepType === "tool" &&
                                       !!stepContent.trim() &&
                                       stepContent.trim() !==
-                                        stepTitle.trim()) ||
+                                      stepTitle.trim()) ||
                                     (stepType === "reasoning" &&
                                       !!stepContent.trim()) ||
                                     (stepType === "text" &&
@@ -2814,7 +2801,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                       {hasDetail && isStepExpanded && (
                                         <div className={styles.stepDetail}>
                                           {stepType === "browsing" &&
-                                          stepResults ? (
+                                            stepResults ? (
                                             <div className={styles.resultList}>
                                               {stepResults.map(
                                                 (result: any, rIdx: number) => (
@@ -3026,7 +3013,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               <div className={styles.artifactInfo}>
                                 <span className={styles.artifactTitle}>
                                   {msg.artifact.type === "chart" &&
-                                  currentSymbol
+                                    currentSymbol
                                     ? `${currentSymbol} Analysis Chart`
                                     : msg.artifact.title}
                                 </span>
@@ -3582,7 +3569,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         <span>Timeframe</span>
                         <span className={styles.toolValue}>
                           {Array.isArray(toolStates.timeframe) &&
-                          toolStates.timeframe.length > 0
+                            toolStates.timeframe.length > 0
                             ? `${toolStates.timeframe.length}`
                             : ""}
                         </span>
@@ -3669,8 +3656,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   ...prev,
                                   indicators: isActive
                                     ? prev.indicators.filter(
-                                        (i) => i !== indicator,
-                                      )
+                                      (i) => i !== indicator,
+                                    )
                                     : [...prev.indicators, indicator],
                                 }));
                               }}
@@ -3725,14 +3712,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             {(Array.isArray(toolStates.timeframe)
                               ? toolStates.timeframe.includes(tf)
                               : toolStates.timeframe === tf) && (
-                              <img
-                                src="/src/assets/Icons/Check.png"
-                                alt="Selected"
-                                width={14}
-                                height={14}
-                                style={{ marginLeft: "auto" }}
-                              />
-                            )}
+                                <img
+                                  src="/src/assets/Icons/Check.png"
+                                  alt="Selected"
+                                  width={14}
+                                  height={14}
+                                  style={{ marginLeft: "auto" }}
+                                />
+                              )}
                           </div>
                         ))}
                       </div>
@@ -3828,7 +3815,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   <span className={styles.toolValue}>
                                     {String(
                                       convIndex[
-                                        String(toolStates.conversation_style)
+                                      String(toolStates.conversation_style)
                                       ] ?? 1,
                                     )}
                                   </span>
@@ -3858,14 +3845,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                       <span>{opt.label}</span>
                                       {toolStates.conversation_style ===
                                         opt.id && (
-                                        <img
-                                          src="/src/assets/Icons/Check.png"
-                                          alt="Selected"
-                                          width={14}
-                                          height={14}
-                                          style={{ marginLeft: "auto" }}
-                                        />
-                                      )}
+                                          <img
+                                            src="/src/assets/Icons/Check.png"
+                                            alt="Selected"
+                                            width={14}
+                                            height={14}
+                                            style={{ marginLeft: "auto" }}
+                                          />
+                                        )}
                                     </div>
                                   ))}
                                 </div>
@@ -3896,7 +3883,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   <span className={styles.toolValue}>
                                     {String(
                                       tradingIndex[
-                                        String(toolStates.trading_style_profile)
+                                      String(toolStates.trading_style_profile)
                                       ] ?? 0,
                                     )}
                                   </span>
@@ -3926,14 +3913,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                       <span>{opt.label}</span>
                                       {toolStates.trading_style_profile ===
                                         opt.id && (
-                                        <img
-                                          src="/src/assets/Icons/Check.png"
-                                          alt="Selected"
-                                          width={14}
-                                          height={14}
-                                          style={{ marginLeft: "auto" }}
-                                        />
-                                      )}
+                                          <img
+                                            src="/src/assets/Icons/Check.png"
+                                            alt="Selected"
+                                            width={14}
+                                            height={14}
+                                            style={{ marginLeft: "auto" }}
+                                          />
+                                        )}
                                     </div>
                                   ))}
                                 </div>

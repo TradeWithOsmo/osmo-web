@@ -21,7 +21,9 @@ export const useRealTimePrice = (symbol: string | undefined) => {
         // async def hyperliquid_websocket(websocket: WebSocket, symbol: str):
         // It uses symbol directly.
 
-        const url = `ws://localhost:8000/ws/hyperliquid/${symbol}`;
+        const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws');
+        const url = `${WS_ORIGIN}/ws/hyperliquid/${symbol}`;
         console.log(`🔌 Connecting to WS: ${url}`);
 
         const ws = new WebSocket(url);

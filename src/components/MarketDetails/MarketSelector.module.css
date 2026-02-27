@@ -20,12 +20,9 @@
 
 .container {
     background-color: #12000A;
-    border-left: 1px solid #3A2530;
-    border-right: 1px solid #3A2530;
     border-bottom: 1px solid #3A2530;
     /* No top border to stay flush with header */
     width: 100%;
-    max-width: 1100px;
     display: flex;
     flex-direction: column;
     /* Changed from grid to flex column for better height calculation */
@@ -129,8 +126,29 @@
 }
 
 /* Hide scrollbar */
-.filters::-webkit-scrollbar {
-    display: none;
+/* Back Button next to All */
+.backBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 100%;
+    background: transparent;
+    border: none;
+    border-right: 1px solid #3A2530;
+    color: #C296AD;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.backBtn:hover {
+    color: #FFE1F2;
+    background-color: rgba(255, 225, 242, 0.05);
+}
+
+.backBtn:active {
+    background-color: rgba(255, 225, 242, 0.1);
 }
 
 .filterChip {
@@ -200,8 +218,10 @@
     padding: 12px 20px 12px 10px;
     border-bottom: 1px solid #3A2530;
     color: #A77590;
-    font-weight: 500;
-    font-size: 11px;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
     box-shadow: 0 1px 0 0 #3A2530;
     /* Crisp bottom border line */
     position: sticky;
@@ -218,11 +238,14 @@
 
 /* Table Content */
 .table td {
-    padding: 12px 20px 12px 10px;
+    padding: 16px 20px;
+    /* Increased padding for 32px icons */
     border-bottom: 1px solid #3A2530;
     color: #FFE1F2;
-    font-size: 14px;
+    font-size: 15px;
+    /* Match the enlarged font */
     text-align: right;
+    vertical-align: middle;
 }
 
 .table tr:hover {
@@ -244,6 +267,7 @@
 
 .tdRight {
     text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Cell Specifics */
@@ -254,18 +278,28 @@
     text-align: left;
 }
 
+.symbol {
+    font-size: 16px;
+    font-weight: 600;
+    color: #FFE1F2;
+    white-space: nowrap;
+}
+
 .starBtn {
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
     display: flex;
+    margin-right: 4px;
 }
 
 .coinIcon {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .symbol {
@@ -306,12 +340,98 @@
     text-transform: uppercase;
 }
 
-.table td.positive {
-    color: #00E396;
+.positive,
+.tdPositive {
+    color: #00FFA3 !important;
 }
 
-.table td.negative {
-    color: #FF4560;
+.negative,
+.tdNegative {
+    color: #FF4560 !important;
+}
+
+/* Grouping Styles */
+.symbolRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sourceLabel {
+    font-size: 11px;
+    color: #A77590;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    background-color: rgba(58, 37, 48, 0.4);
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.expandBtn {
+    background: none;
+    border: none;
+    color: #A77590;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.expandBtn.expanded {
+    transform: rotate(180deg);
+}
+
+.subRow {
+    background-color: rgba(58, 37, 48, 0.15);
+}
+
+.subRow:hover {
+    background-color: rgba(58, 37, 48, 0.3) !important;
+}
+
+.subRow td {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(58, 37, 48, 0.3);
+}
+
+.subHeaderRow {
+    background-color: rgba(58, 37, 48, 0.1);
+    cursor: default !important;
+}
+
+.subHeaderRow:hover {
+    background-color: rgba(58, 37, 48, 0.1) !important;
+}
+
+.subHeaderTh {
+    color: rgba(167, 117, 144, 0.6) !important;
+    font-size: 11px !important;
+    padding: 8px 20px !important;
+    text-transform: uppercase;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(58, 37, 48, 0.3) !important;
+    text-align: right;
+    box-shadow: none !important;
+    position: static !important;
+    background-color: transparent !important;
+}
+
+.subHeaderThFirst {
+    text-align: left !important;
+    padding-left: 54px !important;
+    /* aligns with sub items */
+}
+
+.thArrow,
+.tdArrow {
+    width: 60px;
+    padding-right: 20px !important;
+    text-align: right;
+    vertical-align: middle;
 }
 
 /* Footer (Updated to match Leaderboard) */

@@ -61,7 +61,7 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
       if (!matchesSearch) return false;
 
       // Category filter
-      if (activeCategory === 'All') return market.canonical !== false; // Default to canonicals
+      if (activeCategory === 'All') return true;
 
       const cat = activeCategory.toUpperCase();
       const mCat = (market.category || '').toUpperCase();

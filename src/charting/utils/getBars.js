@@ -12,7 +12,7 @@ export const getBars = async (
   onErrorCallback
 ) => {
   try {
-    const API_ORIGIN = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000').replace(/,$/, '');
+    const API_ORIGIN = 'http://82.153.226.91:8000';
     const symbol = encodeURIComponent(symbolInfo.name);
     const limit = periodParams.countBack || 500;
 
@@ -57,7 +57,7 @@ export const subscribeBars = (
   const symbol = encodeURIComponent(symbolInfo.name);
 
   // Choose weboscket endpoint based on listed exchange
-  const API_ORIGIN = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000').replace(/,$/, '');
+  const API_ORIGIN = 'http://82.153.226.91:8000';
   const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws');
   const exchangePath = (symbolInfo.listed_exchange || symbolInfo.exchange || 'hyperliquid').toLowerCase();
   const wsUrl = `${WS_ORIGIN}/ws/${exchangePath}/${symbol}`;

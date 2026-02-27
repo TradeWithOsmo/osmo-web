@@ -11,23 +11,22 @@ export const searchSymbols = async (
         if (!response.ok) throw new Error('Failed to fetch markets');
 
         const data = await response.json();
-        // Filter specifically for Aster markets
-        const asterMarkets = (data.markets || []).filter(m => m.source.toLowerCase() === 'aster');
+        const lighterMarkets = (data.markets || []).filter(m => m.source.toLowerCase() === 'lighter');
 
         const query = userInput.toLowerCase();
-        const filtered = asterMarkets
+        const filtered = lighterMarkets
             .filter(m => m.symbol.toLowerCase().includes(query))
             .map(m => ({
                 symbol: m.symbol,
-                full_name: `${m.symbol} (Aster)`,
+                full_name: `${m.symbol} (Lighter)`,
                 description: `${m.from}/${m.to}`,
-                exchange: 'Aster',
+                exchange: 'Lighter',
                 type: 'crypto',
             }));
 
         onResultReadyCallback(filtered);
     } catch (err) {
-        console.error('[Aster searchSymbols]: Error:', err);
+        console.error('[Lighter searchSymbols]: Error:', err);
         onErrorCallback(err);
     }
 };
