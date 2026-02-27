@@ -34,7 +34,8 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
         if (!selectedMarket) return;
 
         const symbol = selectedMarket.symbol;
-        const ws = new WebSocket(`${WS_ORIGIN}/ws/orderbook/${symbol}`);
+        const exchange = (selectedMarket as any).source || 'hyperliquid';
+        const ws = new WebSocket(`${WS_ORIGIN}/ws/orderbook/${symbol}?exchange=${exchange}`);
 
         let dataReceived = false;
         const timeout = setTimeout(() => {
@@ -46,60 +47,59 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                if (message.type === 'l2Book' && message.data.levels) {
-                    dataReceived = true;
-                    setIsAvailable(true);
-                    const [hlBids, hlAsks] = message.data.levels;
 
-                    let askTotal = 0;
-                    const processedAsks = hlAsks.slice(0, rowCount).map((l: any, i: number) => {
-                        const price = parseFloat(l.px);
-                        const amount = parseFloat(l.sz);
-                        if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(amount) || amount <= 0) {
-                            return null;
-                        }
-                        askTotal += amount;
-                        return {
-                            id: `ask-${i}`,
-                            price,
-                            amount,
-                            total: askTotal,
-                            type: 'ask' as const,
-                            depthPercent: 0
-                        };
-                    }).filter(Boolean) as OrderRowData[];
-
-                    let bidTotal = 0;
-                    const processedBids = hlBids.slice(0, rowCount).map((l: any, i: number) => {
-                        const price = parseFloat(l.px);
-                        const amount = parseFloat(l.sz);
-                        if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(amount) || amount <= 0) {
-                            return null;
-                        }
-                        bidTotal += amount;
-                        return {
-                            id: `bid-${i}`,
-                            price,
-                            amount,
-                            total: bidTotal,
-                            type: 'bid' as const,
-                            depthPercent: 0
-                        };
-                    }).filter(Boolean) as OrderRowData[];
-
-                    const maxTotal = Math.max(
-                        processedAsks.length > 0 ? processedAsks[processedAsks.length - 1].total : 0,
-                        processedBids.length > 0 ? processedBids[processedBids.length - 1].total : 0
-                    );
-
-                    if (maxTotal > 0) {
-                        processedAsks.forEach((a: any) => a.depthPercent = (a.total / maxTotal) * 100);
-                        processedBids.forEach((b: any) => b.depthPercent = (b.total / maxTotal) * 100);
-                    }
-
-                    setAsks([...processedAsks].reverse());
-                    setBids(processedBids);
+                // Orderbook unavailable for this exchange (e.g. Ostium, Avantis)
+                if (message.type === 'orderbook_unavailable') {
+                    setIsAvailable(false);
+                    return;
                 }
+
+                // Multi-exchange format from tradebook router
+                const bookData = message.type === 'orderbook' && message.data
+                    ? { bids: message.data.bids, asks: message.data.asks }
+                    // Legacy Hyperliquid native WS format
+                    : message.type === 'l2Book' && message.data?.levels
+                        ? {
+                            bids: (message.data.levels[0] || []).map((l: any) => ({ px: l.px, sz: l.sz })),
+                            asks: (message.data.levels[1] || []).map((l: any) => ({ px: l.px, sz: l.sz }))
+                        }
+                        : null;
+
+                if (!bookData) return;
+
+                dataReceived = true;
+                setIsAvailable(true);
+
+                const { bids: rawBids = [], asks: rawAsks = [] } = bookData;
+
+                let askTotal = 0;
+                const processedAsks = rawAsks.slice(0, rowCount).map((l: any, i: number) => {
+                    const price = parseFloat(l.px);
+                    const amount = parseFloat(l.sz);
+                    if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(amount) || amount <= 0) return null;
+                    askTotal += amount;
+                    return { id: `ask-${i}`, price, amount, total: askTotal, type: 'ask' as const, depthPercent: 0 };
+                }).filter(Boolean) as OrderRowData[];
+
+                let bidTotal = 0;
+                const processedBids = rawBids.slice(0, rowCount).map((l: any, i: number) => {
+                    const price = parseFloat(l.px);
+                    const amount = parseFloat(l.sz);
+                    if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(amount) || amount <= 0) return null;
+                    bidTotal += amount;
+                    return { id: `bid-${i}`, price, amount, total: bidTotal, type: 'bid' as const, depthPercent: 0 };
+                }).filter(Boolean) as OrderRowData[];
+
+                const maxTotal = Math.max(
+                    processedAsks.length > 0 ? processedAsks[processedAsks.length - 1].total : 0,
+                    processedBids.length > 0 ? processedBids[processedBids.length - 1].total : 0
+                );
+                if (maxTotal > 0) {
+                    processedAsks.forEach((a: any) => a.depthPercent = (a.total / maxTotal) * 100);
+                    processedBids.forEach((b: any) => b.depthPercent = (b.total / maxTotal) * 100);
+                }
+                setAsks([...processedAsks].reverse());
+                setBids(processedBids);
             } catch (e) {
                 console.error("OrderBook WS error:", e);
             }

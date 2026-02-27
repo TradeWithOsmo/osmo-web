@@ -31,7 +31,8 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
         if (!selectedMarket) return;
 
         const symbol = selectedMarket.symbol;
-        const ws = new WebSocket(`${WS_ORIGIN}/ws/trades/${symbol}`);
+        const exchange = (selectedMarket as any).source || 'hyperliquid';
+        const ws = new WebSocket(`${WS_ORIGIN}/ws/trades/${symbol}?exchange=${exchange}`);
 
         let dataReceived = false;
         const timeout = setTimeout(() => {
@@ -53,12 +54,20 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
                             if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(size) || size <= 0) {
                                 return null;
                             }
+                            // Normalize timestamp: support ms, s, or ISO string
+                            const timeVal = t.time;
+                            const timeMs = typeof timeVal === 'number'
+                                ? (timeVal < 1e12 ? timeVal * 1000 : timeVal)
+                                : (timeVal ? new Date(timeVal).getTime() : Date.now());
+                            // Normalize side: 'B'/'buy' → 'buy', 'S'/'sell' → 'sell'
+                            const sideRaw = (t.side || '').toString().toLowerCase();
+                            const side = (sideRaw === 'b' || sideRaw === 'buy') ? 'buy' : 'sell';
                             return {
-                                id: t.hash || t.tx_hash || `${t.time}-${t.px}-${t.sz}`,
+                                id: t.id || t.hash || t.tx_hash || `${timeMs}-${t.px}-${t.sz}`,
                                 price,
                                 size,
-                                time: new Date(t.time).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                                side: t.side === 'B' ? 'buy' : 'sell'
+                                time: new Date(timeMs).toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                                side
                             };
                         })
                         .filter(Boolean) as TradeRowData[];
