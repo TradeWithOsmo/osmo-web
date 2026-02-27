@@ -492,8 +492,16 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                                         <span className={styles.sourceLabel}>{sibling.source}</span>
                                                     </div>
                                                 </td>
-                                                <td className={`${styles.tdRight} ${styles.hideOnSmallMobile}`}>-</td>
-                                                <td className={`${styles.tdRight}`}>{formatVol(sibling.volume24h)}</td>
+                                                <td className={`${styles.tdRight} ${styles.hideOnSmallMobile}`}>
+                                                    {sibling.fundingRate !== undefined
+                                                        ? `${(sibling.fundingRate * 100).toFixed(4)}%`
+                                                        : '-'}
+                                                </td>
+                                                <td className={`${styles.tdRight}`}>
+                                                    {sibling.openInterest
+                                                        ? formatVol(sibling.openInterest)
+                                                        : formatVol(sibling.volume24h)}
+                                                </td>
                                                 <td className={`${styles.tdRight} ${styles.hideOnMobile} ${basisPercent >= 0 ? styles.positive : styles.negative}`}>
                                                     {basisPercent >= 0 ? '+' : ''}{formatPercent(basisPercent)}
                                                 </td>
