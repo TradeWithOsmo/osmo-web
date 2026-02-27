@@ -96,5 +96,30 @@ export const marketService = {
             params: { symbol, resolution, from, to, source }
         });
         return response.data;
-    }
+    },
+
+    // Get dynamic filter categories from backend (replaces hardcoded CATEGORIES array in frontend)
+    getFilters: async (): Promise<{
+        categories: { name: string; count: number }[];
+        sub_categories: { name: string; count: number }[];
+        exchanges: { name: string; count: number }[];
+        total_symbols: number;
+    }> => {
+        try {
+            const response = await axios.get(`${API_URL}/markets/filters`, { timeout: 10000 });
+            return response.data;
+        } catch (error) {
+            console.error('❌ Failed to fetch market filters:', error);
+            // Fallback to hardcoded categories if endpoint fails
+            return {
+                categories: [
+                    'Crypto', 'AI', 'MEME', 'DEFI', 'L1', 'L2', 'GAMING',
+                    'RWA', 'DEGEN', 'STABLE', 'LST', 'BTC-ECO', 'Forex', 'Stocks', 'Commodities', 'Index'
+                ].map(name => ({ name, count: 0 })),
+                sub_categories: [],
+                exchanges: [],
+                total_symbols: 0,
+            };
+        }
+    },
 };

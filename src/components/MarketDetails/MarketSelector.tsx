@@ -4,7 +4,7 @@ import inactiveStar from '../../assets/Icons/start/inactive.png';
 import activeStar from '../../assets/Icons/start/active.png';
 import { useMarketStore, normalizeSymbol } from '../../store/useMarketStore';
 import { useWatchlistStore } from '../../store/useWatchlistStore';
-import { type MarketData } from '../../api/marketService';
+import { type MarketData, marketService } from '../../api/marketService';
 import { useWallet } from '../../hooks/useWallet';
 import TokenIcon from './TokenIcon';
 import OstiumIcon from './OstiumIcon';
@@ -31,6 +31,14 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
     const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
+
+    // Dynamic categories fetched from backend
+    const [dynamicCategories, setDynamicCategories] = useState<{ name: string; count: number }[]>([]);
+    useEffect(() => {
+        marketService.getFilters().then(data => {
+            if (data.categories.length > 0) setDynamicCategories(data.categories);
+        }).catch(() => { });
+    }, []);
 
     const toggleSymbolExpand = (e: React.MouseEvent, symbol: string) => {
         e.stopPropagation();
@@ -215,8 +223,11 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         if (!isEmbedded) onClose();
     }
 
-    // Categories
-    const CATEGORIES = ['Crypto', 'AI', 'MEME', 'DEFI', 'L1', 'L2', 'GAMING', 'RWA', 'DEGEN', 'STABLE', 'LST', 'BTC-ECO', 'Forex', 'Stocks', 'Commodities', 'Index'];
+    // Categories: use dynamic from backend, fallback to static.
+    // We still compute counts from live `markets` data for the Watchlist + All tabs.
+    const CATEGORIES = dynamicCategories.length > 0
+        ? dynamicCategories.map(c => c.name)
+        : ['Crypto', 'AI', 'MEME', 'DEFI', 'L1', 'L2', 'GAMING', 'RWA', 'DEGEN', 'STABLE', 'LST', 'BTC-ECO', 'Forex', 'Stocks', 'Commodities', 'Index'];
 
     const SortIcon = ({ columnKey }: { columnKey: keyof MarketData }) => {
         const active = sortConfig?.key === columnKey;
