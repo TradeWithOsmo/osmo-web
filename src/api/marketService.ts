@@ -14,6 +14,7 @@ export interface MarketData {
     low24h: number;
     volume24h: number; // USD volume
     fundingRate?: number;
+    openInterest?: number;
     source: string;
     category: string;
     subCategory?: string;
@@ -59,16 +60,25 @@ export const marketService = {
             const markets: MarketData[] = rawMarkets.map((item: any) => ({
                 symbol: item.symbol,
                 price: parseFloat(item.price) || 0,
-                change24h: parseFloat(item.change_24h || 0),
-                change24hPercent: parseFloat(item.change_percent_24h || item.change24hPercent || 0),
-                high24h: parseFloat(item.high_24h || item.high24h || 0),
-                low24h: parseFloat(item.low_24h || item.low24h || 0),
-                volume24h: parseFloat(item.volume_24h || item.volume24h || 0),
-                fundingRate: item.funding_rate !== undefined ? parseFloat(item.funding_rate) : (item.fundingRate !== undefined ? parseFloat(item.fundingRate) : undefined),
+                change24h: parseFloat(item.change_24h ?? item.change24h ?? 0),
+                change24hPercent: parseFloat(item.change_percent_24h ?? item.change24hPercent ?? 0),
+                high24h: parseFloat(item.high_24h ?? item.high24h ?? 0),
+                low24h: parseFloat(item.low_24h ?? item.low24h ?? 0),
+                volume24h: parseFloat(item.volume_24h ?? item.volume24h ?? 0),
+                fundingRate: (
+                    item.funding_rate !== undefined ? parseFloat(item.funding_rate) :
+                        item.fundingRate !== undefined ? parseFloat(item.fundingRate) :
+                            item.fund !== undefined ? parseFloat(item.fund) : undefined
+                ),
+                openInterest: (
+                    item.open_interest !== undefined ? parseFloat(item.open_interest) :
+                        item.openInterest !== undefined ? parseFloat(item.openInterest) : undefined
+                ),
                 source: item.source || 'hyperliquid',
                 category: item.category || 'Crypto',
                 subCategory: item.subCategory || item.sub_category,
-                maxLeverage: item.maxLeverage ? parseFloat(item.maxLeverage) : undefined,
+                maxLeverage: item.maxLeverage ? parseFloat(item.maxLeverage) :
+                    item.max_leverage ? parseFloat(item.max_leverage) : undefined,
                 canonical: item.canonical || false
             }));
 
