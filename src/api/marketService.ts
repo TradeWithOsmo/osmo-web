@@ -13,6 +13,7 @@ export interface MarketData {
     high24h: number;
     low24h: number;
     volume24h: number; // USD volume
+    fundingRate?: number;
     source: string;
     category: string;
     subCategory?: string;
@@ -45,7 +46,7 @@ export const marketService = {
         try {
             console.log("🔍 Fetching unified markets from:", `${API_URL}/markets`);
 
-            const response = await axios.get(`${API_URL}/markets`, { timeout: 30000, params: { canonical_only: true } });
+            const response = await axios.get(`${API_URL}/markets`, { timeout: 30000, params: { canonical_only: false } });
 
             if (response.status !== 200 || !response.data || !response.data.markets) {
                 console.warn("⚠️ No markets loaded or invalid response!", response);
@@ -63,6 +64,7 @@ export const marketService = {
                 high24h: parseFloat(item.high_24h || item.high24h || 0),
                 low24h: parseFloat(item.low_24h || item.low24h || 0),
                 volume24h: parseFloat(item.volume_24h || item.volume24h || 0),
+                fundingRate: item.funding_rate !== undefined ? parseFloat(item.funding_rate) : (item.fundingRate !== undefined ? parseFloat(item.fundingRate) : undefined),
                 source: item.source || 'hyperliquid',
                 category: item.category || 'Crypto',
                 subCategory: item.subCategory || item.sub_category,

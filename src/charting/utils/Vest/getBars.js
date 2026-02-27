@@ -12,7 +12,7 @@ export const getBars = async (
     onErrorCallback
 ) => {
     try {
-        const API_ORIGIN = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000').replace(/,$/, '');
+        const API_ORIGIN = 'http://82.153.226.91:8000';
         const symbol = symbolInfo.name.replace('/', '-');
         const limit = periodParams.countBack || 500;
         const url = `${API_ORIGIN}/api/candles/${encodeURIComponent(symbol)}?exchange=vest&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
@@ -47,7 +47,7 @@ export const subscribeBars = (
     onRealtimeCallback,
     subscriberUID,
 ) => {
-    const API_ORIGIN = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000').replace(/,$/, '');
+    const API_ORIGIN = 'http://82.153.226.91:8000';
     const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws');
     const symbol = symbolInfo.name.replace('/', '-');
 

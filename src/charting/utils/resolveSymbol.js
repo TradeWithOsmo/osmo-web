@@ -65,7 +65,7 @@ export const resolveSymbol = async (
   }
 
   try {
-    const API_ORIGIN = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'http://localhost:8000';
+    const API_ORIGIN = 'http://82.153.226.91:8000';
     const candidates = buildSymbolCandidates(symbolName);
     let data;
     for (const candidate of candidates) {

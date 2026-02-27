@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import styles from './MarketSelector.module.css';
 import inactiveStar from '../../assets/Icons/start/inactive.png';
 import activeStar from '../../assets/Icons/start/active.png';
-import { useMarketStore } from '../../store/useMarketStore';
+import { useMarketStore, normalizeSymbol } from '../../store/useMarketStore';
 import { useWatchlistStore } from '../../store/useWatchlistStore';
 import { type MarketData } from '../../api/marketService';
 import { useWallet } from '../../hooks/useWallet';
@@ -25,11 +25,20 @@ export interface MarketSelectorProps {
 }
 
 const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSelect, isEmbedded = false }) => {
-    const { markets, fetchMarkets, setMarket } = useMarketStore();
+    const { markets, allMarkets, fetchMarkets, setMarket } = useMarketStore();
     const { favorites, toggleFavorite, fetchWatchlist } = useWatchlistStore();
     const { authenticated, walletAddress } = useWallet();
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
+    const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
+
+    const toggleSymbolExpand = (e: React.MouseEvent, symbol: string) => {
+        e.stopPropagation();
+        const next = new Set(expandedSymbols);
+        if (next.has(symbol)) next.delete(symbol);
+        else next.add(symbol);
+        setExpandedSymbols(next);
+    };
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' } | null>({ key: 'change24hPercent', direction: 'desc' });
@@ -122,8 +131,8 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
         if (!matchesSearch) return false;
 
-        // Strictly show only canonical markets in the selector lists
-        if (!item.canonical && filter !== 'Watchlist') return false;
+        // Deduplication is handled in useMarketStore. 
+        // Showing all unique pairs fetched, even if not marked 'canonical' by heuristic.
 
         if (filter === 'All') return true;
         if (filter === 'Watchlist') {
@@ -201,7 +210,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
     };
 
     const handleItemClick = (item: MarketData) => {
-        setMarket(item.symbol);
+        setMarket(item.symbol, item.source);
         if (onSelect) onSelect(item);
         if (!isEmbedded) onClose();
     }
@@ -281,13 +290,22 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                 onMouseMove={handleMouseMove}
                 style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
             >
+                {/* Back Button */}
+                {!isEmbedded && (
+                    <button className={styles.backBtn} onClick={onClose} title="Back">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </button>
+                )}
+
                 {/* 1. All */}
                 <button
                     className={`${styles.filterChip} ${filter === 'All' ? styles.active : ''}`}
                     onClick={() => setFilter('All')}
                 >
                     All
-                    <span className={styles.countBadge}>{markets.filter(m => m.canonical).length}</span>
+                    <span className={styles.countBadge}>{markets.length}</span>
                 </button>
 
                 {/* Watchlist — only shown when there are favorites */}
@@ -304,7 +322,8 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                 {/* Category Tabs */}
                 {CATEGORIES.map(category => {
                     const count = markets.filter(m => {
-                        if (!m.canonical) return false;
+                        // Show count of all unique pairs in this category
+                        // if (!m.canonical) return false;
                         const isStandard = ['Forex', 'Stocks', 'Commodities', 'Index'].some(c => m.category?.toLowerCase() === c.toLowerCase());
                         if (category === 'Crypto') return !isStandard;
                         return m.category?.toLowerCase() === category.toLowerCase();
@@ -367,51 +386,122 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                 className={`${styles.thRight} ${styles.hideOnMobile}`}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
-                                    Vol / OI
+                                    24h Volume
                                     <SortIcon columnKey="volume24h" />
                                 </div>
                             </th>
+                            <th className={styles.thArrow}></th>
                         </tr>
                     </thead>
                     <tbody>
                         {paginatedData.map(item => {
                             const isPositive = item.change24hPercent >= 0;
+                            const isExpanded = expandedSymbols.has(item.symbol);
+                            const normSym = normalizeSymbol(item.symbol);
+                            const siblings = allMarkets.filter(m => normalizeSymbol(m.symbol) === normSym);
+                            const hasSub = siblings.length > 1;
 
                             return (
-                                <tr key={`${item.source || 'hyperliquid'}:${item.symbol}`} onClick={() => handleItemClick(item)}>
-                                    <td className={`${styles.marketCell} ${styles.tdFirst}`}>
-                                        <button
-                                            className={styles.starBtn}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (authenticated && walletAddress) {
-                                                    toggleFavorite(item.symbol, item.source, walletAddress);
-                                                }
-                                            }}
-                                            style={{ opacity: authenticated ? 1 : 0.5, cursor: authenticated ? 'pointer' : 'not-allowed' }}
-                                            title={authenticated ? "Toggle Favorite" : "Connect wallet to manage favorites"}
-                                        >
-                                            <img
-                                                src={favorites.has(`${item.source || 'hyperliquid'}:${item.symbol}`) ? activeStar : inactiveStar}
-                                                alt="fav"
-                                                style={{ width: 14, height: 14 }}
-                                            />
-                                        </button>
-                                        <div className={styles.coinIcon} style={{ background: 'transparent' }}>
-                                            {item.source === 'ostium' ? (
-                                                <OstiumIcon symbol={item.symbol} size={24} />
-                                            ) : (
-                                                <TokenIcon symbol={item.symbol} size={24} />
+                                <React.Fragment key={`${item.source || 'hyperliquid'}:${item.symbol}`}>
+                                    <tr onClick={(e) => {
+                                        if (hasSub) {
+                                            toggleSymbolExpand(e, item.symbol);
+                                        } else {
+                                            handleItemClick(item);
+                                        }
+                                    }}>
+                                        <td className={`${styles.marketCell} ${styles.tdFirst}`}>
+                                            <button
+                                                className={styles.starBtn}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (authenticated && walletAddress) {
+                                                        toggleFavorite(item.symbol, item.source, walletAddress);
+                                                    }
+                                                }}
+                                                style={{ opacity: authenticated ? 1 : 0.5, cursor: authenticated ? 'pointer' : 'not-allowed' }}
+                                                title={authenticated ? "Toggle Favorite" : "Connect wallet to manage favorites"}
+                                            >
+                                                <img
+                                                    src={favorites.has(`${item.source || 'hyperliquid'}:${item.symbol}`) ? activeStar : inactiveStar}
+                                                    alt="fav"
+                                                    style={{ width: 14, height: 14 }}
+                                                />
+                                            </button>
+
+                                            <div className={styles.coinIcon} style={{ background: 'transparent' }}>
+                                                {item.source === 'ostium' ? (
+                                                    <OstiumIcon symbol={item.symbol} size={32} />
+                                                ) : (
+                                                    <TokenIcon symbol={item.symbol} size={32} />
+                                                )}
+                                            </div>
+                                            <div className={styles.symbolRow}>
+                                                <span className={styles.symbol}>{item.symbol}</span>
+                                            </div>
+                                        </td>
+                                        <td className={`${styles.tdRight} ${styles.hideOnSmallMobile}`}>{formatPrice(item.price)}</td>
+                                        <td className={`${styles.tdRight} ${!isPositive ? styles.negative : styles.positive}`}>
+                                            {isPositive ? '+' : ''}{formatPercent(item.change24hPercent)}
+                                        </td>
+                                        <td className={`${styles.tdRight} ${styles.hideOnMobile}`}>{formatVol(item.volume24h)}</td>
+                                        <td className={styles.tdArrow}>
+                                            {hasSub && (
+                                                <button
+                                                    className={`${styles.expandBtn} ${isExpanded ? styles.expanded : ''}`}
+                                                    onClick={(e) => toggleSymbolExpand(e, item.symbol)}
+                                                >
+                                                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                    </svg>
+                                                </button>
                                             )}
-                                        </div>
-                                        <span className={styles.symbol}>{item.symbol}</span>
-                                    </td>
-                                    <td className={`${styles.tdRight} ${styles.hideOnSmallMobile}`}>{formatPrice(item.price)}</td>
-                                    <td className={`${styles.tdRight} ${!isPositive ? styles.negative : styles.positive}`}>
-                                        {isPositive ? '+' : ''}{formatPercent(item.change24hPercent)}
-                                    </td>
-                                    <td className={`${styles.tdRight} ${styles.hideOnMobile}`}>{formatVol(item.volume24h)}</td>
-                                </tr>
+                                        </td>
+                                    </tr>
+
+                                    {/* Sub-Rows (Siblings) Header and Data */}
+                                    {isExpanded && siblings.length > 0 && (
+                                        <tr className={styles.subHeaderRow} onClick={(e) => e.stopPropagation()}>
+                                            <th className={`${styles.subHeaderTh} ${styles.subHeaderThFirst}`}>Market</th>
+                                            <th className={`${styles.subHeaderTh} ${styles.hideOnSmallMobile}`}>Funding Rate</th>
+                                            <th className={styles.subHeaderTh}>Vol / OI</th>
+                                            <th className={`${styles.subHeaderTh} ${styles.hideOnMobile}`}>Basis%</th>
+                                            <th className={styles.subHeaderTh}></th>
+                                        </tr>
+                                    )}
+                                    {isExpanded && siblings.map(sibling => {
+                                        const basisPercent = item.price > 0 ? ((sibling.price - item.price) / item.price) * 100 : 0;
+
+                                        return (
+                                            <tr
+                                                key={`${sibling.source}:${sibling.symbol}`}
+                                                className={styles.subRow}
+                                                onClick={() => handleItemClick(sibling)}
+                                            >
+                                                <td className={`${styles.marketCell} ${styles.tdFirst}`}>
+                                                    <div style={{ width: 14 + 4 }} /> {/* Star Spacer to align with title */}
+                                                    <div className={styles.coinIcon} style={{ background: 'transparent' }}>
+                                                        {sibling.source === 'ostium' ? (
+                                                            <OstiumIcon symbol={sibling.symbol} size={32} />
+                                                        ) : (
+                                                            <TokenIcon symbol={sibling.symbol} size={32} />
+                                                        )}
+                                                    </div>
+                                                    <div className={styles.symbolRow}>
+                                                        <span className={styles.symbol}>{sibling.symbol}</span>
+                                                        <span className={styles.sourceLabel}>{sibling.source}</span>
+                                                    </div>
+                                                </td>
+                                                <td className={`${styles.tdRight} ${styles.hideOnSmallMobile}`}>-</td>
+                                                <td className={`${styles.tdRight}`}>{formatVol(sibling.volume24h)}</td>
+                                                <td className={`${styles.tdRight} ${styles.hideOnMobile} ${basisPercent >= 0 ? styles.positive : styles.negative}`}>
+                                                    {basisPercent >= 0 ? '+' : ''}{formatPercent(basisPercent)}
+                                                </td>
+                                                <td className={styles.tdArrow}></td>
+                                            </tr>
+                                        );
+                                    })}
+                                </React.Fragment>
                             );
                         })}
                     </tbody>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { type MarketData, marketService } from '../api/marketService';
 
-const normalizeSymbol = (value: string): string =>
+export const normalizeSymbol = (value: string): string =>
     String(value || '')
         .trim()
         .toUpperCase()
@@ -73,6 +73,7 @@ const findMarketBySymbol = (markets: MarketData[], rawSymbol: string): MarketDat
 
 interface MarketState {
     markets: MarketData[];
+    allMarkets: MarketData[];
     selectedMarket: MarketData | null;
     pendingLimitPrice: { symbol: string; price: number } | null;
     isLoading: boolean;
@@ -92,6 +93,7 @@ interface MarketState {
 
 export const useMarketStore = create<MarketState>((set, get) => ({
     markets: [],
+    allMarkets: [],
     selectedMarket: null,
     pendingLimitPrice: null,
     isLoading: false,
@@ -105,18 +107,29 @@ export const useMarketStore = create<MarketState>((set, get) => ({
         try {
             const marketsRaw = await marketService.getMarkets();
 
-            // Deduplicate: Last one wins or just keep first.
-            // Using Map to ensure unique source:symbol
+            // Group items by normalized symbol. Prefer canonical ones.
             const uniqueMap = new Map<string, MarketData>();
+
             marketsRaw.forEach(m => {
-                const key = `${m.source || 'hyperliquid'}:${m.symbol}`;
-                if (!uniqueMap.has(key)) {
+                const key = normalizeSymbol(m.symbol);
+                const existing = uniqueMap.get(key);
+
+                // Set if new, or if this one is canonical and existing wasn't
+                if (!existing || (m.canonical && !existing.canonical)) {
                     uniqueMap.set(key, m);
                 }
             });
 
             const markets = Array.from(uniqueMap.values());
-            set({ markets, isLoading: false });
+            console.log("!!! STORE DEBUG !!! Total Raw:", marketsRaw.length, "Unique Symbols:", markets.length);
+
+            // Log some non-canonical ones to verify they are present
+            const nonCanonical = markets.filter(m => !m.canonical);
+            console.log("!!! STORE DEBUG !!! Non-Canonical Count:", nonCanonical.length);
+            if (nonCanonical.length > 0) {
+                console.log("!!! STORE DEBUG !!! Sample Non-Canonical:", nonCanonical.slice(0, 5).map(m => `${m.symbol} (${m.source})`));
+            }
+            set({ markets, allMarkets: marketsRaw, isLoading: false });
 
             // Set default market if none selected
             if (!get().selectedMarket && markets.length > 0) {
@@ -130,11 +143,11 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     },
 
     setMarket: (symbol: string, source?: string) => {
-        const market = get().markets.find((candidate) => {
+        const market = get().allMarkets.find((candidate) => {
             if (source && candidate.source?.toLowerCase() !== source.toLowerCase()) return false;
             const found = findMarketBySymbol([candidate], symbol);
             return Boolean(found);
-        }) || findMarketBySymbol(get().markets, symbol);
+        }) || findMarketBySymbol(get().allMarkets, symbol);
         if (market) {
             set({ selectedMarket: market, pendingLimitPrice: null });
         }
@@ -172,6 +185,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                         change24h: priceData.change_24h !== undefined ? priceData.change_24h : market.change24h,
                         change24hPercent: priceData.change_percent_24h !== undefined ? priceData.change_percent_24h : market.change24hPercent,
                         volume24h: priceData.volume_24h !== undefined ? priceData.volume_24h : market.volume24h,
+                        fundingRate: priceData.funding_rate !== undefined ? parseFloat(priceData.funding_rate) : (priceData.fundingRate !== undefined ? parseFloat(priceData.fundingRate) : market.fundingRate),
                         high24h: priceData.high_24h !== undefined ? priceData.high_24h : market.high24h,
                         low24h: priceData.low_24h !== undefined ? priceData.low_24h : market.low24h,
                         maxLeverage: priceData.maxLeverage !== undefined ? priceData.maxLeverage : market.maxLeverage,
@@ -196,6 +210,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                     high24h: payload?.high_24h ?? parsedPrice,
                     low24h: payload?.low_24h ?? parsedPrice,
                     volume24h: payload?.volume_24h ?? 0,
+                    fundingRate: payload?.funding_rate !== undefined ? parseFloat(payload.funding_rate) : (payload?.fundingRate !== undefined ? parseFloat(payload.fundingRate) : undefined),
                     source: payload?.source || 'hyperliquid',
                     category: payload?.category || 'Crypto',
                     subCategory: payload?.subCategory || payload?.sub_category,
@@ -214,6 +229,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                     change24h: p.change_24h !== undefined ? p.change_24h : updatedSelected.change24h,
                     change24hPercent: p.change_percent_24h !== undefined ? p.change_percent_24h : updatedSelected.change24hPercent,
                     volume24h: p.volume_24h !== undefined ? p.volume_24h : updatedSelected.volume24h,
+                    fundingRate: p.funding_rate !== undefined ? parseFloat(p.funding_rate) : (p.fundingRate !== undefined ? parseFloat(p.fundingRate) : updatedSelected.fundingRate),
                     high24h: p.high_24h !== undefined ? p.high_24h : updatedSelected.high24h,
                     low24h: p.low_24h !== undefined ? p.low_24h : updatedSelected.low24h,
                     maxLeverage: p.maxLeverage !== undefined ? p.maxLeverage : updatedSelected.maxLeverage,

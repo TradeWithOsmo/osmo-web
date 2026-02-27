@@ -155,10 +155,21 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
     }
   }, [interval, isChartReady]);
 
+  // Rebuild widget when source changes
+  const prevSourceRef = useRef(source);
+  useEffect(() => {
+    if (prevSourceRef.current !== source) {
+      console.log(`[TradingChart] Source changed from ${prevSourceRef.current} to ${source}, rebuilding widget`);
+      cleanupWidget("source change", false);
+      hasInitialized.current = false;
+      prevSourceRef.current = source;
+    }
+  }, [source]);
+
   // Wait for container to have proper dimensions before initializing
   useEffect(() => {
     const container = chartContainerRef.current;
-    if (!container || hasInitialized.current) return;
+    if (!container || widgetRef.current) return;
 
     // Check if container is visible and has dimensions
     const checkAndInit = () => {
@@ -215,6 +226,12 @@ const TVChartContainer: React.FC<TVChartContainerProps> = ({
       } else if (lowerSource === 'vest') {
         // @ts-ignore
         importedModule = await import('../../charting/datafeeds/Vest/datafeed_vest.js');
+      } else if (lowerSource === 'avantis') {
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/Avantis/datafeed_avantis.js');
+      } else if (lowerSource === 'lighter') {
+        // @ts-ignore
+        importedModule = await import('../../charting/datafeeds/Lighter/datafeed_lighter.js');
       } else {
         // @ts-ignore
         importedModule = await import('../../charting/datafeeds/datafeed_custom.js');
