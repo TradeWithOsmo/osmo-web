@@ -62,6 +62,86 @@ interface ChatInterfaceProps {
   onStop?: () => void;
 }
 
+type IndicatorOption = {
+  value: string;
+  label: string;
+  searchKey: string;
+};
+
+const FALLBACK_INDICATOR_VALUES = [
+  "RSI",
+  "MACD",
+  "Bollinger Bands",
+  "Moving Average",
+  "Volume",
+  "Stochastic",
+  "ATR",
+  "Ichimoku",
+  "CCI",
+  "Parabolic SAR",
+  "VWAP",
+  "ADX",
+  "OBV",
+  "SuperTrend",
+  "StochRSI",
+];
+
+const prettifyIndicatorToken = (raw: string): string => {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  const withSpaces = value
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+  return withSpaces
+    .split(" ")
+    .map((part) => {
+      const upper = part.toUpperCase();
+      if (upper === "RSI" || upper === "MACD" || upper === "ATR" || upper === "ADX" || upper === "VWAP" || upper === "VWMA" || upper === "OBV" || upper === "MFI" || upper === "CCI" || upper === "TSI" || upper === "ROC" || upper === "AO" || upper === "CMF" || upper === "DMI" || upper === "KST" || upper === "VPVR" || upper === "VPFR" || upper === "SAR") {
+        return upper;
+      }
+      if (upper.length <= 2) return upper;
+      return upper.charAt(0) + upper.slice(1).toLowerCase();
+    })
+    .join(" ");
+};
+
+const buildIndicatorOptions = (
+  aliasMap: Record<string, string> = {},
+): IndicatorOption[] => {
+  const merged = new Map<string, IndicatorOption>();
+
+  const addOption = (rawValue: string, rawCanonical?: string) => {
+    const value = String(rawValue || "").trim();
+    if (!value) return;
+    const normalizedValue = prettifyIndicatorToken(value);
+    const canonical = prettifyIndicatorToken(rawCanonical || value);
+    const label =
+      canonical &&
+      canonical.toLowerCase() !== normalizedValue.toLowerCase()
+        ? `${normalizedValue} (${canonical})`
+        : normalizedValue;
+    const key = normalizedValue.toLowerCase();
+    if (!merged.has(key)) {
+      merged.set(key, {
+        value: normalizedValue,
+        label,
+        searchKey: `${normalizedValue} ${canonical}`.toLowerCase(),
+      });
+    }
+  };
+
+  Object.entries(aliasMap || {}).forEach(([alias, canonical]) =>
+    addOption(alias, canonical),
+  );
+  FALLBACK_INDICATOR_VALUES.forEach((item) => addOption(item, item));
+
+  return Array.from(merged.values()).sort((a, b) =>
+    a.label.localeCompare(b.label),
+  );
+};
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   activeSessionId,
   messages,
@@ -571,6 +651,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     null | "conversation" | "trading"
   >("conversation");
   const [indicatorSearch, setIndicatorSearch] = useState("");
+  const [indicatorOptions, setIndicatorOptions] = useState<IndicatorOption[]>(
+    () => buildIndicatorOptions(),
+  );
   const toolsRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -643,6 +726,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Ignore persistence failures (private mode, quota, etc.)
     }
   }, [toolStates.conversation_style, toolStates.trading_style_profile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadIndicatorOptions = async () => {
+      try {
+        const payload = await agentService.getTradingViewIndicatorAliases();
+        const aliasMap =
+          payload && typeof payload === "object" && payload.alias_map
+            ? payload.alias_map
+            : {};
+        const options = buildIndicatorOptions(aliasMap);
+        if (!cancelled && options.length > 0) {
+          setIndicatorOptions(options);
+        }
+      } catch (error) {
+        console.warn(
+          "[ChatInterface] Failed loading indicator aliases, using fallback list.",
+          error,
+        );
+      }
+    };
+    loadIndicatorOptions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const readFileAsDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -1580,18 +1689,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setExpandedImage({ name: att.name || "image", url: att.data });
   };
 
-  const availableIndicators = [
-    "RSI",
-    "MACD",
-    "Bollinger Bands",
-    "Moving Average",
-    "Volume",
-    "Stochastic",
-    "ATR",
-    "Ichimoku Cloud",
-    "CCI",
-    "Parabolic SAR",
-  ];
+  const indicatorLabelByValue = useMemo(() => {
+    const map = new Map<string, string>();
+    indicatorOptions.forEach((opt) => {
+      map.set(opt.value, opt.label);
+    });
+    return map;
+  }, [indicatorOptions]);
+
+  const filteredIndicatorOptions = useMemo(() => {
+    const q = indicatorSearch.trim().toLowerCase();
+    if (!q) return indicatorOptions;
+    return indicatorOptions.filter((opt) => opt.searchKey.includes(q));
+  }, [indicatorOptions, indicatorSearch]);
 
   // Close menus on click outside
   useEffect(() => {
@@ -1908,14 +2018,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           [
             ...hintedTimeframes,
             ...(Array.isArray(toolStates.indicators)
-              ? toolStates.indicators
+              ? toolStates.indicators.map(
+                (item) => indicatorLabelByValue.get(String(item || "").trim()) || item,
+              )
               : []),
           ]
             .map((item) => String(item || "").trim())
             .filter(Boolean),
         ),
       ),
-    [hintedTimeframes, toolStates.indicators],
+    [hintedTimeframes, toolStates.indicators, indicatorLabelByValue],
   );
   const hasDraftContent = Boolean(
     inputValue.trim() || attachments.length > 0 || inputLinks.length > 0,
@@ -3639,31 +3751,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         />
                       </div>
                       <div className={styles.toolList}>
-                        {availableIndicators
-                          .filter((i) =>
-                            i
-                              .toLowerCase()
-                              .includes(indicatorSearch.toLowerCase()),
-                          )
+                        {filteredIndicatorOptions
                           .map((indicator) => (
                             <div
-                              key={indicator}
+                              key={indicator.value}
                               className={styles.toolItem}
                               onClick={() => {
                                 const isActive =
-                                  toolStates.indicators.includes(indicator);
+                                  toolStates.indicators.includes(indicator.value);
                                 setToolStates((prev) => ({
                                   ...prev,
                                   indicators: isActive
                                     ? prev.indicators.filter(
-                                      (i) => i !== indicator,
+                                      (i) => i !== indicator.value,
                                     )
-                                    : [...prev.indicators, indicator],
+                                    : [...prev.indicators, indicator.value],
                                 }));
                               }}
                             >
-                              <span>{indicator}</span>
-                              {toolStates.indicators.includes(indicator) && (
+                              <span>{indicator.label}</span>
+                              {toolStates.indicators.includes(indicator.value) && (
                                 <img
                                   src="/src/assets/Icons/Check.png"
                                   alt="Selected"

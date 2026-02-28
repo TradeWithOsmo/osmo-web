@@ -624,3 +624,347 @@
   color: #FFE1F2;
   background-color: #12000A;
 }
+
+/* Notification Sidebar */
+.notificationOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.notificationSidebar {
+  width: 350px;
+  max-width: 100%;
+  height: 100vh;
+  background-color: #12000A;
+  background-image: linear-gradient(rgba(18, 0, 10, 0.9), rgba(18, 0, 10, 0.9)), url('../../assets/Dots pettern.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-left: 1px solid #3A2530;
+  display: flex;
+  flex-direction: column;
+  animation: slideLeft 0.3s ease-out;
+}
+
+@keyframes slideLeft {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.notificationHeader {
+  height: 50px;
+  border-bottom: 1px solid #3A2530;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  gap: 15px;
+}
+
+.backIcon {
+  cursor: pointer;
+  color: #A77590;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-right: 1px solid #3A2530;
+  padding: 0 15px;
+  height: 100%;
+  transition: all 0.2s ease;
+}
+
+.backIcon:hover {
+  background-color: rgba(167, 117, 144, 0.1);
+  color: #FFE1F2;
+}
+
+.notificationTitle {
+  color: #FFE1F2;
+  font-family: 'Satoshi';
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+}
+
+.notificationContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notificationItem {
+  background-color: #1A0A12;
+  border: 1px solid #3A2530;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.2s ease;
+}
+
+.notificationItem:hover {
+  border-color: #A77590;
+}
+
+.notificationTypeWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notificationIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.notificationType {
+  color: #A77590;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.notificationMessage {
+  color: #FFE1F2;
+  font-size: 0.9rem;
+  font-family: 'Satoshi';
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.notificationTime {
+  color: #664b59;
+  font-size: 0.75rem;
+}
+
+.notificationImageContainer {
+  margin-top: 8px;
+  width: 100%;
+  height: 120px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #3A2530;
+}
+
+.notificationImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notificationItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.removeNotificationButton {
+  background: none;
+  border: none;
+  color: #664b59;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.removeNotificationButton:hover {
+  color: #FFE1F2;
+  background-color: rgba(255, 225, 242, 0.1);
+}
+
+.notificationItemFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.notificationCTA {
+  background-color: rgba(167, 117, 144, 0.15);
+  color: #FFE1F2;
+  font-size: 0.75rem;
+  font-family: 'Satoshi';
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(167, 117, 144, 0.3);
+}
+
+.notificationCTA:hover {
+  background-color: rgba(167, 117, 144, 0.3);
+  border-color: #A77590;
+}
+
+.notificationSearchContainer {
+  padding: 15px;
+  border-bottom: 1px solid #3A2530;
+}
+
+.notificationSearchInput {
+  width: 100%;
+  padding: 10px 15px;
+  background-color: #1A0A12;
+  border: 1px solid #3A2530;
+  border-radius: 8px;
+  color: #FFE1F2;
+  font-family: 'Satoshi';
+  font-weight: 500;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.notificationSearchInput:focus {
+  border-color: #A77590;
+}
+
+.notificationSearchInput::placeholder {
+  color: #A77590;
+}
+
+.notificationFooter {
+  padding: 15px;
+  border-top: 1px solid #3A2530;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.enablePushButton {
+  flex: 1;
+  padding: 0 10px;
+  height: 42px;
+  background-color: transparent;
+  border: 1px solid #A77590;
+  color: #A77590;
+  border-radius: 8px;
+  font-family: 'Satoshi';
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.enablePushButton:hover:not(:disabled) {
+  background-color: rgba(167, 117, 144, 0.1);
+  color: #FFE1F2;
+  border-color: #FFE1F2;
+}
+
+.enablePushButton:disabled {
+  cursor: default;
+}
+
+.pushSuccess {
+  background-color: rgba(39, 174, 96, 0.1) !important;
+  color: #2ecc71 !important;
+  border-color: #2ecc71 !important;
+}
+
+.loadingDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+}
+
+.loadingDots span {
+  width: 6px;
+  height: 6px;
+  background-color: #A77590;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loadingDots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loadingDots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+
+  40% {
+    transform: scale(1);
+  }
+}
+
+.successContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.clearAllButton {
+  padding: 12px 15px;
+  background-color: #3A2530;
+  border: none;
+  color: #FFE1F2;
+  border-radius: 8px;
+  font-family: 'Satoshi';
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.clearAllButton:hover:not(:disabled) {
+  background-color: #553545;
+}
+
+.clearAllButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.emptyNotifications {
+  color: #A77590;
+  text-align: center;
+  padding: 20px 0;
+  font-size: 0.9rem;
+  font-family: 'Satoshi';
+  font-weight: 500;
+}

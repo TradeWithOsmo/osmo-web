@@ -74,6 +74,18 @@ interface UIStore {
     isCancelAllOrdersModalOpen: boolean;
     openCancelAllOrdersModal: () => void;
     closeCancelAllOrdersModal: () => void;
+
+    isEnterCodeModalOpen: boolean;
+    openEnterCodeModal: () => void;
+    closeEnterCodeModal: () => void;
+
+    isCreateCodeModalOpen: boolean;
+    openCreateCodeModal: () => void;
+    closeCreateCodeModal: () => void;
+
+    isClaimRewardsModalOpen: boolean;
+    openClaimRewardsModal: () => void;
+    closeClaimRewardsModal: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -131,4 +143,16 @@ export const useUIStore = create<UIStore>((set) => ({
     isCancelAllOrdersModalOpen: false,
     openCancelAllOrdersModal: () => set({ isCancelAllOrdersModalOpen: true }),
     closeCancelAllOrdersModal: () => set({ isCancelAllOrdersModalOpen: false }),
+
+    isEnterCodeModalOpen: false,
+    openEnterCodeModal: () => set({ isEnterCodeModalOpen: true }),
+    closeEnterCodeModal: () => set({ isEnterCodeModalOpen: false }),
+
+    isCreateCodeModalOpen: false,
+    openCreateCodeModal: () => set({ isCreateCodeModalOpen: true }),
+    closeCreateCodeModal: () => set({ isCreateCodeModalOpen: false }),
+
+    isClaimRewardsModalOpen: false,
+    openClaimRewardsModal: () => set({ isClaimRewardsModalOpen: true }),
+    closeClaimRewardsModal: () => set({ isClaimRewardsModalOpen: false }),
 }));

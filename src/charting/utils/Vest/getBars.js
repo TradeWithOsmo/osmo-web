@@ -4,6 +4,16 @@ const toMillis = (ts) => {
     return n < 1_000_000_000_000 ? n * 1000 : n;
 };
 
+const fetchWithTimeout = async (url, timeoutMs = 10000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
 export const getBars = async (
     symbolInfo,
     resolution,
@@ -11,31 +21,56 @@ export const getBars = async (
     onHistoryCallback,
     onErrorCallback
 ) => {
-    try {
-        const API_ORIGIN = 'http://82.153.226.91:8000';
-        const symbol = symbolInfo.name.replace('/', '-');
-        const limit = periodParams.countBack || 500;
-        const url = `${API_ORIGIN}/api/candles/${encodeURIComponent(symbol)}?exchange=vest&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
+    const { from, to } = periodParams || {};
+    const fromMs = toMillis(from || 0);
+    const toMs = toMillis(to || 0);
 
-        const response = await fetch(url);
+    try {
+        const API_ORIGIN = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
+        const symbol = String(symbolInfo?.name || '').replace('/', '-');
+        if (!symbol) {
+            onHistoryCallback([], { noData: true });
+            return;
+        }
+        const limit = periodParams?.countBack || 500;
+        const url = `${API_ORIGIN}/api/candles/${encodeURIComponent(symbol)}?exchange=vest&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
+        const response = await fetchWithTimeout(url);
+
         if (!response.ok) {
             onHistoryCallback([], { noData: true });
             return;
         }
 
         const data = await response.json();
-        const bars = data.map(b => ({
-            time: toMillis(b.timestamp || b.time || b.t),
-            open: parseFloat(b.open || b.o),
-            high: parseFloat(b.high || b.h),
-            low: parseFloat(b.low || b.l),
-            close: parseFloat(b.close || b.c),
-            volume: parseFloat(b.volume || b.v || 0)
-        })).sort((a, b) => a.time - b.time);
+        const sourceBars = Array.isArray(data) ? data : (Array.isArray(data?.candles) ? data.candles : []);
+        if (sourceBars.length === 0) {
+            onHistoryCallback([], { noData: true });
+            return;
+        }
+
+        const bars = sourceBars
+            .map((b) => ({
+                time: toMillis(b.timestamp || b.time || b.t),
+                open: parseFloat(b.open || b.o),
+                high: parseFloat(b.high || b.h),
+                low: parseFloat(b.low || b.l),
+                close: parseFloat(b.close || b.c),
+                volume: parseFloat(b.volume || b.v || 0),
+            }))
+            .filter((bar) => {
+                if (!Number.isFinite(bar.time) || bar.time <= 0) return false;
+                if (!Number.isFinite(bar.open) || !Number.isFinite(bar.high) || !Number.isFinite(bar.low) || !Number.isFinite(bar.close)) return false;
+                if (fromMs && bar.time < fromMs) return false;
+                if (toMs && bar.time > toMs) return false;
+                return true;
+            })
+            .sort((a, b) => a.time - b.time);
 
         onHistoryCallback(bars, { noData: bars.length === 0 });
     } catch (err) {
-        onErrorCallback(err);
+        console.error('[Vest getBars]: Error:', err);
+        onHistoryCallback([], { noData: true });
+        onErrorCallback?.(err);
     }
 };
 
@@ -47,9 +82,9 @@ export const subscribeBars = (
     onRealtimeCallback,
     subscriberUID,
 ) => {
-    const API_ORIGIN = 'http://82.153.226.91:8000';
-    const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws');
-    const symbol = symbolInfo.name.replace('/', '-');
+    const API_ORIGIN = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
+    const WS_ORIGIN = API_ORIGIN.replace(/^https?:/i, (m) => (m.toLowerCase() === 'https:' ? 'wss:' : 'ws:'));
+    const symbol = String(symbolInfo?.name || '').replace('/', '-');
 
     const wsUrl = `${WS_ORIGIN}/ws/vest/${encodeURIComponent(symbol)}`;
     const ws = new WebSocket(wsUrl);

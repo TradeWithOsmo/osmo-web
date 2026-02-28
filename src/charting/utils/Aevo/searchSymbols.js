@@ -6,7 +6,7 @@ export const searchSymbols = async (
     onErrorCallback
 ) => {
     try {
-        const API_ORIGIN = 'http://82.153.226.91:8000';
+        const API_ORIGIN = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
         const response = await fetch(`${API_ORIGIN}/api/markets`);
         if (!response.ok) throw new Error('Failed to fetch markets');
 

@@ -8,6 +8,8 @@ import { tradingViewCommandService } from '../api/tradingViewCommandService';
 
 const realtimeAttemptsByWallet = new Map<string, number>();
 const MAX_REALTIME_ATTEMPTS = 5;
+let realtimeReconnectTimeoutId: number | null = null;
+let realtimeHeartbeatIntervalId: number | null = null;
 
 let globalSyncWallet: string | null = null;
 let globalSyncIntervalId: number | null = null;
@@ -173,6 +175,10 @@ export const usePortfolioStore = create<PortfolioState>()(
             connectRealtime: (userAddress: string) => {
                 // Disconnect existing if any
                 get().disconnectRealtime();
+                if (realtimeReconnectTimeoutId) {
+                    window.clearTimeout(realtimeReconnectTimeoutId);
+                    realtimeReconnectTimeoutId = null;
+                }
 
                 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/,$/, '');
                 let wsUrl = '';
@@ -193,6 +199,27 @@ export const usePortfolioStore = create<PortfolioState>()(
 
                 console.log(`🔌 Connecting to portfolio real-time: ${wsUrl}`);
                 const socket = new WebSocket(wsUrl);
+                socket.onopen = () => {
+                    realtimeAttemptsByWallet.set(key, 0);
+                    if (realtimeReconnectTimeoutId) {
+                        window.clearTimeout(realtimeReconnectTimeoutId);
+                        realtimeReconnectTimeoutId = null;
+                    }
+                    if (realtimeHeartbeatIntervalId) {
+                        window.clearInterval(realtimeHeartbeatIntervalId);
+                        realtimeHeartbeatIntervalId = null;
+                    }
+                    // App-level heartbeat to avoid idle disconnects behind proxies/NAT.
+                    realtimeHeartbeatIntervalId = window.setInterval(() => {
+                        try {
+                            if (socket.readyState === WebSocket.OPEN) {
+                                socket.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
+                            }
+                        } catch {
+                            // best effort
+                        }
+                    }, 15000);
+                };
 
                 socket.onmessage = (event) => {
                     try {
@@ -225,13 +252,22 @@ export const usePortfolioStore = create<PortfolioState>()(
                     }
                 };
 
-                socket.onclose = () => {
-                    console.log("📴 Portfolio real-time disconnected");
+                socket.onclose = (event) => {
+                    console.log("📴 Portfolio real-time disconnected", { code: event?.code, reason: event?.reason || '' });
                     set({ ws: null });
+                    if (realtimeHeartbeatIntervalId) {
+                        window.clearInterval(realtimeHeartbeatIntervalId);
+                        realtimeHeartbeatIntervalId = null;
+                    }
+
+                    // Intentional/manual closes should not trigger reconnect.
+                    if (event?.code === 1000 || event?.code === 1001) {
+                        return;
+                    }
 
                     // Reconnect logic
                     const currentWallet = userAddress; // Capture current address
-                    if (currentWallet) {
+                    if (currentWallet && globalSyncWallet === key) {
                         const attempt = (realtimeAttemptsByWallet.get(key) ?? 0) + 1;
                         realtimeAttemptsByWallet.set(key, attempt);
                         if (attempt > MAX_REALTIME_ATTEMPTS) {
@@ -241,10 +277,11 @@ export const usePortfolioStore = create<PortfolioState>()(
 
                         const delayMs = Math.min(30_000, 1000 * (2 ** (attempt - 1)));
                         console.log(`🔄 Reconnecting portfolio real-time in ${Math.round(delayMs / 1000)}s...`);
-                        setTimeout(() => {
+                        realtimeReconnectTimeoutId = window.setTimeout(() => {
+                            realtimeReconnectTimeoutId = null;
                             // Check if we are still on the same wallet before reconnecting
                             const latestWallet = userAddress;
-                            if (latestWallet === currentWallet) {
+                            if (latestWallet === currentWallet && globalSyncWallet === key) {
                                 get().connectRealtime(latestWallet);
                             }
                         }, delayMs);
@@ -262,8 +299,19 @@ export const usePortfolioStore = create<PortfolioState>()(
 
             disconnectRealtime: () => {
                 const { ws } = get();
+                if (realtimeReconnectTimeoutId) {
+                    window.clearTimeout(realtimeReconnectTimeoutId);
+                    realtimeReconnectTimeoutId = null;
+                }
+                if (realtimeHeartbeatIntervalId) {
+                    window.clearInterval(realtimeHeartbeatIntervalId);
+                    realtimeHeartbeatIntervalId = null;
+                }
                 if (ws) {
-                    ws.close();
+                    ws.onclose = null;
+                    ws.onerror = null;
+                    ws.onmessage = null;
+                    try { ws.close(); } catch { }
                     set({ ws: null });
                 }
             },

@@ -2,6 +2,7 @@ import React from 'react';
 import {
     Trade,
     Arena,
+    Refer,
 
 
 
@@ -24,6 +25,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({ route }) => {
 
     if (currentPath === '/trade' || currentPath === '/') return <Trade />;
     if (currentPath === '/arena') return <Arena />;
+    if (currentPath === '/refer') return <Refer />;
 
 
 

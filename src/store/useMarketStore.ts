@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { type MarketData, marketService } from '../api/marketService';
+const DEBUG_MARKETS = String(import.meta.env.VITE_DEBUG_API || '').toLowerCase() === 'true';
+const MARKETS_REFRESH_COOLDOWN_MS = 20000;
+let inFlightMarketsFetch: Promise<void> | null = null;
+let lastMarketsFetchAt = 0;
 
 export const normalizeSymbol = (value: string): string =>
     String(value || '')
@@ -82,9 +86,10 @@ interface MarketState {
     setWsStatus: (status: 'connected' | 'connecting' | 'disconnected') => void;
 
     // Actions
-    fetchMarkets: () => Promise<void>;
+    fetchMarkets: (force?: boolean) => Promise<void>;
     setMarket: (symbol: string, source?: string) => void;
     updateMarketData: (symbol: string, data: Partial<MarketData>) => void; // For real-time updates
+    updateMarketDataBySource: (symbol: string, source: string, data: Partial<MarketData>) => void;
     updatePrices: (prices: Record<string, any>) => void; // Bulk price updates
     getPrice: (symbol: string) => number; // Helper to get latest price
     setPendingLimitPrice: (symbol: string, price: number) => void;
@@ -102,10 +107,22 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
     setWsStatus: (status) => set({ wsStatus: status }),
 
-    fetchMarkets: async () => {
-        set({ isLoading: true, error: null });
-        try {
-            const marketsRaw = await marketService.getMarkets();
+    fetchMarkets: async (force = false) => {
+        const hasData = get().markets.length > 0;
+        const now = Date.now();
+        if (!force && hasData && now - lastMarketsFetchAt < MARKETS_REFRESH_COOLDOWN_MS) {
+            return;
+        }
+        if (inFlightMarketsFetch) return inFlightMarketsFetch;
+
+        const run = (async () => {
+            if (hasData) {
+                set({ error: null });
+            } else {
+                set({ isLoading: true, error: null });
+            }
+            try {
+                const marketsRaw = await marketService.getMarkets();
 
             // Group items by normalized symbol. Prefer canonical ones.
             const uniqueMap = new Map<string, MarketData>();
@@ -121,25 +138,48 @@ export const useMarketStore = create<MarketState>((set, get) => ({
             });
 
             const markets = Array.from(uniqueMap.values());
-            console.log("!!! STORE DEBUG !!! Total Raw:", marketsRaw.length, "Unique Symbols:", markets.length);
+            if (DEBUG_MARKETS) {
+                console.log("!!! STORE DEBUG !!! Total Raw:", marketsRaw.length, "Unique Symbols:", markets.length);
 
-            // Log some non-canonical ones to verify they are present
-            const nonCanonical = markets.filter(m => !m.canonical);
-            console.log("!!! STORE DEBUG !!! Non-Canonical Count:", nonCanonical.length);
-            if (nonCanonical.length > 0) {
-                console.log("!!! STORE DEBUG !!! Sample Non-Canonical:", nonCanonical.slice(0, 5).map(m => `${m.symbol} (${m.source})`));
+                // Log some non-canonical ones to verify they are present
+                const nonCanonical = markets.filter(m => !m.canonical);
+                console.log("!!! STORE DEBUG !!! Non-Canonical Count:", nonCanonical.length);
+                if (nonCanonical.length > 0) {
+                    console.log("!!! STORE DEBUG !!! Sample Non-Canonical:", nonCanonical.slice(0, 5).map(m => `${m.symbol} (${m.source})`));
+                }
             }
-            set({ markets, allMarkets: marketsRaw, isLoading: false });
+                set((state) => ({
+                    markets,
+                    allMarkets: marketsRaw,
+                    isLoading: false,
+                    error: null,
+                    // Keep selected market stable if still present by source+symbol, fallback by symbol variants.
+                    selectedMarket: state.selectedMarket
+                        ? (
+                            marketsRaw.find(m =>
+                                m.symbol === state.selectedMarket!.symbol &&
+                                (m.source || '').toLowerCase() === (state.selectedMarket!.source || '').toLowerCase()
+                            ) || findMarketBySymbol(marketsRaw, state.selectedMarket.symbol) || state.selectedMarket
+                        )
+                        : state.selectedMarket
+                }));
 
             // Set default market if none selected
-            if (!get().selectedMarket && markets.length > 0) {
+                if (!get().selectedMarket && markets.length > 0) {
                 // Prefer BTC-USD if available, else first one
-                const defaultMarket = markets.find(m => m.symbol === 'BTC-USD') || markets[0];
-                set({ selectedMarket: defaultMarket });
+                    const defaultMarket = markets.find(m => m.symbol === 'BTC-USD') || markets[0];
+                    set({ selectedMarket: defaultMarket });
+                }
+                lastMarketsFetchAt = Date.now();
+            } catch (err) {
+                set({ isLoading: false, error: 'Failed to load markets' });
+            } finally {
+                inFlightMarketsFetch = null;
             }
-        } catch (err) {
-            set({ isLoading: false, error: 'Failed to load markets' });
-        }
+        })();
+
+        inFlightMarketsFetch = run;
+        return run;
     },
 
     setMarket: (symbol: string, source?: string) => {
@@ -173,11 +213,48 @@ export const useMarketStore = create<MarketState>((set, get) => ({
         });
     },
 
+    updateMarketDataBySource: (symbol, source, data) => {
+        const normalizedSource = String(source || '').toLowerCase();
+        set((state) => {
+            const updateRow = (row: MarketData): MarketData => {
+                const rowSource = String(row.source || '').toLowerCase();
+                if (row.symbol !== symbol || rowSource !== normalizedSource) return row;
+                return { ...row, ...data };
+            };
+
+            const updatedMarkets = state.markets.map(updateRow);
+            const updatedAllMarkets = state.allMarkets.map(updateRow);
+
+            let updatedSelected = state.selectedMarket;
+            if (
+                updatedSelected &&
+                updatedSelected.symbol === symbol &&
+                String(updatedSelected.source || '').toLowerCase() === normalizedSource
+            ) {
+                updatedSelected = { ...updatedSelected, ...data };
+            }
+
+            return {
+                markets: updatedMarkets,
+                allMarkets: updatedAllMarkets,
+                selectedMarket: updatedSelected,
+            };
+        });
+    },
+
     updatePrices: (prices) => {
         set((state) => {
+            const toSource = (value: any) => String(value || '').toLowerCase();
             const updatedMarkets = state.markets.map(market => {
                 const priceData = prices[market.symbol];
                 if (priceData) {
+                    // Prevent cross-exchange overwrite for same symbol (e.g. ZRO-USD on vest vs hyperliquid).
+                    const payloadSource = toSource(priceData.source);
+                    const marketSource = toSource(market.source || 'hyperliquid');
+                    if (payloadSource && payloadSource !== marketSource) {
+                        return market;
+                    }
+
                     return {
                         ...market,
                         price: priceData.price ? parseFloat(priceData.price) : market.price,
@@ -223,6 +300,14 @@ export const useMarketStore = create<MarketState>((set, get) => ({
             let updatedSelected = state.selectedMarket;
             if (updatedSelected && prices[updatedSelected.symbol]) {
                 const p = prices[updatedSelected.symbol];
+                const payloadSource = toSource(p?.source);
+                const selectedSource = toSource(updatedSelected.source || 'hyperliquid');
+                if (payloadSource && payloadSource !== selectedSource) {
+                    return {
+                        markets: updatedMarkets,
+                        selectedMarket: updatedSelected
+                    };
+                }
                 updatedSelected = {
                     ...updatedSelected,
                     price: p.price ? parseFloat(p.price) : updatedSelected.price,

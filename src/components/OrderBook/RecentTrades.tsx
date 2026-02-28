@@ -17,6 +17,7 @@ interface RecentTradesProps {
 const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
     const { selectedMarket } = useMarketStore();
     const [trades, setTrades] = useState<TradeRowData[]>([]);
+    const [hasSnapshot, setHasSnapshot] = useState<boolean>(false);
     const [tradeRowCount, setTradeRowCount] = useState<number>(20);
     const tradesContainerRef = useRef<HTMLDivElement>(null);
     const [isAvailable, setIsAvailable] = useState<boolean>(true);
@@ -25,7 +26,9 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
     // Clear stale data when the market changes
     useEffect(() => {
         setTrades([]);
-    }, [selectedMarket?.symbol]);
+        setIsAvailable(true);
+        setHasSnapshot(false);
+    }, [selectedMarket?.symbol, selectedMarket?.source]);
 
     useEffect(() => {
         if (!selectedMarket) return;
@@ -33,6 +36,15 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
         const symbol = selectedMarket.symbol;
         const exchange = (selectedMarket as any).source || 'hyperliquid';
         const ws = new WebSocket(`${WS_ORIGIN}/ws/trades/${symbol}?exchange=${exchange}`);
+        const heartbeat = window.setInterval(() => {
+            try {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
+                }
+            } catch {
+                // best effort
+            }
+        }, 15000);
 
         let dataReceived = false;
         const timeout = setTimeout(() => {
@@ -47,6 +59,7 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
                 if (message.type === 'trades' && Array.isArray(message.data)) {
                     dataReceived = true;
                     setIsAvailable(true);
+                    setHasSnapshot(true);
                     const formatted: TradeRowData[] = message.data
                         .map((t: any) => {
                             const price = parseFloat(t.px);
@@ -80,10 +93,11 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
         };
 
         return () => {
+            clearInterval(heartbeat);
             ws.close();
             clearTimeout(timeout);
         };
-    }, [selectedMarket?.symbol, WS_ORIGIN]);
+    }, [selectedMarket?.symbol, selectedMarket?.source, WS_ORIGIN]);
 
     useEffect(() => {
         const calculateRows = () => {
@@ -112,7 +126,8 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
 
     if (!isAvailable) return null;
 
-    const isLoading = trades.length === 0;
+    const isLoading = !hasSnapshot;
+    const isEmpty = hasSnapshot && trades.length === 0;
 
     return (
         <div className={styles.tradesWrapper}>
@@ -126,6 +141,10 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
                     Array.from({ length: tradeRowCount }).map((_, i) => (
                         <div key={`trade-skeleton-${i}`} className={`${styles.skeleton} ${styles.skeletonTradeRow}`} />
                     ))
+                ) : isEmpty ? (
+                    <div style={{ color: '#A77590', fontSize: 12, padding: '10px 12px' }}>
+                        No recent trades yet.
+                    </div>
                 ) : (
                     trades.slice(0, tradeRowCount).map((trade) => (
                         <div key={trade.id} className={styles.tradeRow}>

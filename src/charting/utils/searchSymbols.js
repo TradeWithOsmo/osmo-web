@@ -37,7 +37,7 @@ export const searchSymbols = async (
   };
 
   try {
-    const API_ORIGIN = 'http://82.153.226.91:8000';
+    const API_ORIGIN = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
     // Fetch canonical symbols from backend
     const response = await fetch(`${API_ORIGIN}/api/markets/symbols?canonical_only=true`);
     if (!response.ok) {

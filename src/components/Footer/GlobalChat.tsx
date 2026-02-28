@@ -43,7 +43,14 @@ const GlobalChat: React.FC = () => {
     const [onlineCount, setOnlineCount] = useState<number>(1);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const symbol = selectedMarket?.symbol ? selectedMarket.symbol : 'BTC-USD';
+    const toChatRoomSymbol = (rawSymbol?: string | null): string => {
+        const raw = String(rawSymbol || '').trim().toUpperCase();
+        if (!raw) return 'BTC';
+        const normalized = raw.replace(/_/g, '-').replace(/\//g, '-');
+        return normalized.split('-')[0] || 'BTC';
+    };
+
+    const symbol = toChatRoomSymbol(selectedMarket?.symbol);
 
     const fetchMessages = async () => {
         const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:8000';

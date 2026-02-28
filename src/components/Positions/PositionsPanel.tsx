@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import styles from './PositionsPanel.module.css';
 import portfolioStyles from '../Portfolio/Portfolio.module.css'; // Import Navbar styles
 import { useUIStore } from '../../store/useUIStore';
@@ -84,24 +84,28 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
             {/* Tabs Header - Navbar Style from Portfolio */}
             <div className={portfolioStyles.tabsContainer}>
                 <button
+                    type="button"
                     className={`${portfolioStyles.tabButton} ${activeTab === 'Positions' ? portfolioStyles.activeTab : ''}`}
                     onClick={() => setActiveTab('Positions')}
                 >
                     Positions <span className={styles.countBadge}>{positionsCount}</span>
                 </button>
                 <button
+                    type="button"
                     className={`${portfolioStyles.tabButton} ${activeTab === 'Orders' ? portfolioStyles.activeTab : ''}`}
                     onClick={() => setActiveTab('Orders')}
                 >
                     Orders <span className={styles.countBadge} style={{ backgroundColor: activeTab === 'Orders' ? '#3A2530' : '#3A2530', color: activeTab === 'Orders' ? '#FFE1F2' : '#A77590' }}>{ordersCount}</span>
                 </button>
                 <button
+                    type="button"
                     className={`${portfolioStyles.tabButton} ${activeTab === 'Trade History' ? portfolioStyles.activeTab : ''}`}
                     onClick={() => setActiveTab('Trade History')}
                 >
                     Trade History
                 </button>
                 <button
+                    type="button"
                     className={`${portfolioStyles.tabButton} ${activeTab === 'Order History' ? portfolioStyles.activeTab : ''}`}
                     onClick={() => setActiveTab('Order History')}
                 >
@@ -168,6 +172,7 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                         <th className={`${styles.th} ${styles.thRight}`}>Margin</th>
                                         <th className={styles.th}>
                                             <button
+                                                type="button"
                                                 className={styles.closeAllHeaderBtn}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -212,23 +217,40 @@ const PositionsPanel: React.FC<PositionsPanelProps> = ({ isExpanded: propExpande
                                         </tr>
                                     ) : positions.length > 0 ? (
                                         positions.map((pos: any) => {
-                                            const marketPrice = getPrice(pos.symbol) || pos.mark_price || pos.entry_price || 0;
+                                            const safe = (value: unknown, fallback = 0): number => {
+                                                const n = Number(value);
+                                                return Number.isFinite(n) ? n : fallback;
+                                            };
+                                            const symbol = String(pos?.symbol || '').trim();
+                                            const entryPrice = safe(pos?.entry_price, 0);
+                                            const markPrice = safe(getPrice(symbol), safe(pos?.mark_price, entryPrice));
+                                            const size = safe(pos?.size, 0);
+                                            const leverage = safe(pos?.leverage, 1);
+                                            const liqPriceRaw = pos?.liquidation_price;
+                                            const liqPrice = (liqPriceRaw === null || liqPriceRaw === undefined)
+                                                ? null
+                                                : safe(liqPriceRaw, 0);
+                                            const pnl = safe(pos?.unrealized_pnl, 0);
+                                            const pnlPct = safe(pos?.unrealized_pnl_percent, 0);
+                                            const marginUsed = safe(pos?.margin_used, 0);
+                                            const normalizedSide = String(pos?.side || '').toLowerCase() === 'long' ? 'Long' : 'Short';
+
                                             return (
                                                 <PositionRow key={pos.id} position={{
                                                     id: pos.id,
-                                                    symbol: pos.symbol,
-                                                    pair: pos.symbol,
+                                                    symbol,
+                                                    pair: symbol,
                                                     exchange: pos.exchange,
-                                                    side: pos.side === 'long' ? 'Long' : 'Short',
-                                                    size: pos.size,
-                                                    sizeUsd: pos.size * marketPrice,
-                                                    leverage: `${pos.leverage}x`,
-                                                    entryPrice: pos.entry_price,
-                                                    markPrice: marketPrice,
-                                                    liquidationPrice: pos.liquidation_price || null,
-                                                    unrealizedPnl: pos.unrealized_pnl,
-                                                    unrealizedPnlPercent: pos.unrealized_pnl_percent || 0,
-                                                    margin: pos.margin_used || 0,
+                                                    side: normalizedSide,
+                                                    size,
+                                                    sizeUsd: size * markPrice,
+                                                    leverage: `${leverage}x`,
+                                                    entryPrice,
+                                                    markPrice,
+                                                    liquidationPrice: liqPrice,
+                                                    unrealizedPnl: pnl,
+                                                    unrealizedPnlPercent: pnlPct,
+                                                    margin: marginUsed,
                                                     funding: 0,
                                                     tp: pos.tp,
                                                     sl: pos.sl

@@ -9,6 +9,22 @@ import { useWallet } from '../../hooks/useWallet';
 import TokenIcon from './TokenIcon';
 import OstiumIcon from './OstiumIcon';
 
+const STABLE_QUOTES = new Set(['USD', 'USDT', 'USDC']);
+const BASE_ALIASES: Record<string, string> = { XBT: 'BTC' };
+
+const toSymbolGroupKey = (symbol: string): string => {
+    const normalized = normalizeSymbol(symbol);
+    const parts = normalized.split('-').filter(Boolean);
+    if (parts.length < 2) return normalized;
+
+    const baseRaw = parts[0];
+    const quote = parts[1];
+    const base = BASE_ALIASES[baseRaw] || baseRaw;
+
+    if (STABLE_QUOTES.has(quote)) return `${base}-USD`;
+    return `${base}-${quote}`;
+};
+
 // Fallback search icon if file doesn't exist (SVG)
 const SearchSVG = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -16,6 +32,12 @@ const SearchSVG = () => (
         <path d="M21 21L16.65 16.65" stroke="#A77590" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
 );
+
+const parseSubCategoryTokens = (value?: string): string[] =>
+    String(value || '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean);
 
 export interface MarketSelectorProps {
     isOpen: boolean;
@@ -33,10 +55,10 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
     const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
 
     // Dynamic categories fetched from backend
-    const [dynamicCategories, setDynamicCategories] = useState<{ name: string; count: number }[]>([]);
+    const [dynamicSubCategories, setDynamicSubCategories] = useState<{ name: string; count: number }[]>([]);
     useEffect(() => {
         marketService.getFilters().then(data => {
-            if (data.categories.length > 0) setDynamicCategories(data.categories);
+            if (data.sub_categories.length > 0) setDynamicSubCategories(data.sub_categories);
         }).catch(() => { });
     }, []);
 
@@ -131,7 +153,8 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         setSortConfig({ key, direction });
     };
 
-    const filteredDataAll = markets.filter(item => {
+    const filteredMarkets = markets.filter(item => {
+        const subTokens = parseSubCategoryTokens(item.subCategory).map(v => v.toLowerCase());
         const matchesSearch =
             item.symbol.toLowerCase().includes(search.toLowerCase()) ||
             (item.category || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -146,18 +169,30 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         if (filter === 'Watchlist') {
             return favorites.has(`${item.source || 'hyperliquid'}:${item.symbol}`);
         }
-
-        const isStandardCategory = ['Forex', 'Stocks', 'Commodities', 'Index'].some(cat => item.category?.toLowerCase() === cat.toLowerCase());
-
-        if (filter === 'Crypto') {
-            return !isStandardCategory;
-        }
-
-        const matchesCategory = item.category?.toLowerCase() === filter.toLowerCase();
-        const matchesSubCategory = (item.subCategory || '').toLowerCase().includes(filter.toLowerCase());
-
-        return matchesCategory || matchesSubCategory;
+        return subTokens.includes(filter.toLowerCase());
     });
+
+    // Show only one parent row per grouped symbol (e.g. BTC-USD/BTC-USDT/BTC-USDC).
+    // Prefer canonical source, then highest 24h volume as fallback.
+    const filteredDataAll = useMemo(() => {
+        const grouped = new Map<string, MarketData>();
+        for (const item of filteredMarkets) {
+            const key = toSymbolGroupKey(item.symbol);
+            const existing = grouped.get(key);
+            if (!existing) {
+                grouped.set(key, item);
+                continue;
+            }
+            if (item.canonical && !existing.canonical) {
+                grouped.set(key, item);
+                continue;
+            }
+            if (!!item.canonical === !!existing.canonical && (item.volume24h || 0) > (existing.volume24h || 0)) {
+                grouped.set(key, item);
+            }
+        }
+        return Array.from(grouped.values());
+    }, [filteredMarkets]);
 
     // Sorting Logic
     const sortedData = useMemo(() => {
@@ -225,9 +260,20 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
     // Categories: use dynamic from backend, fallback to static.
     // We still compute counts from live `markets` data for the Watchlist + All tabs.
-    const CATEGORIES = dynamicCategories.length > 0
-        ? dynamicCategories.map(c => c.name)
-        : ['Crypto', 'AI', 'MEME', 'DEFI', 'L1', 'L2', 'GAMING', 'RWA', 'DEGEN', 'STABLE', 'LST', 'BTC-ECO', 'Forex', 'Stocks', 'Commodities', 'Index'];
+    const SUB_CATEGORIES = dynamicSubCategories.length > 0
+        ? dynamicSubCategories.map(c => c.name)
+        : (() => {
+            const countMap = new Map<string, number>();
+            markets.forEach(m => {
+                parseSubCategoryTokens(m.subCategory).forEach(token => {
+                    countMap.set(token, (countMap.get(token) || 0) + 1);
+                });
+            });
+            return Array.from(countMap.entries())
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                .map(([name]) => name)
+                .slice(0, 30);
+        })();
 
     const SortIcon = ({ columnKey }: { columnKey: keyof MarketData }) => {
         const active = sortConfig?.key === columnKey;
@@ -258,8 +304,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
     // Helper for formatting
     const formatPrice = (val: number) => {
-        if (!val && val !== 0) return '-';
-        if (val === 0) return '0.0000';
+        if (!Number.isFinite(val) || val <= 0) return '-';
 
         const locale = 'en-US';
 
@@ -303,7 +348,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
             >
                 {/* Back Button */}
                 {!isEmbedded && (
-                    <button className={styles.backBtn} onClick={onClose} title="Back">
+                    <button type="button" className={styles.backBtn} onClick={onClose} title="Back">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
@@ -312,6 +357,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
                 {/* 1. All */}
                 <button
+                    type="button"
                     className={`${styles.filterChip} ${filter === 'All' ? styles.active : ''}`}
                     onClick={() => setFilter('All')}
                 >
@@ -322,6 +368,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                 {/* Watchlist — only shown when there are favorites */}
                 {favorites.size > 0 && (
                     <button
+                        type="button"
                         className={`${styles.filterChip} ${filter === 'Watchlist' ? styles.active : ''}`}
                         onClick={() => setFilter('Watchlist')}
                     >
@@ -330,18 +377,16 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                     </button>
                 )}
 
-                {/* Category Tabs */}
-                {CATEGORIES.map(category => {
+                {/* Sub-category Tabs */}
+                {SUB_CATEGORIES.map(category => {
                     const count = markets.filter(m => {
-                        // Show count of all unique pairs in this category
-                        // if (!m.canonical) return false;
-                        const isStandard = ['Forex', 'Stocks', 'Commodities', 'Index'].some(c => m.category?.toLowerCase() === c.toLowerCase());
-                        if (category === 'Crypto') return !isStandard;
-                        return m.category?.toLowerCase() === category.toLowerCase();
+                        const tokens = parseSubCategoryTokens(m.subCategory).map(v => v.toLowerCase());
+                        return tokens.includes(category.toLowerCase());
                     }).length;
                     if (count === 0) return null;
                     return (
                         <button
+                            type="button"
                             key={category}
                             className={`${styles.filterChip} ${filter === category ? styles.active : ''}`}
                             onClick={() => setFilter(category)}
@@ -408,21 +453,26 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                         {paginatedData.map(item => {
                             const isPositive = item.change24hPercent >= 0;
                             const isExpanded = expandedSymbols.has(item.symbol);
-                            const normSym = normalizeSymbol(item.symbol);
-                            const siblings = allMarkets.filter(m => normalizeSymbol(m.symbol) === normSym);
-                            const hasSub = siblings.length > 1;
+                            const normSym = toSymbolGroupKey(item.symbol);
+                            const siblingMap = new Map<string, MarketData>();
+                            allMarkets
+                                .filter(m => toSymbolGroupKey(m.symbol) === normSym)
+                                .forEach(s => siblingMap.set(`${s.source || 'unknown'}:${normalizeSymbol(s.symbol)}`, s));
+                            const siblings = Array.from(siblingMap.values());
+                            const hasSub = siblings.length > 0;
 
                             return (
                                 <React.Fragment key={`${item.source || 'hyperliquid'}:${item.symbol}`}>
                                     <tr onClick={(e) => {
-                                        if (hasSub) {
-                                            toggleSymbolExpand(e, item.symbol);
-                                        } else {
+                                        if (!hasSub) {
                                             handleItemClick(item);
+                                            return;
                                         }
+                                        toggleSymbolExpand(e, item.symbol);
                                     }}>
                                         <td className={`${styles.marketCell} ${styles.tdFirst}`}>
                                             <button
+                                                type="button"
                                                 className={styles.starBtn}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -459,6 +509,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                         <td className={styles.tdArrow}>
                                             {hasSub && (
                                                 <button
+                                                    type="button"
                                                     className={`${styles.expandBtn} ${isExpanded ? styles.expanded : ''}`}
                                                     onClick={(e) => toggleSymbolExpand(e, item.symbol)}
                                                 >
@@ -474,14 +525,18 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                     {isExpanded && siblings.length > 0 && (
                                         <tr className={styles.subHeaderRow} onClick={(e) => e.stopPropagation()}>
                                             <th className={`${styles.subHeaderTh} ${styles.subHeaderThFirst}`}>Market</th>
-                                            <th className={`${styles.subHeaderTh} ${styles.hideOnSmallMobile}`}>Funding Rate</th>
-                                            <th className={styles.subHeaderTh}>Vol / OI</th>
+                                            <th className={`${styles.subHeaderTh} ${styles.hideOnSmallMobile}`}>Price</th>
+                                            <th className={styles.subHeaderTh}>Funding Rate</th>
                                             <th className={`${styles.subHeaderTh} ${styles.hideOnMobile}`}>Basis%</th>
                                             <th className={styles.subHeaderTh}></th>
                                         </tr>
                                     )}
                                     {isExpanded && siblings.map(sibling => {
-                                        const basisPercent = item.price > 0 ? ((sibling.price - item.price) / item.price) * 100 : 0;
+                                        const hasValidBase = Number.isFinite(item.price) && item.price > 0;
+                                        const hasValidSibling = Number.isFinite(sibling.price) && sibling.price > 0;
+                                        const basisPercent = hasValidBase && hasValidSibling
+                                            ? ((sibling.price - item.price) / item.price) * 100
+                                            : null;
 
                                         return (
                                             <tr
@@ -504,17 +559,17 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                                     </div>
                                                 </td>
                                                 <td className={`${styles.tdRight} ${styles.hideOnSmallMobile}`}>
+                                                    {formatPrice(sibling.price)}
+                                                </td>
+                                                <td className={`${styles.tdRight}`}>
                                                     {sibling.fundingRate !== undefined
                                                         ? `${(sibling.fundingRate * 100).toFixed(4)}%`
                                                         : '-'}
                                                 </td>
-                                                <td className={`${styles.tdRight}`}>
-                                                    {sibling.openInterest
-                                                        ? formatVol(sibling.openInterest)
-                                                        : formatVol(sibling.volume24h)}
-                                                </td>
-                                                <td className={`${styles.tdRight} ${styles.hideOnMobile} ${basisPercent >= 0 ? styles.positive : styles.negative}`}>
-                                                    {basisPercent >= 0 ? '+' : ''}{formatPercent(basisPercent)}
+                                                <td className={`${styles.tdRight} ${styles.hideOnMobile} ${basisPercent !== null ? (basisPercent >= 0 ? styles.positive : styles.negative) : ''}`}>
+                                                    {basisPercent === null
+                                                        ? '-'
+                                                        : `${basisPercent >= 0 ? '+' : ''}${formatPercent(basisPercent)}`}
                                                 </td>
                                                 <td className={styles.tdArrow}></td>
                                             </tr>
@@ -536,6 +591,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
                     <div className={styles.footerControls}>
                         <button
+                            type="button"
                             className={styles.paginationButton}
                             onClick={() => goToPage(currentPage - 1)}
                             disabled={currentPage === 1}
@@ -553,6 +609,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
 
                             return (
                                 <button
+                                    type="button"
                                     key={p}
                                     className={`${styles.paginationButton} ${currentPage === p ? styles.active : ''}`}
                                     onClick={() => goToPage(p)}
@@ -563,6 +620,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                         })}
 
                         <button
+                            type="button"
                             className={styles.paginationButton}
                             onClick={() => goToPage(currentPage + 1)}
                             disabled={currentPage === totalPages}
@@ -575,6 +633,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                         <span>Show</span>
                         <div className={styles.dropdownContainer}>
                             <button
+                                type="button"
                                 className={`${styles.dropdownButton} ${isRowsDropdownOpen ? styles.active : ''}`}
                                 onClick={toggleRowsDropdown}
                                 style={{ border: '1px solid #3A2530', padding: '4px 8px', borderRadius: '6px', height: '32px' }}
@@ -599,6 +658,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                 <div className={styles.dropdownMenu} style={{ minWidth: '60px', bottom: '100%', top: 'auto', marginBottom: '4px' }}>
                                     {[10, 20, 50, 100].map((rows) => (
                                         <button
+                                            type="button"
                                             key={rows}
                                             className={`${styles.dropdownItem} ${rowsPerPage === rows ? styles.selected : ''}`}
                                             onClick={() => { setRowsPerPage(rows); setCurrentPage(1); setIsRowsDropdownOpen(false); }}

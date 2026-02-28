@@ -4,6 +4,16 @@ const toMillis = (ts) => {
     return n < 1_000_000_000_000 ? n * 1000 : n;
 };
 
+const fetchWithTimeout = async (url, timeoutMs = 10000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
 export const getBars = async (
     symbolInfo,
     resolution,
@@ -11,17 +21,20 @@ export const getBars = async (
     onHistoryCallback,
     onErrorCallback
 ) => {
-    const { from, to, firstDataRequest } = periodParams;
+    const { from, to } = periodParams || {};
     const fromMs = toMillis(from || 0);
     const toMs = toMillis(to || 0);
 
     try {
-        const API_ORIGIN = 'http://82.153.226.91:8000';
-        const symbol = symbolInfo.name.replace('/', '-');
-        const limit = periodParams.countBack || 500;
-        const url = `${API_ORIGIN}/api/candles/${symbol}?exchange=ostium&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
-
-        const response = await fetch(url);
+        const API_ORIGIN = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
+        const symbol = String(symbolInfo?.name || '').replace('/', '-');
+        if (!symbol) {
+            onHistoryCallback([], { noData: true });
+            return;
+        }
+        const limit = periodParams?.countBack || 500;
+        const url = `${API_ORIGIN}/api/candles/${encodeURIComponent(symbol)}?exchange=ostium&limit=${limit}&resolution=${encodeURIComponent(resolution)}`;
+        const response = await fetchWithTimeout(url);
 
         if (!response.ok) {
             onHistoryCallback([], { noData: true });
@@ -29,41 +42,38 @@ export const getBars = async (
         }
 
         const data = await response.json();
-
-        if (!Array.isArray(data) || data.length === 0) {
+        const sourceBars = Array.isArray(data) ? data : (Array.isArray(data?.candles) ? data.candles : []);
+        if (sourceBars.length === 0) {
             onHistoryCallback([], { noData: true });
             return;
         }
 
-        const bars = data.map(b => {
-            return {
-                time: toMillis(b.t || b.time || b.timestamp),
-                open: parseFloat(b.o || b.open),
-                high: parseFloat(b.h || b.high),
-                low: parseFloat(b.l || b.low),
-                close: parseFloat(b.c || b.close),
-                volume: 0
-            };
-        }).filter(bar => {
-            if (!fromMs && !toMs) return true;
-            if (fromMs && bar.time < fromMs) return false;
-            if (toMs && bar.time > toMs) return false;
-            return true;
-        })
+        const bars = sourceBars
+            .map((b) => ({
+                time: toMillis(b.timestamp || b.time || b.t),
+                open: parseFloat(b.open || b.o),
+                high: parseFloat(b.high || b.h),
+                low: parseFloat(b.low || b.l),
+                close: parseFloat(b.close || b.c),
+                volume: parseFloat(b.volume || b.v || 0),
+            }))
+            .filter((bar) => {
+                if (!Number.isFinite(bar.time) || bar.time <= 0) return false;
+                if (!Number.isFinite(bar.open) || !Number.isFinite(bar.high) || !Number.isFinite(bar.low) || !Number.isFinite(bar.close)) return false;
+                if (fromMs && bar.time < fromMs) return false;
+                if (toMs && bar.time > toMs) return false;
+                return true;
+            })
             .sort((a, b) => a.time - b.time);
-
-        if (bars.length === 0 && !firstDataRequest) {
-            onHistoryCallback([], { noData: true });
-            return;
-        }
 
         onHistoryCallback(bars, { noData: bars.length === 0 });
     } catch (err) {
-        onErrorCallback(err);
+        console.error('[Ostium getBars]: Error:', err);
+        onHistoryCallback([], { noData: true });
+        onErrorCallback?.(err);
     }
 };
 
-// Store active subscriptions and their cleanup functions
 const activeSubscriptions = new Map();
 
 export const subscribeBars = (
@@ -72,10 +82,10 @@ export const subscribeBars = (
     onRealtimeCallback,
     subscriberUID,
 ) => {
-    const API_ORIGIN = 'http://82.153.226.91:8000';
-    const WS_ORIGIN = API_ORIGIN.replace(/^http/, 'ws');
-    const symbol = symbolInfo.name.replace('/', '-');
-    const wsUrl = `${WS_ORIGIN}/ws/ostium/${symbol}`;
+    const API_ORIGIN = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
+    const WS_ORIGIN = API_ORIGIN.replace(/^https?:/i, (m) => (m.toLowerCase() === 'https:' ? 'wss:' : 'ws:'));
+    const symbol = String(symbolInfo?.name || '').replace('/', '-');
+    const wsUrl = `${WS_ORIGIN}/ws/ostium/${encodeURIComponent(symbol)}`;
     const ws = new WebSocket(wsUrl);
 
     let lastBar = {
@@ -91,8 +101,7 @@ export const subscribeBars = (
         try {
             const message = JSON.parse(event.data);
             if (message.type === 'price_update' && message.data) {
-                const data = message.data;
-                const price = parseFloat(data.price);
+                const price = parseFloat(message.data.price);
                 const now = Date.now();
 
                 const bar = {

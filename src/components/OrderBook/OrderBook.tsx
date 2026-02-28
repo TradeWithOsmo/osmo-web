@@ -19,22 +19,26 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
     const { selectedMarket, setPendingLimitPrice } = useMarketStore();
     const [asks, setAsks] = useState<OrderRowData[]>([]);
     const [bids, setBids] = useState<OrderRowData[]>([]);
+    const [hasSnapshot, setHasSnapshot] = useState<boolean>(false);
     const [rowCount, setRowCount] = useState<number>(15);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isAvailable, setIsAvailable] = useState<boolean>(true); // Assume available until proven otherwise
     const WS_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/,$/, '').replace(/^http/, 'ws');
+    const selectedSource = (selectedMarket as any)?.source || 'hyperliquid';
 
     // Clear stale data when the market changes
     useEffect(() => {
         setAsks([]);
         setBids([]);
-    }, [selectedMarket?.symbol]);
+        setIsAvailable(true);
+        setHasSnapshot(false);
+    }, [selectedMarket?.symbol, selectedSource]);
 
     useEffect(() => {
         if (!selectedMarket) return;
 
         const symbol = selectedMarket.symbol;
-        const exchange = (selectedMarket as any).source || 'hyperliquid';
+        const exchange = selectedSource;
         const ws = new WebSocket(`${WS_ORIGIN}/ws/orderbook/${symbol}?exchange=${exchange}`);
 
         let dataReceived = false;
@@ -69,6 +73,7 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
 
                 dataReceived = true;
                 setIsAvailable(true);
+                setHasSnapshot(true);
 
                 const { bids: rawBids = [], asks: rawAsks = [] } = bookData;
 
@@ -109,7 +114,7 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
             ws.close();
             clearTimeout(timeout);
         };
-    }, [selectedMarket?.symbol, rowCount, WS_ORIGIN]);
+        }, [selectedMarket?.symbol, selectedSource, rowCount, WS_ORIGIN]);
 
     useEffect(() => {
         const calculateRows = () => {
@@ -167,7 +172,8 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
     const spread = bestAsk > 0 && bestBid > 0 ? bestAsk - bestBid : 0;
     const spreadPercent = spread > 0 && bestBid > 0 ? (spread / bestBid) * 100 : 0;
 
-    const isLoading = asks.length === 0 && bids.length === 0;
+    const isLoading = !hasSnapshot;
+    const isEmpty = hasSnapshot && asks.length === 0 && bids.length === 0;
 
     return (
         <div className={styles.orderBookWrapper}>
@@ -183,6 +189,10 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
                         Array.from({ length: rowCount }).map((_, i) => (
                             <div key={`ask-skeleton-${i}`} className={`${styles.skeleton} ${styles.skeletonRow}`} />
                         ))
+                    ) : isEmpty ? (
+                        <div style={{ color: '#A77590', fontSize: 12, padding: '10px 12px' }}>
+                            No orderbook levels available.
+                        </div>
                     ) : (
                         asks.map((ask) => (
                             <div
@@ -221,7 +231,7 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
                         Array.from({ length: rowCount }).map((_, i) => (
                             <div key={`bid-skeleton-${i}`} className={`${styles.skeleton} ${styles.skeletonRow}`} />
                         ))
-                    ) : (
+                    ) : isEmpty ? null : (
                         bids.map((bid) => (
                             <div
                                 key={bid.id}
