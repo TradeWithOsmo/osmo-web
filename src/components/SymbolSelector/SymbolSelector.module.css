@@ -30,9 +30,14 @@
 
 .symbolInfo {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 4px;
   flex: 1;
+}
+
+.symbolIcon {
+  flex-shrink: 0;
+  border-radius: 50%;
 }
 
 .symbol {
@@ -205,6 +210,11 @@
   align-items: flex-start;
   gap: 2px;
   flex: 1;
+}
+
+.itemIcon {
+  flex-shrink: 0;
+  border-radius: 50%;
 }
 
 .itemSymbol {

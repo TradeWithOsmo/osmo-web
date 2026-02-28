@@ -130,6 +130,7 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                 {/* Left Section: star + icon + symbol + market dropdown */}
                 <div className={styles.leftSection}>
                     <button
+                        type="button"
                         className={styles.starButton}
                         onClick={handleFavoriteClick}
                         aria-label={isFavoriteNow ? "Remove from favorites" : "Add to favorites"}
@@ -176,7 +177,7 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                             {changeSign}{formatPercent(selectedMarket.change24hPercent ?? 0)}
                         </span>
                     </div>
-                    <button className={styles.expandButton} onClick={toggleExpand}>
+                    <button type="button" className={styles.expandButton} onClick={toggleExpand}>
                         <img src={isExpanded ? collapseIcon : expandIcon} alt="Toggle Details" />
                     </button>
                 </div>
@@ -247,6 +248,7 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                     <div className={styles.rightSection}>
                         <div className={styles.layoutTabs}>
                             <button
+                                type="button"
                                 className={`${styles.layoutTab} ${layoutMode === 'standard' ? styles.activeLayoutTab : ''}`}
                                 onClick={() => setLayoutMode('standard')}
                                 title="Standard Layout"
@@ -254,6 +256,7 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                                 <span className={styles.layoutTabText}>Standard</span>
                             </button>
                             <button
+                                type="button"
                                 className={`${styles.layoutTab} ${layoutMode === 'assist' ? styles.activeLayoutTab : ''}`}
                                 onClick={() => setLayoutMode('assist')}
                                 title="Trading Assist Layout"

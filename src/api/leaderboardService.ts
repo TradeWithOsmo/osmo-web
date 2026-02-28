@@ -186,15 +186,22 @@ class LeaderboardService {
       limit: limit.toString(),
     });
 
-    const response = await fetch(
+    // Primary path (arena namespace), with fallback to legacy leaderboard namespace.
+    const primary = await fetch(
       `${this.arenaBaseUrl}/agents?${params.toString()}`,
     );
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch agent leaderboard");
+    if (primary.ok) {
+      return primary.json();
     }
 
-    return response.json();
+    const fallback = await fetch(
+      `${API_URL}/api/leaderboard/agents?${params.toString()}`,
+    );
+    if (fallback.ok) {
+      return fallback.json();
+    }
+
+    throw new Error("Failed to fetch agent leaderboard");
   }
 
   /**

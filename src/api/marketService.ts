@@ -4,6 +4,7 @@ import axios from 'axios';
 // Keep `VITE_API_URL` as the origin (e.g. http://localhost:8000) and append `/api` here.
 const API_ORIGIN = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const API_URL = `${API_ORIGIN}/api`;
+const DEBUG_API = String(import.meta.env.VITE_DEBUG_API || '').toLowerCase() === 'true';
 
 export interface MarketData {
     symbol: string;
@@ -41,21 +42,30 @@ export interface OrderBookData {
     asks: OrderBookLevel[];
 }
 
+const exchangeMarketsCache = new Map<string, { ts: number; data: MarketData[] }>();
+const exchangeMarketsInFlight = new Map<string, Promise<MarketData[]>>();
+
 export const marketService = {
     // Fetch all available markets/tickers
     getMarkets: async (): Promise<MarketData[]> => {
         try {
-            console.log("🔍 Fetching unified markets from:", `${API_URL}/markets`);
+            if (DEBUG_API) {
+                console.log("🔍 Fetching unified markets from:", `${API_URL}/markets`);
+            }
 
             const response = await axios.get(`${API_URL}/markets`, { timeout: 30000, params: { canonical_only: false } });
 
             if (response.status !== 200 || !response.data || !response.data.markets) {
-                console.warn("⚠️ No markets loaded or invalid response!", response);
+                if (DEBUG_API) {
+                    console.warn("⚠️ No markets loaded or invalid response!", response);
+                }
                 return [];
             }
 
             const rawMarkets = response.data.markets;
-            console.log(`✅ Unified markets response. Loaded ${rawMarkets.length} markets total.`);
+            if (DEBUG_API) {
+                console.log(`✅ Unified markets response. Loaded ${rawMarkets.length} markets total.`);
+            }
 
             const markets: MarketData[] = rawMarkets.map((item: any) => ({
                 symbol: item.symbol,
@@ -120,6 +130,65 @@ export const marketService = {
                 exchanges: [],
                 total_symbols: 0,
             };
+        }
+    },
+
+    // Fetch markets filtered by exchange for lightweight selected-market realtime polling
+    getMarketsByExchange: async (exchange: string): Promise<MarketData[]> => {
+        const key = String(exchange || '').toLowerCase();
+        const now = Date.now();
+        const cached = exchangeMarketsCache.get(key);
+        if (cached && now - cached.ts < 4000) {
+            return cached.data;
+        }
+        const pending = exchangeMarketsInFlight.get(key);
+        if (pending) {
+            return pending;
+        }
+
+        const request = (async (): Promise<MarketData[]> => {
+        try {
+            const response = await axios.get(`${API_URL}/markets`, {
+                timeout: 10000,
+                params: { exchange: key, canonical_only: false }
+            });
+            const rawMarkets = response?.data?.markets || [];
+            const mapped = rawMarkets.map((item: any) => ({
+                symbol: item.symbol,
+                price: parseFloat(item.price) || 0,
+                change24h: parseFloat(item.change_24h ?? item.change24h ?? 0),
+                change24hPercent: parseFloat(item.change_percent_24h ?? item.change24hPercent ?? 0),
+                high24h: parseFloat(item.high_24h ?? item.high24h ?? 0),
+                low24h: parseFloat(item.low_24h ?? item.low24h ?? 0),
+                volume24h: parseFloat(item.volume_24h ?? item.volume24h ?? 0),
+                fundingRate: (
+                    item.funding_rate !== undefined ? parseFloat(item.funding_rate) :
+                        item.fundingRate !== undefined ? parseFloat(item.fundingRate) :
+                            item.fund !== undefined ? parseFloat(item.fund) : undefined
+                ),
+                openInterest: (
+                    item.open_interest !== undefined ? parseFloat(item.open_interest) :
+                        item.openInterest !== undefined ? parseFloat(item.openInterest) : undefined
+                ),
+                source: item.source || key,
+                category: item.category || 'Crypto',
+                subCategory: item.subCategory || item.sub_category,
+                maxLeverage: item.maxLeverage ? parseFloat(item.maxLeverage) :
+                    item.max_leverage ? parseFloat(item.max_leverage) : undefined,
+                canonical: item.canonical || false
+            }));
+            exchangeMarketsCache.set(key, { ts: Date.now(), data: mapped });
+            return mapped;
+        } catch (error) {
+            console.error(`❌ Failed to fetch markets for exchange ${exchange}:`, error);
+            return exchangeMarketsCache.get(key)?.data || [];
+        }
+        })();
+        exchangeMarketsInFlight.set(key, request);
+        try {
+            return await request;
+        } finally {
+            exchangeMarketsInFlight.delete(key);
         }
     },
 };

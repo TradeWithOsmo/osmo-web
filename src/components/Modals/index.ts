@@ -9,4 +9,6 @@ export * from './FaucetModal';
 export * from './TradingSetupModal';
 export * from './CancelOrderModal';
 export * from './CancelAllOrdersModal';
-
+export * from './EnterCodeModal';
+export * from './CreateCodeModal';
+export * from './ClaimRewardsModal';

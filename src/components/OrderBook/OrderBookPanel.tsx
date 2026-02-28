@@ -8,10 +8,26 @@ interface OrderBookPanelProps {
     forcedTab?: 'Order Book' | 'Trades';
 }
 
+const getDefaultGrouping = (price?: number): number => {
+    const p = Number(price || 0);
+    if (!Number.isFinite(p) || p <= 0) return 0.001;
+    if (p >= 10000) return 1;
+    if (p >= 1000) return 0.1;
+    if (p >= 100) return 0.01;
+    if (p >= 1) return 0.001;
+    if (p >= 0.1) return 0.0001;
+    return 0.00001;
+};
+
 const OrderBookPanel: React.FC<OrderBookPanelProps> = ({ forcedTab }) => {
     const { selectedMarket } = useMarketStore();
     const [internalTab, setInternalTab] = useState<'Order Book' | 'Trades'>('Order Book');
-    const [grouping, setGrouping] = useState(0.01);
+    const [grouping, setGrouping] = useState<number>(() => getDefaultGrouping(selectedMarket?.price));
+
+    React.useEffect(() => {
+        // Reset grouping on symbol/source switch so precision follows market price scale.
+        setGrouping(getDefaultGrouping(selectedMarket?.price));
+    }, [selectedMarket?.symbol, selectedMarket?.source, selectedMarket?.price]);
 
     const activeTab = forcedTab || internalTab;
     // We let the components decide availability now
@@ -55,8 +71,8 @@ const OrderBookPanel: React.FC<OrderBookPanelProps> = ({ forcedTab }) => {
 
             {isAvailable && (
                 <div className={styles.footer}>
-                    <button className={styles.groupBtn} onClick={() => setGrouping(prev => Math.max(0.001, prev / 10))}>−</button>
-                    <button className={styles.groupBtn} onClick={() => setGrouping(prev => Math.min(1, prev * 10))}>+</button>
+                    <button className={styles.groupBtn} onClick={() => setGrouping(prev => Math.max(0.00001, prev / 10))}>-</button>
+                    <button className={styles.groupBtn} onClick={() => setGrouping(prev => Math.min(10, prev * 10))}>+</button>
                     <div className={styles.groupVal}>{grouping < 1 ? grouping.toString() : Math.round(grouping).toString()}</div>
                     <div className={styles.currencyCell}>
                         <div className={styles.currencyIcon}>

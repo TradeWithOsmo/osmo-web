@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Navbar } from './components';
 import { AppRouter } from './router';
 import { useGlobalMarketStream } from './hooks/useGlobalMarketStream';
+import { useSelectedMarketRealtime } from './hooks/useSelectedMarketRealtime';
 import { useTokenListStore } from './store/useTokenListStore';
 import { Toaster } from 'react-hot-toast';
-import { DepositModal, ReversePositionModal, MarketCloseModal, TPSLModal, CloseAllModal, LimitCloseModal, SessionKeyModal, FaucetModal, TradingSetupModal, CancelOrderModal, CancelAllOrdersModal } from './components/Modals';
+import { DepositModal, ReversePositionModal, MarketCloseModal, TPSLModal, CloseAllModal, LimitCloseModal, SessionKeyModal, FaucetModal, TradingSetupModal, CancelOrderModal, CancelAllOrdersModal, EnterCodeModal, CreateCodeModal, ClaimRewardsModal } from './components/Modals';
 import { useWallet } from './hooks/useWallet';
 import { useUIStore } from './store/useUIStore';
 import { onchainService } from './api/onchainService';
@@ -17,6 +18,7 @@ function App() {
 
   // Enable global real-time market data stream
   useGlobalMarketStream();
+  useSelectedMarketRealtime();
   useAppDataSync();
 
   const { fetchTokenList } = useTokenListStore();
@@ -131,6 +133,7 @@ function App() {
     { label: 'Portfolio', href: '/portfolio', isActive: currentRoute.startsWith('/portfolio') },
     { label: 'Usage', href: '/usage', isActive: currentRoute.startsWith('/usage') },
     { label: 'Arena', href: '/arena', isActive: currentRoute === '/arena' },
+    { label: 'Refer', href: '/refer', isActive: currentRoute === '/refer' },
     { label: 'Faucet', href: '/faucet', isActive: currentRoute.startsWith('/faucet') },
     { label: 'Leaderboard', href: '/leaderboard', isActive: currentRoute === '/leaderboard' },
   ];
@@ -167,6 +170,9 @@ function App() {
       />
       <CancelOrderModal />
       <CancelAllOrdersModal />
+      <EnterCodeModal />
+      <CreateCodeModal />
+      <ClaimRewardsModal />
       <Toaster position="top-right" toastOptions={{ style: { background: '#12000A', color: '#FFE1F2', border: '1px solid #3A2530' } }} />
     </div>
   );

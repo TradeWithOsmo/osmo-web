@@ -1,14 +1,16 @@
 import React from 'react'
 import { useWallet, useNavigation } from '../../hooks'
 import { useUIStore } from '../../store/useUIStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import styles from './Navbar.module.css'
 import notificationIcon from '../../assets/Icons/Notifikasi/Notifications.png'
 import notificationBulletIcon from '../../assets/Icons/Notifikasi/Notifications-Bullet.png'
-import howIcon from '../../assets/Icons/How/Circle-Question.png'
 import tradeIcon from '../../assets/Logos-Market-Autos/Osmo-Market.png'
-import autosIcon from '../../assets/Logos-Market-Autos/Osmo-Autos.png'
 import menuIcon from '../../assets/Icons/Menu/Menu.png'
 import closeIcon from '../../assets/Icons/Menu/XSquare.png'
+import eventPatternImg from '../../assets/Square-pattern.png'
+import osmoLogoIcon from '../../assets/Icons/Osmo-Logos.png'
+import TokenIcon from '../MarketDetails/TokenIcon'
 
 export interface NavItem {
   label: string
@@ -33,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const {
     ready,
     authenticated,
+    walletAddress,
     truncatedAddress,
     isWalletDropdownOpen,
     isWrongChain,
@@ -48,12 +51,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   // Navigation hooks
   const {
     isMobileMenuOpen,
-    isTradeDropdownOpen,
-    selectedTradeMode,
     toggleMobileMenu,
     closeMobileMenu,
-    toggleTradeDropdown,
-    selectTradeMode,
   } = useNavigation()
 
   const [isPortfolioDropdownOpen, setIsPortfolioDropdownOpen] = React.useState(false)
@@ -61,6 +60,52 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const [isUsageDropdownOpen, setIsUsageDropdownOpen] = React.useState(false)
   const toggleUsageDropdown = () => setIsUsageDropdownOpen(!isUsageDropdownOpen)
+
+  // Notification Sidebar setup
+  const [isNotificationOpen, setIsNotificationOpen] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [pushState, setPushState] = React.useState<'idle' | 'loading' | 'success'>('idle')
+  const {
+    notifications,
+    browserPushEnabled,
+    enableBrowserPush,
+    connect: connectNotifications,
+    disconnect: disconnectNotifications,
+    removeNotification,
+    clearAll,
+  } = useNotificationStore()
+
+  React.useEffect(() => {
+    if (!authenticated || !walletAddress) {
+      disconnectNotifications()
+      setPushState('idle')
+      return
+    }
+    connectNotifications(walletAddress)
+    setPushState(browserPushEnabled ? 'success' : 'idle')
+    return () => disconnectNotifications()
+  }, [authenticated, walletAddress, browserPushEnabled, connectNotifications, disconnectNotifications])
+
+  const notificationsForUser = React.useMemo(() => {
+    const wallet = String(walletAddress || '').toLowerCase();
+    if (!wallet) return [];
+    return notifications.filter((n) => String(n.userAddress || '').toLowerCase() === wallet);
+  }, [notifications, walletAddress])
+
+  const filteredNotifications = notificationsForUser.filter(notif =>
+    notif.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    notif.type.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const handleEnablePush = async () => {
+    if (!authenticated || !walletAddress) return
+    if (pushState === 'loading') return
+    if (browserPushEnabled) return
+    setPushState('loading')
+    const ok = await enableBrowserPush()
+    connectNotifications(walletAddress)
+    setPushState(ok ? 'success' : 'idle')
+  }
 
   // Lock body scroll when mobile menu is open
   React.useEffect(() => {
@@ -74,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   }, [isMobileMenuOpen])
 
-  const currentTradeIcon = selectedTradeMode === 'trade' ? tradeIcon : autosIcon
+
 
   return (
     <nav className={styles.navbar}>
@@ -104,51 +149,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           <img src="/Logos/Osmo-Logos.png" alt="Logo" className={styles.logo} />
         </div>
 
-        {/* Tablet: Trade dropdown next to logo */}
+        {/* Tablet: Trade button next to logo */}
         <div className={styles.tabletTradeDropdown}>
           <div className={styles.divider} />
           <div className={styles.dropdown}>
             <button
               className={`${styles.navItem} ${styles.dropdownToggle}`}
-              onClick={toggleTradeDropdown}
+              onClick={() => {
+                onNavClick?.('/trade')
+                closeMobileMenu()
+              }}
               title="Trade"
             >
-              <img src={currentTradeIcon} alt="Trade Mode" className={styles['trade-mode-icon']} />
-              <svg
-                width="10"
-                height="6"
-                viewBox="0 0 10 6"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className={`${styles.navArrow} ${isTradeDropdownOpen ? styles.rotate : ''}`}
-              >
-                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <img src={tradeIcon} alt="Trade Mode" className={styles['trade-mode-icon']} />
             </button>
-            {isTradeDropdownOpen && (
-              <div className={styles.dropdownMenu}>
-                <button
-                  className={styles.dropdownItem}
-                  onClick={() => {
-                    selectTradeMode('trade')
-                    onNavClick?.('/trade')
-                    closeMobileMenu()
-                  }}
-                >
-                  <img src={tradeIcon} alt="Trade" className={styles['trade-mode-icon']} />
-                </button>
-                <button
-                  className={styles.dropdownItem}
-                  onClick={() => {
-                    selectTradeMode('autos')
-                    onNavClick?.('/autos')
-                    closeMobileMenu()
-                  }}
-                >
-                  <img src={autosIcon} alt="Autos" className={styles['trade-mode-icon']} />
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -166,51 +180,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <React.Fragment key={item.href}>
                   {item.label === 'Trade' ? (
                     <>
-                      {/* Desktop: Dropdown with icon */}
+                      {/* Desktop: Button with icon */}
                       <div className={`${styles.dropdown} ${styles.desktopOnly}`}>
                         <button
                           className={`${styles.navItem} ${styles.dropdownToggle} ${item.isActive ? styles.active : ''}`}
-                          onClick={toggleTradeDropdown}
+                          onClick={() => {
+                            onNavClick?.('/trade')
+                            closeMobileMenu()
+                          }}
                           title={item.label}
                         >
-                          <img src={currentTradeIcon} alt="Trade Mode" className={styles['trade-mode-icon']} />
-                          <svg
-                            width="10"
-                            height="6"
-                            viewBox="0 0 10 6"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            className={`${styles.navArrow} ${isTradeDropdownOpen ? styles.rotate : ''}`}
-                          >
-                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          <img src={tradeIcon} alt="Trade Mode" className={styles['trade-mode-icon']} />
                         </button>
-                        {isTradeDropdownOpen && (
-                          <div className={styles.dropdownMenu}>
-                            <button
-                              className={styles.dropdownItem}
-                              onClick={() => {
-                                selectTradeMode('trade')
-                                onNavClick?.('/trade')
-                                closeMobileMenu()
-                              }}
-                            >
-                              <img src={tradeIcon} alt="Trade" className={styles['trade-mode-icon']} />
-                            </button>
-                            <button
-                              className={styles.dropdownItem}
-                              onClick={() => {
-                                selectTradeMode('autos')
-                                onNavClick?.('/autos')
-                                closeMobileMenu()
-                              }}
-                            >
-                              <img src={autosIcon} alt="Autos" className={styles['trade-mode-icon']} />
-                            </button>
-                          </div>
-                        )}
                       </div>
-                      {/* Mobile: Two separate items */}
+                      {/* Mobile: Single item */}
                       <React.Fragment>
                         <a
                           href="/trade"
@@ -223,18 +206,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                           title="Trade"
                         >
                           <span>Trade</span>
-                        </a>
-                        <a
-                          href="/autos"
-                          className={`${styles.navItem} ${styles.mobileOnly}`}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            onNavClick?.('/autos')
-                            closeMobileMenu()
-                          }}
-                          title="Autonomus"
-                        >
-                          <span>Autonomus</span>
                         </a>
                       </React.Fragment>
                     </>
@@ -379,18 +350,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Right Section - Icons & Profile */}
         {navItems.length > 0 && <div className={styles.divider} />}
         <div className={styles.rightSection}>
-          {/* Only show Help icon when there are nav items */}
-          {navItems.length > 0 && (
-            <div className={styles.helpIconWrapper}>
-              <button className={styles.iconButton} aria-label="Help">
-                <img src={howIcon} alt="Help" className={styles.iconImage} />
-              </button>
-              <div className={styles.divider} />
-            </div>
-          )}
-          <button className={styles.iconButton} aria-label="Notifications">
+          <button className={styles.iconButton} aria-label="Notifications" onClick={() => setIsNotificationOpen(true)}>
             <img
-              src={hasNotifications ? notificationBulletIcon : notificationIcon}
+              src={hasNotifications || notificationsForUser.length > 0 ? notificationBulletIcon : notificationIcon}
               alt="Notifications"
               className={styles.iconImage}
             />
@@ -462,6 +424,118 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={handleDisconnect}
               >
                 Disconnect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Sidebar Overlay */}
+      {isNotificationOpen && (
+        <div className={styles.notificationOverlay} onClick={() => setIsNotificationOpen(false)}>
+          <div className={styles.notificationSidebar} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.notificationHeader}>
+              <button className={styles.backIcon} onClick={() => setIsNotificationOpen(false)} aria-label="Back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <span className={styles.notificationTitle}>Notification</span>
+            </div>
+
+            <div className={styles.notificationSearchContainer}>
+              <input
+                type="text"
+                placeholder="Search notifications..."
+                className={styles.notificationSearchInput}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className={styles.notificationContent}>
+              {filteredNotifications.length > 0 ? (
+                filteredNotifications.map(notif => (
+                  <div key={notif.id} className={styles.notificationItem}>
+                    <div className={styles.notificationItemHeader}>
+                      <div className={styles.notificationTypeWrapper}>
+                        {notif.symbol ? (
+                          <TokenIcon symbol={notif.symbol} size={20} className={styles.notificationIcon} />
+                        ) : (
+                          notif.icon ? <img src={notif.icon} alt="" className={styles.notificationIcon} /> : null
+                        )}
+                        <span className={styles.notificationType}>{notif.type}</span>
+                      </div>
+                      <button
+                        className={styles.removeNotificationButton}
+                        onClick={() => removeNotification(notif.id)}
+                        aria-label="Remove notification"
+                        title="Clear notification"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    </div>
+                    <span className={styles.notificationMessage}>{notif.message}</span>
+                    {notif.image && (
+                      <div className={styles.notificationImageContainer}>
+                        <img src={notif.image} alt={notif.type} className={styles.notificationImage} />
+                      </div>
+                    )}
+                    <div className={styles.notificationItemFooter}>
+                      <span className={styles.notificationTime}>{notif.time}</span>
+                      {notif.ctaText && (
+                        <a
+                          href={notif.ctaLink}
+                          className={styles.notificationCTA}
+                          onClick={(e) => {
+                            if (notif.ctaLink === '#') e.preventDefault()
+                          }}
+                        >
+                          {notif.ctaText}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className={styles.emptyNotifications}>
+                  No notifications found.
+                </div>
+              )}
+            </div>
+
+            <div className={styles.notificationFooter}>
+              <button
+                className={`${styles.enablePushButton} ${pushState === 'success' ? styles.pushSuccess : ''}`}
+                onClick={handleEnablePush}
+                disabled={pushState === 'loading' || browserPushEnabled}
+              >
+                {pushState === 'idle' && 'Enable Push Notifications'}
+                {pushState === 'loading' && (
+                  <div className={styles.loadingDots}>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                )}
+                {pushState === 'success' && (
+                  <div className={styles.successContent}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>Enabled</span>
+                  </div>
+                )}
+              </button>
+              <button
+                className={styles.clearAllButton}
+                onClick={() => clearAll(walletAddress || undefined)}
+                disabled={notificationsForUser.length === 0}
+              >
+                Clear All
               </button>
             </div>
           </div>

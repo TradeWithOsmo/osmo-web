@@ -308,6 +308,13 @@ export const agentService = {
         return response.data;
     },
 
+    getTradingViewIndicatorAliases: async (): Promise<any> => {
+        const response = await axios.get(
+            `${API_URL}/api/connectors/tradingview/indicator_aliases`,
+        );
+        return response.data;
+    },
+
     getSessions: async (token: string, walletAddress?: string): Promise<any[]> => {
         const headers = buildAuthHeaders(token, walletAddress);
         const response = await axios.get(`${API_URL}/api/agent/sessions`, { headers });
