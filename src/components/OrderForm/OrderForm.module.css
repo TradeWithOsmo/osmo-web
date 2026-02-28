@@ -50,42 +50,6 @@
     font-size: 14px;
     font-weight: 500;
     color: #FFE1F2;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.symbolName {
-    font-weight: 700;
-    color: #FFF;
-}
-
-.sourceBadge {
-    background: rgba(93, 95, 239, 0.15);
-    color: #8C8EF2;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    text-transform: uppercase;
-    font-weight: 700;
-    border: 1px solid rgba(93, 95, 239, 0.3);
-}
-
-.accountStatus {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-.balanceLabel {
-    font-size: 10px;
-    color: #A77590;
-}
-
-.balanceValue {
-    font-size: 12px;
-    font-weight: 600;
-    color: #00E396;
 }
 
 .manageFundsBtn {
@@ -976,16 +940,12 @@
 }
 
 @keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .spinner {
     animation: spin 1s linear infinite;
     transform-origin: center;
 }
+

@@ -4,32 +4,19 @@ import styles from './SymbolSelector.module.css'
 import { useMarketStore } from '../../store/useMarketStore'
 import { useWatchlistStore } from '../../store/useWatchlistStore'
 import { type MarketData } from '../../api/marketService'
+import TokenIcon from '../MarketDetails/TokenIcon'
+
+const parseSubCategoryTokens = (value?: string): string[] =>
+  String(value || '')
+    .split(',')
+    .map(v => v.trim())
+    .filter(Boolean);
 
 export interface SymbolSelectorProps {
   selectedSymbol?: string
   onSymbolChange?: (symbol: string) => void
   theme?: 'light' | 'dark'
 }
-
-const CATEGORIES = [
-  'All',
-  'AI',
-  'MEME',
-  'DEFI',
-  'L1',
-  'L2',
-  'GAMING',
-  'RWA',
-  'DEGEN',
-  'STABLE',
-  'LST',
-  'BTC-ECO',
-  'DEPIN',
-  'MODULAR',
-  'Forex',
-  'Stocks',
-  'Commodities'
-];
 
 export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
   selectedSymbol,
@@ -43,6 +30,20 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const filterTabs = useMemo(() => {
+    const counts = new Map<string, number>();
+    markets.forEach((m) => {
+      parseSubCategoryTokens(m.subCategory).forEach((token) => {
+        counts.set(token, (counts.get(token) || 0) + 1);
+      });
+    });
+    const subCategories = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name]) => name)
+      .slice(0, 30);
+    return ['All', ...(favorites.size > 0 ? ['Watchlist'] : []), ...subCategories];
+  }, [markets, favorites.size]);
 
   useEffect(() => {
     if (markets.length === 0) fetchMarkets()
@@ -63,18 +64,11 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
       // Category filter
       if (activeCategory === 'All') return true;
 
-      const cat = activeCategory.toUpperCase();
-      const mCat = (market.category || '').toUpperCase();
-      const mSub = (market.subCategory || '').toUpperCase();
-
       if (activeCategory === 'Watchlist') {
         return favorites.has(`${market.source}:${market.symbol}`);
       }
-
-      if (mCat === cat) return true;
-      if (mSub.includes(cat)) return true;
-
-      return false;
+      const subTokens = parseSubCategoryTokens(market.subCategory).map(v => v.toUpperCase());
+      return subTokens.includes(activeCategory.toUpperCase());
     });
   }, [markets, searchTerm, activeCategory, favorites]);
 
@@ -90,7 +84,7 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
   }, [])
 
   const handleSymbolSelect = (market: MarketData) => {
-    setMarket(market.symbol)
+    setMarket(market.symbol, market.source)
     onSymbolChange?.(market.symbol)
     setIsOpen(false)
     setSearchTerm('')
@@ -107,10 +101,14 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
     <div className={`${styles.symbolSelector} ${styles[theme]}`} ref={dropdownRef}>
       {/* Selected Symbol Display */}
       <button
+        type="button"
         className={styles.selectedButton}
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className={styles.symbolInfo}>
+          {currentMarket?.symbol && (
+            <TokenIcon symbol={currentMarket.symbol} size={18} className={styles.symbolIcon} />
+          )}
           <span className={styles.symbol}>{currentMarket?.symbol || 'Select Market'}</span>
         </div>
 
@@ -147,8 +145,9 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
 
           {/* Categories */}
           <div className={styles.filters}>
-            {CATEGORIES.map(cat => (
+            {filterTabs.map(cat => (
               <button
+                type="button"
                 key={cat}
                 className={`${styles.filterChip} ${activeCategory === cat ? styles.active : ''}`}
                 onClick={() => setActiveCategory(cat)}
@@ -163,10 +162,12 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
             {filteredSymbols.length > 0 ? (
               filteredSymbols.map((market) => (
                 <button
+                  type="button"
                   key={`${market.source}:${market.symbol}`}
                   className={`${styles.symbolItem} ${market.symbol === currentMarket?.symbol ? styles.selected : ''}`}
                   onClick={() => handleSymbolSelect(market)}
                 >
+                  <TokenIcon symbol={market.symbol} size={20} className={styles.itemIcon} />
                   <div className={styles.itemMain}>
                     <div className={styles.itemSymbol}>
                       <span className={styles.itemName}>{market.symbol}</span>
