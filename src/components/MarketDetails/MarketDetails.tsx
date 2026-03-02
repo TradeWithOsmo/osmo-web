@@ -6,8 +6,7 @@ import expandIcon from '../../assets/Icons/Arrow/Arrow-down-Bullet.png'
 import collapseIcon from '../../assets/Icons/Arrow/Arrow-up-Bullet.png'
 
 import MarketSelector from './MarketSelector'
-import TokenIcon from './TokenIcon'
-import OstiumIcon from './OstiumIcon'
+import MarketIcon from './MarketIcon'
 import { useMarketStore } from '../../store/useMarketStore'
 import { useWatchlistStore } from '../../store/useWatchlistStore'
 
@@ -143,11 +142,7 @@ const MarketDetails: React.FC<MarketDetailsProps> = ({
                     </button>
 
                     <div className={styles.tokenIconPlaceholder} style={{ background: 'transparent', overflow: 'visible' }}>
-                        {selectedMarket.source === 'ostium' ? (
-                            <OstiumIcon symbol={selectedMarket.symbol} size={32} className={styles.tokenIcon} />
-                        ) : (
-                            <TokenIcon symbol={selectedMarket.symbol} size={32} className={styles.tokenIcon} />
-                        )}
+                        <MarketIcon symbol={selectedMarket.symbol} size={32} className={styles.tokenIcon} category={selectedMarket.category} />
                     </div>
 
                     <div className={styles.pairName} onClick={() => setIsMarketSelectorOpen(!isMarketSelectorOpen)} style={{ cursor: 'pointer' }}>

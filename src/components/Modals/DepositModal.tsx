@@ -6,10 +6,10 @@ import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { useBalance } from 'wagmi';
 
 import { onchainService, CONTRACTS } from '../../api/onchainService'; // Updated import
-import usdcArbIcon from '../../assets/deposited chain/USDCARB.png';
+import TokenIcon from '../MarketDetails/TokenIcon';
 import toast from 'react-hot-toast';
 import { createWalletClient, custom, formatUnits, isAddress } from 'viem';
-import { arbitrumSepolia } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
 
 export const DepositModal: React.FC = () => {
     const { isDepositModalOpen, closeDepositModal, modalMode } = useUIStore();
@@ -104,7 +104,7 @@ export const DepositModal: React.FC = () => {
             const provider = await wallet.getEthereumProvider();
             const walletClient = createWalletClient({
                 account: walletAddress as `0x${string}`,
-                chain: arbitrumSepolia,
+                chain: baseSepolia,
                 transport: custom(provider)
             });
 
@@ -238,8 +238,8 @@ export const DepositModal: React.FC = () => {
                                 onChange={(e) => setAmount(e.target.value)}
                             />
                             <div className={styles.assetSelector}>
-                                <img src={usdcArbIcon} alt="USDC/ARB" className={styles.assetIcon} />
-                                <span className={styles.assetName}>USDC/ARB</span>
+                                <TokenIcon symbol="USDC" size={24} className={styles.assetIcon} />
+                                <span className={styles.assetName}>USDC/BASE</span>
                             </div>
                         </div>
                     </div>

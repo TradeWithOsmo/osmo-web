@@ -194,6 +194,42 @@ const parseEventToNotification = (event: any): UINotification | null => {
     };
   }
 
+  if (rawType === 'referral_code_entered') {
+    const code = String(data?.code || '').toUpperCase();
+    return {
+      ...base,
+      type: 'Referral',
+      message: code ? `Referral code ${code} saved.` : 'Referral code saved.',
+      ctaText: 'View Refer',
+      ctaLink: '/refer',
+    };
+  }
+
+  if (rawType === 'referral_code_created') {
+    const code = String(data?.code || '').toUpperCase();
+    return {
+      ...base,
+      type: 'Referral',
+      message: code ? `Referral code ${code} created.` : 'Referral code created.',
+      ctaText: 'View Refer',
+      ctaLink: '/refer',
+    };
+  }
+
+  if (rawType === 'referral_reward_claimed') {
+    const amount = Number(data?.claimed_amount || 0);
+    const asset = String(data?.asset || 'USDC');
+    return {
+      ...base,
+      type: 'Referral Reward',
+      message: amount > 0
+        ? `Claimed ${amount.toFixed(2)} ${asset} referral rewards.`
+        : 'Referral rewards claimed.',
+      ctaText: 'View Refer',
+      ctaLink: '/refer',
+    };
+  }
+
   return {
     ...base,
     type: rawType.replace(/_/g, ' '),

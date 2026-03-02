@@ -12,3 +12,4 @@ export * from './CancelAllOrdersModal';
 export * from './EnterCodeModal';
 export * from './CreateCodeModal';
 export * from './ClaimRewardsModal';
+export * from './ShareLinkModal';

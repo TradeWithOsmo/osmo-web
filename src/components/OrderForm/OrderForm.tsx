@@ -223,7 +223,7 @@ const OrderForm: React.FC = () => {    // Stop orders disabled for now (requires
 
         setIsSubmitting(true);
         try {
-            // Only enforce Arbitrum Sepolia when actually trading onchain.
+            // Only enforce Base Sepolia when actually trading onchain.
             if (!isSimulationExchange) {
                 await handleSwitchToTargetChain();
             }

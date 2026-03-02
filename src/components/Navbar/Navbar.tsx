@@ -8,14 +8,13 @@ import notificationBulletIcon from '../../assets/Icons/Notifikasi/Notifications-
 import tradeIcon from '../../assets/Logos-Market-Autos/Osmo-Market.png'
 import menuIcon from '../../assets/Icons/Menu/Menu.png'
 import closeIcon from '../../assets/Icons/Menu/XSquare.png'
-import eventPatternImg from '../../assets/Square-pattern.png'
-import osmoLogoIcon from '../../assets/Icons/Osmo-Logos.png'
 import TokenIcon from '../MarketDetails/TokenIcon'
 
 export interface NavItem {
   label: string
   href: string
   isActive?: boolean
+  submenu?: NavItem[]
 }
 
 export interface NavbarProps {
@@ -60,6 +59,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const [isUsageDropdownOpen, setIsUsageDropdownOpen] = React.useState(false)
   const toggleUsageDropdown = () => setIsUsageDropdownOpen(!isUsageDropdownOpen)
+
+  const [isMoreDropdownOpen, setIsMoreDropdownOpen] = React.useState(false)
+  const toggleMoreDropdown = () => setIsMoreDropdownOpen(!isMoreDropdownOpen)
+  const moreDropdownRef = React.useRef<HTMLDivElement | null>(null)
 
   // Notification Sidebar setup
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false)
@@ -118,6 +121,19 @@ export const Navbar: React.FC<NavbarProps> = ({
       document.body.style.overflow = ''
     }
   }, [isMobileMenuOpen])
+
+  React.useEffect(() => {
+    if (!isMoreDropdownOpen) return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!moreDropdownRef.current) return
+      if (moreDropdownRef.current.contains(event.target as Node)) return
+      setIsMoreDropdownOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [isMoreDropdownOpen])
 
 
 
@@ -194,20 +210,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </button>
                       </div>
                       {/* Mobile: Single item */}
-                      <React.Fragment>
-                        <a
-                          href="/trade"
-                          className={`${styles.navItem} ${styles.mobileOnly}`}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            onNavClick?.('/trade')
-                            closeMobileMenu()
-                          }}
-                          title="Trade"
-                        >
-                          <span>Trade</span>
-                        </a>
-                      </React.Fragment>
+                      <a
+                        href="/trade"
+                        className={`${styles.navItem} ${styles.mobileOnly}`}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          onNavClick?.('/trade')
+                          closeMobileMenu()
+                        }}
+                        title="Trade"
+                      >
+                        <span>Trade</span>
+                      </a>
                     </>
                   ) : item.label === 'Portfolio' ? (
                     <>
@@ -315,6 +329,83 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span>{item.label}</span>
                       </a>
                     </>
+                  ) : item.label === 'More' ? (
+                    <>
+                      {/* Mobile: Dropdown */}
+                      <button
+                        className={`${styles.navItem} ${styles.mobileOnly}`}
+                        onClick={() => toggleMoreDropdown()}
+                        style={{ justifyContent: 'space-between', width: '100%', opacity: isDimmed ? DIMMED_OPACITY : 1 }}
+                      >
+                        <span>{item.label}</span>
+                        <svg
+                          width="10"
+                          height="6"
+                          viewBox="0 0 10 6"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          className={`${styles.navArrow} ${isMoreDropdownOpen ? styles.rotate : ''}`}
+                        >
+                          <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      {isMoreDropdownOpen && (
+                        <div className={`${styles.mobileSubMenu} ${styles.mobileOnly}`}>
+                          {item.submenu?.map(subItem => (
+                            <a
+                              key={subItem.href}
+                              href={subItem.href}
+                              className={styles.mobileSubMenuItem}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                onNavClick?.(subItem.href)
+                                closeMobileMenu()
+                                setIsMoreDropdownOpen(false)
+                              }}
+                            >
+                              {subItem.label}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Desktop: Dropdown */}
+                      <div ref={moreDropdownRef} className={`${styles.dropdown} ${styles.desktopOnly} ${styles.moreDropdown}`}>
+                        <button
+                          className={`${styles.navItem} ${styles.dropdownToggle}`}
+                          onClick={() => toggleMoreDropdown()}
+                          style={{ opacity: isDimmed ? DIMMED_OPACITY : 1 }}
+                        >
+                          <span>{item.label}</span>
+                          <svg
+                            width="10"
+                            height="6"
+                            viewBox="0 0 10 6"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            className={`${styles.navArrow} ${isMoreDropdownOpen ? styles.rotate : ''}`}
+                          >
+                            <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                        {isMoreDropdownOpen && (
+                          <div className={`${styles.dropdownMenu} ${styles.moreDropdownMenu}`}>
+                            {item.submenu?.map(subItem => (
+                              <button
+                                key={subItem.label}
+                                className={`${styles.dropdownItem} ${subItem.isActive ? styles.active : ''}`}
+                                onClick={() => {
+                                  onNavClick?.(subItem.href)
+                                  setIsMoreDropdownOpen(false)
+                                }}
+                              >
+                                {subItem.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   ) : (
                     <a
                       href={item.href}
@@ -322,7 +413,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onClick={(e) => {
                         e.preventDefault()
                         onNavClick?.(item.href)
-                        closeMobileMenu()
                       }}
                       style={{ opacity: isDimmed ? DIMMED_OPACITY : 1 }}
                       title={item.label}
@@ -348,9 +438,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
 
         {/* Right Section - Icons & Profile */}
-        {navItems.length > 0 && <div className={styles.divider} />}
+        <div className={styles.divider} />
         <div className={styles.rightSection}>
-          <button className={styles.iconButton} aria-label="Notifications" onClick={() => setIsNotificationOpen(true)}>
+          <button
+            className={styles.iconButton}
+            aria-label="Notifications"
+            onClick={() => setIsNotificationOpen(true)}
+          >
             <img
               src={hasNotifications || notificationsForUser.length > 0 ? notificationBulletIcon : notificationIcon}
               alt="Notifications"
@@ -382,7 +476,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       }
                     }}
                   >
-                    Switch to Arbitrum Sepolia
+                    Switch to Base Sepolia
                   </button>
                 )}
                 <button

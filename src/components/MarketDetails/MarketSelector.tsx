@@ -6,8 +6,7 @@ import { useMarketStore, normalizeSymbol } from '../../store/useMarketStore';
 import { useWatchlistStore } from '../../store/useWatchlistStore';
 import { type MarketData, marketService } from '../../api/marketService';
 import { useWallet } from '../../hooks/useWallet';
-import TokenIcon from './TokenIcon';
-import OstiumIcon from './OstiumIcon';
+import MarketIcon from './MarketIcon';
 
 const STABLE_QUOTES = new Set(['USD', 'USDT', 'USDC']);
 const BASE_ALIASES: Record<string, string> = { XBT: 'BTC' };
@@ -490,12 +489,8 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                                 />
                                             </button>
 
-                                            <div className={styles.coinIcon} style={{ background: 'transparent' }}>
-                                                {item.source === 'ostium' ? (
-                                                    <OstiumIcon symbol={item.symbol} size={32} />
-                                                ) : (
-                                                    <TokenIcon symbol={item.symbol} size={32} />
-                                                )}
+                                            <div className={styles.coinIcon} style={{ background: 'transparent', overflow: 'visible' }}>
+                                                <MarketIcon symbol={item.symbol} size={32} category={item.category} />
                                             </div>
                                             <div className={styles.symbolRow}>
                                                 <span className={styles.symbol}>{item.symbol}</span>
@@ -546,12 +541,8 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                                             >
                                                 <td className={`${styles.marketCell} ${styles.tdFirst}`}>
                                                     <div style={{ width: 14 + 4 }} /> {/* Star Spacer to align with title */}
-                                                    <div className={styles.coinIcon} style={{ background: 'transparent' }}>
-                                                        {sibling.source === 'ostium' ? (
-                                                            <OstiumIcon symbol={sibling.symbol} size={32} />
-                                                        ) : (
-                                                            <TokenIcon symbol={sibling.symbol} size={32} />
-                                                        )}
+                                                    <div className={styles.coinIcon} style={{ background: 'transparent', overflow: 'visible' }}>
+                                                        <MarketIcon symbol={sibling.symbol} size={32} category={sibling.category} />
                                                     </div>
                                                     <div className={styles.symbolRow}>
                                                         <span className={styles.symbol}>{sibling.symbol}</span>

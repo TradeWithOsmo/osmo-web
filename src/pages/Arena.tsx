@@ -8,7 +8,7 @@ import { useArenaStore, type StoredPick } from "../store/useArenaStore";
 import { usePortfolioStore } from "../store/usePortfolioStore";
 import toast from "react-hot-toast";
 import { createWalletClient, custom } from "viem";
-import { arbitrumSepolia } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import dotsPattern from "../assets/Dots pettern.png";
 import arrowDownBullet from "../assets/Icons/Arrow/Arrow-down-Bullet.png";
 import { WagerModal } from "../components/Modals/WagerModal";
@@ -473,7 +473,7 @@ const Arena: React.FC = () => {
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: walletAddress as `0x${string}`,
-        chain: arbitrumSepolia,
+        chain: baseSepolia,
         transport: custom(provider),
       });
 
@@ -538,7 +538,7 @@ const Arena: React.FC = () => {
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: walletAddress as `0x${string}`,
-        chain: arbitrumSepolia,
+        chain: baseSepolia,
         transport: custom(provider),
       });
 

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import styles from './DepositModal.module.css'; // Consistent styling with SessionKey
 import { useWallets } from '@privy-io/react-auth';
 import { createWalletClient, custom } from 'viem';
-import { arbitrumSepolia } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
 
 interface TradingSetupModalProps {
     isOpen: boolean;
@@ -58,11 +58,11 @@ export const TradingSetupModal: React.FC<TradingSetupModalProps> = ({ isOpen, on
         const activeWallet = wallets.find(w => w.address.toLowerCase() === walletAddress?.toLowerCase());
         if (!activeWallet) throw new Error("Wallet not connected");
 
-        await activeWallet.switchChain(421614);
+        await activeWallet.switchChain(84532);
         const provider = await activeWallet.getEthereumProvider();
         return createWalletClient({
             account: walletAddress as `0x${string}`,
-            chain: arbitrumSepolia,
+            chain: baseSepolia,
             transport: custom(provider)
         });
     };
@@ -123,7 +123,7 @@ export const TradingSetupModal: React.FC<TradingSetupModalProps> = ({ isOpen, on
 
                 // Detect common errors
                 if (errMsg.includes('insufficient funds') || errMsg.includes('gas')) {
-                    toast.error("Insufficient ETH for gas. Please claim ETH from Arbitrum Sepolia faucet.", { id: 'setup-flow', duration: 5000 });
+                    toast.error("Insufficient ETH for gas. Please claim ETH from Base Sepolia faucet.", { id: 'setup-flow', duration: 5000 });
                 } else if (errMsg.includes('user rejected') || errMsg.includes('denied')) {
                     toast.error("Transaction rejected", { id: 'setup-flow' });
                 } else {

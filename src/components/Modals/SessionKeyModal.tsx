@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import styles from './DepositModal.module.css'; // Use DepositModal styles for consistency
 import { useWallets } from '@privy-io/react-auth';
 import { encodeFunctionData, createWalletClient, custom, parseEther } from 'viem';
-import { arbitrumSepolia } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
 import { useUIStore } from '../../store/useUIStore';
 
 interface SessionKeyModalProps {
@@ -144,14 +144,14 @@ export const SessionKeyModal: React.FC<SessionKeyModalProps> = ({ isOpen, onClos
             const provider = await activeWallet.getEthereumProvider();
 
             // Switch chain if needed
-            if (activeWallet.chainId !== 'eip155:421614') {
+            if (activeWallet.chainId !== 'eip155:84532') {
                 console.log('[SessionKey] Switching network...');
-                await activeWallet.switchChain(421614);
+                await activeWallet.switchChain(84532);
             }
 
             const walletClient = createWalletClient({
                 account: walletAddress as `0x${string}`,
-                chain: arbitrumSepolia,
+                chain: baseSepolia,
                 transport: custom(provider)
             });
 
@@ -161,7 +161,7 @@ export const SessionKeyModal: React.FC<SessionKeyModalProps> = ({ isOpen, onClos
                 to: CONTRACTS.SessionKeyManager as `0x${string}`,
                 data: calldata,
                 value: parseEther('0.005'), // Fund the session key with 0.005 ETH for gas
-                chain: arbitrumSepolia
+                chain: baseSepolia
             });
 
             console.log('[SessionKey] Transaction hash:', txHash);

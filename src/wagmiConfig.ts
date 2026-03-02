@@ -1,11 +1,13 @@
 
 import { createConfig } from '@privy-io/wagmi';
-import { arbitrumSepolia } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
 import { http } from 'wagmi';
 
 export const config = createConfig({
-    chains: [arbitrumSepolia],
+    chains: [baseSepolia],
     transports: {
-        [arbitrumSepolia.id]: http(),
+        [baseSepolia.id]: http(),
     },
 });
+
+export const targetChain = baseSepolia;

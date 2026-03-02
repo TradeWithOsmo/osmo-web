@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import styles from "./PositionsPanel.module.css";
 import { useUIStore } from "../../store/useUIStore";
 import { useMarketStore } from "../../store/useMarketStore";
-import TokenIcon from "../MarketDetails/TokenIcon";
-import OstiumIcon from "../MarketDetails/OstiumIcon";
+import MarketIcon from "../MarketDetails/MarketIcon";
 
 export interface PositionData {
   id: string;
@@ -65,7 +64,7 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
 
   const markets = useMarketStore((state) => state.markets);
   const marketMeta = markets.find((m) => m.symbol === symbol);
-  const isOstiumSymbol = marketMeta?.source === "ostium" || String(position.exchange || "").toLowerCase() === "ostium";
+  const marketCategory = marketMeta?.category;
 
   const pnlColor = pnl >= 0 ? styles.positive : styles.negative;
   const roiColor = pnlPercent >= 0 ? styles.positive : styles.negative;
@@ -97,8 +96,8 @@ const PositionRow: React.FC<PositionRowProps> = ({ position }) => {
       <tr className={`${styles.row} ${styles.desktopRow}`}>
         <td className={`${styles.td} ${styles.tdFirst}`}>
           <div className={styles.cellContent} style={{ flexDirection: "row", alignItems: "center", gap: "8px" }}>
-            <div style={{ width: "24px", height: "24px", borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
-              {isOstiumSymbol ? <OstiumIcon symbol={symbol} size={24} /> : <TokenIcon symbol={symbol} size={24} />}
+            <div style={{ width: "24px", height: "24px", flexShrink: 0, overflow: 'visible' }}>
+              <MarketIcon symbol={symbol} size={24} category={marketCategory} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ fontWeight: 700, color: "#FFFFFF" }}>{symbol}</span>

@@ -1,9 +1,9 @@
 import { createPublicClient, http, parseUnits, formatUnits } from 'viem';
-import { arbitrumSepolia } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
 
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// --- Contract Addresses (Arbitrum Sepolia) ---
+// --- Contract Addresses (Base Sepolia) ---
 export const CONTRACTS = {
     TradingVault: import.meta.env.VITE_CONTRACT_TRADING_VAULT,
     OrderRouter: import.meta.env.VITE_CONTRACT_ORDER_ROUTER,
@@ -15,6 +15,9 @@ export const CONTRACTS = {
     AIVault: import.meta.env.VITE_CONTRACT_AI_VAULT,
     ArenaChooseSide: import.meta.env.VITE_CONTRACT_ARENA_CHOOSE_SIDE,
     ArenaPoints: import.meta.env.VITE_CONTRACT_ARENA_POINTS,
+    ReferralRegistry: import.meta.env.VITE_CONTRACT_REFERRAL_REGISTRY,
+    FeeManager: import.meta.env.VITE_CONTRACT_FEE_MANAGER,
+    SecurityModule: import.meta.env.VITE_CONTRACT_SECURITY_MODULE,
 } as const;
 
 // --- ABIs ---
@@ -247,6 +250,68 @@ const FAUCET_ABI = [
     }
 ] as const;
 
+const REFERRAL_REGISTRY_ABI = [
+    {
+        "inputs": [{ "name": "code", "type": "string" }],
+        "name": "bindCode",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [{ "name": "code", "type": "string" }],
+        "name": "createCode",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [{ "name": "user", "type": "address" }],
+        "name": "ownedCodeByUser",
+        "outputs": [{ "name": "", "type": "string" }],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [{ "name": "user", "type": "address" }],
+        "name": "getReferrer",
+        "outputs": [{ "name": "", "type": "address" }],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [{ "name": "user", "type": "address" }],
+        "name": "getTradingVolumeUsd",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getMinimumTradingVolumeUsd",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "stateMutability": "view",
+        "type": "function"
+    }
+] as const;
+
+const FEE_MANAGER_ABI = [
+    { "inputs": [], "name": "getTradingFeeBps",   "outputs": [{ "name": "", "type": "uint16" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "getTradingRewardBps","outputs": [{ "name": "", "type": "uint16" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "getAiFeeBps",        "outputs": [{ "name": "", "type": "uint16" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "getRewardBps",       "outputs": [{ "name": "", "type": "uint16" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [{ "name": "actionType", "type": "uint8" }], "name": "getFee", "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [{ "name": "amountUsd", "type": "uint256" }], "name": "calculateTradingFee",    "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [{ "name": "tradingFeeAmount", "type": "uint256" }], "name": "calculateTradingReward", "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [{ "name": "feeAmount", "type": "uint256" }], "name": "calculateReward",        "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+] as const;
+
+const SECURITY_MODULE_ABI = [
+    { "inputs": [], "name": "circuitBreakerTripped", "outputs": [{ "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "paused",                "outputs": [{ "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "checkCircuitBreaker",   "outputs": [], "stateMutability": "view", "type": "function" },
+] as const;
+
 const ORDER_ROUTER_ROLE_FALLBACK = "0xb350f660a06ece1f116b96dec924c715d62a3346ae845dd2f736149f033c5fd8";
 const ORDER_ROUTER_ROLE_ABI = [
     {
@@ -261,7 +326,7 @@ let lastTradingSetupWarnAt = 0;
 
 
 const publicClient = createPublicClient({
-    chain: arbitrumSepolia,
+    chain: baseSepolia,
     transport: http()
 });
 
@@ -851,6 +916,171 @@ export const onchainService = {
             throw new Error(err.detail || 'Failed to confirm session');
         }
         return res.json();
+    },
+
+    // --- Referral Registry ---
+    async enterReferralCode(walletClient: any, code: string) {
+        const registry = CONTRACTS.ReferralRegistry as `0x${string}`;
+        if (!registry) throw new Error('ReferralRegistry address missing (env)');
+        const account = walletClient.account.address;
+        const txHash = await walletClient.writeContract({
+            address: registry,
+            abi: REFERRAL_REGISTRY_ABI,
+            functionName: 'bindCode',
+            args: [code],
+            account
+        });
+        return { success: true, tx_hash: txHash };
+    },
+
+    async createReferralCode(walletClient: any, code: string) {
+        const registry = CONTRACTS.ReferralRegistry as `0x${string}`;
+        if (!registry) throw new Error('ReferralRegistry address missing (env)');
+        const account = walletClient.account.address;
+        const txHash = await walletClient.writeContract({
+            address: registry,
+            abi: REFERRAL_REGISTRY_ABI,
+            functionName: 'createCode',
+            args: [code],
+            account
+        });
+        return { success: true, tx_hash: txHash };
+    },
+
+    async getReferralCode(userAddress: string): Promise<string> {
+        const registry = CONTRACTS.ReferralRegistry as `0x${string}`;
+        if (!registry) return '';
+        try {
+            const code = await publicClient.readContract({
+                address: registry,
+                abi: REFERRAL_REGISTRY_ABI,
+                functionName: 'ownedCodeByUser',
+                args: [userAddress as `0x${string}`]
+            });
+            return code as string;
+        } catch { return ''; }
+    },
+
+    async getReferrer(userAddress: string): Promise<string> {
+        const registry = CONTRACTS.ReferralRegistry as `0x${string}`;
+        if (!registry) return '';
+        try {
+            const referrer = await publicClient.readContract({
+                address: registry,
+                abi: REFERRAL_REGISTRY_ABI,
+                functionName: 'getReferrer',
+                args: [userAddress as `0x${string}`]
+            });
+            return referrer as string;
+        } catch { return ''; }
+    },
+
+    async getTradingVolumeUsd(userAddress: string): Promise<bigint> {
+        const registry = CONTRACTS.ReferralRegistry as `0x${string}`;
+        if (!registry) return 0n;
+        try {
+            const vol = await publicClient.readContract({
+                address: registry,
+                abi: REFERRAL_REGISTRY_ABI,
+                functionName: 'getTradingVolumeUsd',
+                args: [userAddress as `0x${string}`]
+            });
+            return vol as bigint;
+        } catch { return 0n; }
+    },
+
+    async getMinimumTradingVolumeUsd(): Promise<bigint> {
+        const registry = CONTRACTS.ReferralRegistry as `0x${string}`;
+        if (!registry) return 10_000_000_000n; // $10,000 USDC (6 decimals)
+        try {
+            const min = await publicClient.readContract({
+                address: registry,
+                abi: REFERRAL_REGISTRY_ABI,
+                functionName: 'getMinimumTradingVolumeUsd',
+            });
+            return min as bigint;
+        } catch { return 10_000_000_000n; }
+    },
+
+    // ── FeeManager ────────────────────────────────────────────────────────────
+
+    async getFeeRates(): Promise<{
+        tradingFeeBps: number;
+        tradingRewardBps: number;
+        aiFeeBps: number;
+        aiRewardBps: number;
+    }> {
+        const addr = CONTRACTS.FeeManager as `0x${string}`;
+        const defaults = { tradingFeeBps: 8, tradingRewardBps: 300, aiFeeBps: 25, aiRewardBps: 500 };
+        if (!addr) return defaults;
+        try {
+            const [tradingFeeBps, tradingRewardBps, aiFeeBps, aiRewardBps] = await Promise.all([
+                publicClient.readContract({ address: addr, abi: FEE_MANAGER_ABI, functionName: 'getTradingFeeBps' }),
+                publicClient.readContract({ address: addr, abi: FEE_MANAGER_ABI, functionName: 'getTradingRewardBps' }),
+                publicClient.readContract({ address: addr, abi: FEE_MANAGER_ABI, functionName: 'getAiFeeBps' }),
+                publicClient.readContract({ address: addr, abi: FEE_MANAGER_ABI, functionName: 'getRewardBps' }),
+            ]);
+            return {
+                tradingFeeBps: Number(tradingFeeBps),
+                tradingRewardBps: Number(tradingRewardBps),
+                aiFeeBps: Number(aiFeeBps),
+                aiRewardBps: Number(aiRewardBps),
+            };
+        } catch { return defaults; }
+    },
+
+    /** Returns fee amount in USDC (6 decimals) for a given trade size in USD (6 decimals). */
+    async calcTradingFee(amountUsd1e6: bigint): Promise<bigint> {
+        const addr = CONTRACTS.FeeManager as `0x${string}`;
+        if (!addr) return (amountUsd1e6 * 8n) / 10_000n;
+        try {
+            return await publicClient.readContract({
+                address: addr, abi: FEE_MANAGER_ABI,
+                functionName: 'calculateTradingFee', args: [amountUsd1e6]
+            }) as bigint;
+        } catch { return (amountUsd1e6 * 8n) / 10_000n; }
+    },
+
+    /** Returns cashback reward in USDC (6 decimals) for a given fee amount. */
+    async calcTradingReward(feeAmount1e6: bigint): Promise<bigint> {
+        const addr = CONTRACTS.FeeManager as `0x${string}`;
+        if (!addr) return (feeAmount1e6 * 300n) / 10_000n;
+        try {
+            return await publicClient.readContract({
+                address: addr, abi: FEE_MANAGER_ABI,
+                functionName: 'calculateTradingReward', args: [feeAmount1e6]
+            }) as bigint;
+        } catch { return (feeAmount1e6 * 300n) / 10_000n; }
+    },
+
+    /**
+     * Returns the flat fee (USD 1e6) for a given AI action type.
+     * ActionType: 0=INTENT_ANALYSIS 1=DATA_QUERY 2=CHART_ANALYSIS
+     *             3=SENTIMENT_ANALYSIS 4=DEEP_ANALYSIS 5=STRATEGY_EXECUTION
+     */
+    async getAiActionFee(actionType: 0 | 1 | 2 | 3 | 4 | 5): Promise<bigint> {
+        const addr = CONTRACTS.FeeManager as `0x${string}`;
+        if (!addr) return 0n;
+        try {
+            return await publicClient.readContract({
+                address: addr, abi: FEE_MANAGER_ABI,
+                functionName: 'getFee', args: [actionType]
+            }) as bigint;
+        } catch { return 0n; }
+    },
+
+    // ── SecurityModule ────────────────────────────────────────────────────────
+
+    async getSystemStatus(): Promise<{ circuitBreakerTripped: boolean; paused: boolean }> {
+        const addr = CONTRACTS.SecurityModule as `0x${string}`;
+        if (!addr) return { circuitBreakerTripped: false, paused: false };
+        try {
+            const [cb, pause] = await Promise.all([
+                publicClient.readContract({ address: addr, abi: SECURITY_MODULE_ABI, functionName: 'circuitBreakerTripped' }),
+                publicClient.readContract({ address: addr, abi: SECURITY_MODULE_ABI, functionName: 'paused' }),
+            ]);
+            return { circuitBreakerTripped: Boolean(cb), paused: Boolean(pause) };
+        } catch { return { circuitBreakerTripped: false, paused: false }; }
     },
 
     async transferUSDC(walletClient: any, to: string, amount: number) {

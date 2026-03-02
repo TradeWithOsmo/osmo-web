@@ -1,16 +1,56 @@
 import React, { useState } from 'react';
 import styles from './DepositModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
+import { useWallet } from '../../hooks';
+import { onchainService } from '../../api/onchainService';
+import toast from 'react-hot-toast';
+import { useWallets } from '@privy-io/react-auth';
+import { createWalletClient, custom } from 'viem';
+import { baseSepolia } from 'viem/chains';
 
 export const EnterCodeModal: React.FC = () => {
     const { isEnterCodeModalOpen, closeEnterCodeModal } = useUIStore();
+    const { walletAddress } = useWallet();
+    const { wallets } = useWallets();
     const [code, setCode] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     if (!isEnterCodeModalOpen) return null;
 
-    const handleSubmit = () => {
-        // Implement logic here
-        closeEnterCodeModal();
+    const getWalletClient = async () => {
+        const activeWallet = wallets.find(w => w.address.toLowerCase() === walletAddress?.toLowerCase());
+        if (!activeWallet) throw new Error('Wallet not connected');
+        await activeWallet.switchChain(84532);
+        const provider = await activeWallet.getEthereumProvider();
+        return createWalletClient({
+            account: walletAddress as `0x${string}`,
+            chain: baseSepolia,
+            transport: custom(provider)
+        });
+    };
+
+    const handleSubmit = async () => {
+        const trimmed = code.trim().toUpperCase();
+        if (!trimmed) return;
+        setIsSubmitting(true);
+        try {
+            const client = await getWalletClient();
+            const { tx_hash } = await onchainService.enterReferralCode(client, trimmed);
+            toast.loading('Submitting referral code...', { id: 'enter-code' });
+            await onchainService.waitForTransaction(tx_hash);
+            toast.success('Referral code submitted!', { id: 'enter-code' });
+            setCode('');
+            closeEnterCodeModal();
+        } catch (e: any) {
+            const msg = e?.shortMessage || e?.message || 'Failed to submit code';
+            if (msg.includes('user rejected') || msg.includes('denied')) {
+                toast.error('Transaction rejected', { id: 'enter-code' });
+            } else {
+                toast.error(msg, { id: 'enter-code', duration: 5000 });
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -45,10 +85,10 @@ export const EnterCodeModal: React.FC = () => {
 
                     <button
                         className={`${styles.actionButton} ${!code ? styles.disabledButton : ''}`}
-                        disabled={!code}
+                        disabled={!code || isSubmitting}
                         onClick={handleSubmit}
                     >
-                        Submit Code
+                        {isSubmitting ? 'Submitting...' : 'Submit Code'}
                     </button>
                 </div>
             </div>

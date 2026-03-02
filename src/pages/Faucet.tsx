@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 // Assets
 import circlePattern from '../assets/circle pettern.png';
 import dotsPattern from '../assets/Dots pettern.png';
-import activeLogo from '../assets/deposited chain/Active.png';
-import nonActiveLogo from '../assets/deposited chain/nonactive.png';
+
+const USDC_ICON = 'https://assets.coincap.io/assets/icons/usdc@2x.png';
 // Store
 import { useUIStore } from '../store/useUIStore';
 
@@ -108,11 +108,18 @@ const Faucet: React.FC = () => {
                     justifyContent: 'center',
                     transition: 'background-color 0.25s ease'
                 }}>
-                    {/* Logo Always Shown */}
+                    {/* USDC Logo */}
                     <img
-                        src={isHovered ? nonActiveLogo : activeLogo}
-                        alt="Claim"
-                        style={{ width: 'min(50vw, 450px)', height: 'min(50vw, 450px)', objectFit: 'contain' }}
+                        src={USDC_ICON}
+                        alt="USDC"
+                        style={{
+                            width: 'min(40vw, 360px)',
+                            height: 'min(40vw, 360px)',
+                            objectFit: 'contain',
+                            borderRadius: '50%',
+                            opacity: isHovered ? 0.85 : 1,
+                            transition: 'opacity 0.25s ease'
+                        }}
                     />
                 </div>
             </button>
