@@ -3,12 +3,12 @@ import { create } from 'zustand';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export interface IconResult {
-    // For regular symbols: the resolved URL
     url?: string | null;
-    // For forex pairs
-    type?: 'forex';
-    base?: string;
-    quote?: string;
+    type?: 'forex' | 'package' | 'local';
+    base?: string;   // forex
+    quote?: string;  // forex
+    code?: string;   // package (global-trade-react-icon code)
+    key?: string;    // local (frontend asset key)
 }
 
 interface IconStoreState {
