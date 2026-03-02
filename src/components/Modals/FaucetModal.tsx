@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import styles from './DepositModal.module.css'; // Reusing DepositModal styles for consistency
 import { useUIStore } from '../../store/useUIStore';
-import usdcArbIcon from '../../assets/deposited chain/USDCARB.png';
+import TokenIcon from '../MarketDetails/TokenIcon';
 import { useWallet } from '../../hooks/useWallet';
 import { onchainService } from '../../api/onchainService';
 import toast from 'react-hot-toast';
 import { createWalletClient, custom } from 'viem';
-import { arbitrumSepolia } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
 
 export const FaucetModal: React.FC = () => {
     const { isFaucetModalOpen, closeFaucetModal } = useUIStore();
@@ -114,8 +114,8 @@ export const FaucetModal: React.FC = () => {
                     <div className={styles.infoRow} style={{ marginTop: '24px' }}>
                         <span className={styles.infoLabel}>Network</span>
                         <div className={styles.infoValue} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <img src={usdcArbIcon} alt="ARB" style={{ width: '20px', height: '20px' }} />
-                            <span>Arbitrum Sepolia</span>
+                            <TokenIcon symbol="ETH" size={20} />
+                            <span>Base Sepolia</span>
                         </div>
                     </div>
 
@@ -155,7 +155,7 @@ export const FaucetModal: React.FC = () => {
                                 const provider = await wallet.getEthereumProvider();
                                 const walletClient = createWalletClient({
                                     account: walletAddress as `0x${string}`,
-                                    chain: arbitrumSepolia,
+                                    chain: baseSepolia,
                                     transport: custom(provider)
                                 });
 

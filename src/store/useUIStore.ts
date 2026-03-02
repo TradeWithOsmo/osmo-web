@@ -86,6 +86,10 @@ interface UIStore {
     isClaimRewardsModalOpen: boolean;
     openClaimRewardsModal: () => void;
     closeClaimRewardsModal: () => void;
+
+    isShareLinkModalOpen: boolean;
+    openShareLinkModal: () => void;
+    closeShareLinkModal: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -155,4 +159,8 @@ export const useUIStore = create<UIStore>((set) => ({
     isClaimRewardsModalOpen: false,
     openClaimRewardsModal: () => set({ isClaimRewardsModalOpen: true }),
     closeClaimRewardsModal: () => set({ isClaimRewardsModalOpen: false }),
+
+    isShareLinkModalOpen: false,
+    openShareLinkModal: () => set({ isShareLinkModalOpen: true }),
+    closeShareLinkModal: () => set({ isShareLinkModalOpen: false }),
 }));

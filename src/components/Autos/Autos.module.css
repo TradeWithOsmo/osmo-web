@@ -526,34 +526,35 @@
 }
 
 .creditFooter {
-    padding: 16px 24px;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
     border-top: 1px solid #2A1721;
     margin-top: auto;
 }
 
+.creditInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px 14px;
+}
+
 .creditRefillButton {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 28px;
-    padding: 4px 10px;
-    border: 1px solid #36001E;
-    border-radius: 6px;
-    background-color: #660035;
-    color: #FFFFFF;
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1;
+    padding: 8px 16px;
+    border: none;
+    border-left: 1px solid #2A1721;
+    border-radius: 0;
+    background-color: transparent;
+    color: #FFE1F2;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.creditRefillButton:hover {
-    background-color: #800042;
-}
-
-.creditRefillButton:active {
-    transform: translateY(1px);
+    white-space: nowrap;
 }
 
 /* Minimized State Handling */

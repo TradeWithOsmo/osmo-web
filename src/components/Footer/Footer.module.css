@@ -25,7 +25,130 @@
     align-items: center;
     gap: 8px;
     /* space between dot, text, and icon */
+    padding: 0;
+}
+
+.statusButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 0 15px;
+    height: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+}
+
+.statusDropdown {
+    background-color: #1A0A13;
+    border: 1px solid #3A2530;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    width: 300px;
+    position: fixed;
+    bottom: 38px;
+    left: 0;
+    z-index: 1000;
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    /* Animate only visual properties — not overflow */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(15px);
+    transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                visibility 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.statusDropdown::-webkit-scrollbar {
+    width: 4px;
+}
+
+.statusDropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.statusDropdown::-webkit-scrollbar-thumb {
+    background: #3A2530;
+    border-radius: 2px;
+}
+
+.statusDropdown::-webkit-scrollbar-thumb:hover {
+    background: #5A3545;
+}
+
+.statusDropdownOpen {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.dropdownTopBar {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid #3A2530;
+    background-color: #1A0A13;
+}
+
+.dropdownRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+}
+
+.dropdownRowLeft {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: 1;
+    min-width: 0;
+}
+
+.dropdownLabel {
+    font-size: 12px;
+    color: #A77590;
+    font-weight: 500;
+    flex: 1;
+}
+
+.dropdownValue {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dropdownDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dropdownDivider {
+    height: 1px;
+    background: #3A2530;
+    margin: 0;
+}
+
+.connectorHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    width: 100%;
+    background: rgba(58, 37, 48, 0.3);
+    border: none;
+    cursor: pointer;
+    color: inherit;
 }
 
 .dot {

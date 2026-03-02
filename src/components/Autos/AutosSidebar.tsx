@@ -517,19 +517,28 @@ const AutosSidebar: React.FC<AutosSidebarProps> = ({
 
             {!isMinimized && (
                 <div className={styles.creditFooter}>
-                    <div style={{ fontSize: '11px', color: '#A77590', marginBottom: '4px' }}>AI Credit</div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#FFE1F2' }}>
-                            ${stats.credit_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                        <button
-                            type="button"
-                            className={styles.creditRefillButton}
-                            onClick={() => openDepositModal('refill')}
-                        >
-                            Refill
-                        </button>
+                    <div className={styles.creditInfo}>
+                        <div style={{ fontSize: '10px', color: '#A77590', marginBottom: '3px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Credit</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <img
+                                src="https://assets.coincap.io/assets/icons/usdc@2x.png"
+                                alt="USDC"
+                                width={14}
+                                height={14}
+                                style={{ borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                            <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFE1F2' }}>
+                                ${stats.credit_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
                     </div>
+                    <button
+                        type="button"
+                        className={styles.creditRefillButton}
+                        onClick={() => openDepositModal('refill')}
+                    >
+                        Refill
+                    </button>
                 </div>
             )}
         </div>

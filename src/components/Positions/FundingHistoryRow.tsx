@@ -40,7 +40,7 @@ const FundingHistoryRow: React.FC<FundingHistoryRowProps> = ({ data }) => {
             </td>
             <td className={styles.td}>
                 <a
-                    href={`https://sepolia.arbiscan.io/tx/${data.txHash}`}
+                    href={`https://sepolia.basescan.org/tx/${data.txHash}`}
                     target="_blank"
                     rel="noreferrer"
                     style={{ color: '#00E396', textDecoration: 'none' }}

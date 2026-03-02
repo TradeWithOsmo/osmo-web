@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { usePrivy, useWallets } from '@privy-io/react-auth'
 
-const TARGET_CHAIN_ID = 421614
+const TARGET_CHAIN_ID = 84532
 const TARGET_CHAIN_CAIP = `eip155:${TARGET_CHAIN_ID}`
 
 const parseChainId = (chainId: unknown): number | null => {
@@ -55,7 +55,7 @@ export const useWallet = () => {
 
     setHasTriedAutoSwitch(true)
     void activeWallet.switchChain(TARGET_CHAIN_ID).catch((error: unknown) => {
-      console.warn('Auto switch to Arbitrum Sepolia failed:', error)
+      console.warn('Auto switch to Base Sepolia failed:', error)
     })
   }, [authenticated, activeWallet, hasTriedAutoSwitch, isOnTargetChain])
 

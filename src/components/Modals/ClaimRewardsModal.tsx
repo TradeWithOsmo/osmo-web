@@ -1,16 +1,45 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './DepositModal.module.css';
 import { useUIStore } from '../../store/useUIStore';
+import { useWallet } from '../../hooks';
+import { referralService } from '../../api/referralService';
+import toast from 'react-hot-toast';
 
 export const ClaimRewardsModal: React.FC = () => {
     const { isClaimRewardsModalOpen, closeClaimRewardsModal } = useUIStore();
-    const claimableAmount = 0.00; // Mock data
+    const { walletAddress } = useWallet();
+    const [claimableAmount, setClaimableAmount] = useState(0);
+    const [isClaiming, setIsClaiming] = useState(false);
+
+    useEffect(() => {
+        if (!isClaimRewardsModalOpen) return;
+        let mounted = true;
+        referralService.getSummary(walletAddress || '')
+            .then((summary) => {
+                if (mounted) setClaimableAmount(summary.claimableRewards || 0);
+            })
+            .catch(() => {
+                if (mounted) setClaimableAmount(0);
+            });
+        return () => {
+            mounted = false;
+        };
+    }, [isClaimRewardsModalOpen, walletAddress]);
 
     if (!isClaimRewardsModalOpen) return null;
 
-    const handleClaim = () => {
-        // Implement logic here
-        closeClaimRewardsModal();
+    const handleClaim = async () => {
+        setIsClaiming(true);
+        try {
+            const result = await referralService.claimRewards(walletAddress || '');
+            setClaimableAmount(result.remainingClaimable || 0);
+            toast.success(`Claimed $${(result.claimedAmount || 0).toFixed(2)}`);
+            closeClaimRewardsModal();
+        } catch (e: any) {
+            toast.error(e?.message || 'Failed to claim rewards');
+        } finally {
+            setIsClaiming(false);
+        }
     };
 
     return (
@@ -34,9 +63,10 @@ export const ClaimRewardsModal: React.FC = () => {
 
                     <button
                         className={styles.actionButton}
+                        disabled={isClaiming}
                         onClick={handleClaim}
                     >
-                        Claim Now
+                        {isClaiming ? 'Claiming...' : 'Claim Now'}
                     </button>
                 </div>
             </div>

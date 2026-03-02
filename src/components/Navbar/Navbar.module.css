@@ -127,7 +127,8 @@
 }
 
 .moreDropdown {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .moreDropdown .dropdownToggle {
@@ -135,12 +136,18 @@
   justify-content: space-between;
 }
 
+.moreDropdown .dropdownToggle:hover {
+  color: #FFE1F2;
+  opacity: 1;
+  background: transparent;
+}
+
 .desktopOnly {
   display: flex;
 }
 
 .mobileOnly {
-  display: none;
+  display: none !important;
 }
 
 .tabletTradeDropdown {
@@ -155,17 +162,30 @@
 .dropdownMenu {
   position: absolute;
   top: 100%;
-  left: -1px;
-  right: -1px;
+  left: 0;
+  min-width: 200px;
   background-color: #12000A;
-  border-left: 1px solid #3A2530;
-  border-right: 1px solid #3A2530;
-  border-bottom: 1px solid #3A2530;
-  border-top: 1px solid #3A2530;
+  border: 1px solid #3A2530;
+  border-top: none;
   z-index: 1000;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   animation: dropdownSlide 0.2s ease-out;
   transform-origin: top;
+}
+
+.moreDropdown .dropdownMenu {
+  left: 0;
+  right: 0;
+}
+
+.moreDropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-width: 100%;
+  max-width: none;
 }
 
 @keyframes dropdownSlide {
@@ -207,9 +227,25 @@
   color: #FFE1F2;
 }
 
+.moreDropdownMenu .dropdownItem:hover {
+  background-color: transparent;
+  color: #FFE1F2;
+}
+
+.moreDropdownMenu .dropdownItem {
+  height: 48px;
+  padding: 0 15px;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.moreDropdownMenu .dropdownItem:first-child {
+  border-top: 1px solid #3A2530;
+}
+
 .dropdownItem:active,
 .dropdownItem.active {
-  background-color: #3B0020;
+  background-color: transparent;
 }
 
 .rightSection {
@@ -603,6 +639,7 @@
   flex-direction: column;
   background-color: #12000A;
   border-top: 1px solid #3A2530;
+  width: 100%;
 }
 
 .mobileSubMenuItem {
@@ -612,6 +649,7 @@
   height: 48px;
   display: flex;
   align-items: center;
+  white-space: nowrap;
   color: #A77590;
   text-decoration: none;
   font-size: 0.9rem;
