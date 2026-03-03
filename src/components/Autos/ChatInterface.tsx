@@ -13,7 +13,7 @@ import { useWallets, usePrivy } from "@privy-io/react-auth";
 import { useUsageStore } from "../../store/useUsageStore";
 import brainIcon from "../../assets/Icons/Brain.png";
 import gearIcon from "../../assets/Icons/Gear.png";
-import TokenIcon from "../MarketDetails/TokenIcon";
+import MarketIcon from "../MarketDetails/MarketIcon";
 import { useMarketStore } from "../../store/useMarketStore";
 import { agentService } from "../../api/agentService";
 import { useUIStore } from "../../store/useUIStore";
@@ -398,7 +398,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onClick={() => onOpenChart?.(tvSymbol)}
             title={`Open ${tvSymbol}`}
           >
-            <TokenIcon
+            <MarketIcon
               symbol={displaySymbol}
               size={16}
               className={styles.symbolBadgeIcon}

@@ -4,7 +4,8 @@ import styles from './SymbolSelector.module.css'
 import { useMarketStore } from '../../store/useMarketStore'
 import { useWatchlistStore } from '../../store/useWatchlistStore'
 import { type MarketData } from '../../api/marketService'
-import TokenIcon from '../MarketDetails/TokenIcon'
+import MarketIcon from '../MarketDetails/MarketIcon'
+import { useIconStore } from '../../store/useIconStore'
 
 const parseSubCategoryTokens = (value?: string): string[] =>
   String(value || '')
@@ -72,6 +73,13 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
     });
   }, [markets, searchTerm, activeCategory, favorites]);
 
+  // Prefetch icons when dropdown opens or filtered list changes
+  useEffect(() => {
+    if (!isOpen || filteredSymbols.length === 0) return;
+    useIconStore.getState().prefetch(filteredSymbols.map(m => m.symbol));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, searchTerm, activeCategory, markets.length]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -107,7 +115,7 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
       >
         <div className={styles.symbolInfo}>
           {currentMarket?.symbol && (
-            <TokenIcon symbol={currentMarket.symbol} size={18} className={styles.symbolIcon} />
+            <MarketIcon symbol={currentMarket.symbol} size={18} className={styles.symbolIcon} category={currentMarket.category} />
           )}
           <span className={styles.symbol}>{currentMarket?.symbol || 'Select Market'}</span>
         </div>
@@ -167,7 +175,7 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
                   className={`${styles.symbolItem} ${market.symbol === currentMarket?.symbol ? styles.selected : ''}`}
                   onClick={() => handleSymbolSelect(market)}
                 >
-                  <TokenIcon symbol={market.symbol} size={20} className={styles.itemIcon} />
+                  <MarketIcon symbol={market.symbol} size={20} className={styles.itemIcon} category={market.category} />
                   <div className={styles.itemMain}>
                     <div className={styles.itemSymbol}>
                       <span className={styles.itemName}>{market.symbol}</span>

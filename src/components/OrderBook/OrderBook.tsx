@@ -13,16 +13,16 @@ interface OrderRowData {
 
 interface OrderBookProps {
     grouping?: number;
+    onUnavailable?: () => void;
 }
 
-const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
+const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01, onUnavailable }) => {
     const { selectedMarket, setPendingLimitPrice } = useMarketStore();
     const [asks, setAsks] = useState<OrderRowData[]>([]);
     const [bids, setBids] = useState<OrderRowData[]>([]);
     const [hasSnapshot, setHasSnapshot] = useState<boolean>(false);
     const [rowCount, setRowCount] = useState<number>(15);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [isAvailable, setIsAvailable] = useState<boolean>(true); // Assume available until proven otherwise
     const WS_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/,$/, '').replace(/^http/, 'ws');
     const selectedSource = (selectedMarket as any)?.source || 'hyperliquid';
 
@@ -30,7 +30,6 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
     useEffect(() => {
         setAsks([]);
         setBids([]);
-        setIsAvailable(true);
         setHasSnapshot(false);
     }, [selectedMarket?.symbol, selectedSource]);
 
@@ -41,20 +40,13 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
         const exchange = selectedSource;
         const ws = new WebSocket(`${WS_ORIGIN}/ws/orderbook/${symbol}?exchange=${exchange}`);
 
-        let dataReceived = false;
-        const timeout = setTimeout(() => {
-            if (!dataReceived && selectedMarket.source !== 'hyperliquid') {
-                setIsAvailable(false);
-            }
-        }, 5000);
-
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
 
-                // Orderbook unavailable for this exchange (e.g. Ostium, Avantis)
+                // Orderbook unavailable signal from backend (dynamic case)
                 if (message.type === 'orderbook_unavailable') {
-                    setIsAvailable(false);
+                    onUnavailable?.();
                     return;
                 }
 
@@ -71,8 +63,6 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
 
                 if (!bookData) return;
 
-                dataReceived = true;
-                setIsAvailable(true);
                 setHasSnapshot(true);
 
                 const { bids: rawBids = [], asks: rawAsks = [] } = bookData;
@@ -112,7 +102,6 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
 
         return () => {
             ws.close();
-            clearTimeout(timeout);
         };
         }, [selectedMarket?.symbol, selectedSource, rowCount, WS_ORIGIN]);
 
@@ -163,8 +152,6 @@ const OrderBook: React.FC<OrderBookProps> = ({ grouping = 0.01 }) => {
         if (!selectedMarket || !Number.isFinite(clickedPrice) || clickedPrice <= 0) return;
         setPendingLimitPrice(selectedMarket.symbol, clickedPrice);
     };
-
-    if (!isAvailable) return null;
 
     // Calculate spread
     const bestBid = bids.length > 0 ? bids[0].price : 0;

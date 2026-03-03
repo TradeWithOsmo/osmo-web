@@ -7,6 +7,17 @@ interface TokenIconProps {
     className?: string;
 }
 
+// ── Shared circle wrapper ─────────────────────────────────────────────────────
+const iconCircle: React.CSSProperties = {
+    borderRadius: '50%',
+    overflow: 'hidden',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(255,255,255,0.06)',
+};
+
 // ── Consistent color per symbol ───────────────────────────────────────────────
 const symbolColor = (sym: string): string => {
     const colors = ['#7B5EA7', '#4A90D9', '#E07B54', '#5CB85C', '#D9534F', '#F0AD4E', '#5BC0DE', '#9B59B6'];
@@ -31,14 +42,9 @@ const TokenIcon: React.FC<TokenIconProps> = ({ symbol, size = 24, className }) =
 
     if (icon?.url) {
         return (
-            <img
-                src={icon.url}
-                alt={baseSymbol}
-                width={size}
-                height={size}
-                className={className}
-                style={{ borderRadius: '50%', objectFit: 'cover' }}
-            />
+            <div className={className} style={{ ...iconCircle, width: size, height: size }}>
+                <img src={icon.url} alt={baseSymbol} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
         );
     }
 

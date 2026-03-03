@@ -103,6 +103,10 @@ export const useIconStore = create<IconStoreState>((set, get) => ({
                         chunk.forEach(sym => s._pending.delete(sym));
                         return { iconMap: { ...s.iconMap, ...data }, _pending: s._pending };
                     });
+                    // Kick off browser image downloads immediately so they're cached before render
+                    Object.values(data).forEach(icon => {
+                        if (icon?.url) { const img = new Image(); img.src = icon.url; }
+                    });
                 }
             } catch {
                 const nullEntries = Object.fromEntries(chunk.map(s => [s, { url: null }]));

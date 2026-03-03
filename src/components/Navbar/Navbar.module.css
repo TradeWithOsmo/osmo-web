@@ -114,10 +114,10 @@
   opacity: 0.8;
 }
 
-/* .navItem.active {
+.navItem.active {
   color: #FFE1F2;
-  border-bottom: 2px solid #FFE1F2;
-} */
+  background-color: #1E0B15;
+}
 
 .dropdown {
   position: relative;

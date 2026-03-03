@@ -577,5 +577,5 @@
 .activeTab {
     color: #FFE1F2;
     border-bottom-color: transparent;
-    /* Remove active border */
+    background-color: #1E0B15;
 }
