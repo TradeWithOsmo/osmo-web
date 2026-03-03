@@ -413,6 +413,7 @@
 .activeTab {
   color: #FFE1F2;
   border-bottom-color: transparent;
+  background-color: #1E0B15;
 }
 
 .userStatsCard {

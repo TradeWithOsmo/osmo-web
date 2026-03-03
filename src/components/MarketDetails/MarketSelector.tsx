@@ -7,6 +7,7 @@ import { useWatchlistStore } from '../../store/useWatchlistStore';
 import { type MarketData, marketService } from '../../api/marketService';
 import { useWallet } from '../../hooks/useWallet';
 import MarketIcon from './MarketIcon';
+import { useIconStore } from '../../store/useIconStore';
 
 const STABLE_QUOTES = new Set(['USD', 'USDT', 'USDC']);
 const BASE_ALIASES: Record<string, string> = { XBT: 'BTC' };
@@ -70,7 +71,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
     };
 
     // Sorting State
-    const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' } | null>({ key: 'change24hPercent', direction: 'desc' });
+    const [sortConfig, setSortConfig] = useState<{ key: keyof MarketData, direction: 'asc' | 'desc' } | null>({ key: 'price', direction: 'desc' });
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -240,6 +241,14 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
     const totalPages = Math.ceil(totalItems / rowsPerPage);
     const startIndex = (currentPage - 1) * rowsPerPage;
     const paginatedData = sortedData.slice(startIndex, startIndex + rowsPerPage);
+
+    // Prefetch icons whenever the visible symbols change (page nav, filter, or sort reorder)
+    const visibleSymbolsKey = paginatedData.map(m => m.symbol).join(',');
+    useEffect(() => {
+        if (paginatedData.length === 0) return;
+        useIconStore.getState().prefetch(paginatedData.map(m => m.symbol));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visibleSymbolsKey]);
 
     if (!isEmbedded && !isOpen) return null;
 

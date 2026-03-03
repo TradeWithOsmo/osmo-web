@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from './GlobalChat.module.css';
 import { useMarketStore } from '../../store/useMarketStore';
 import { useWallet } from '../../hooks';
-import TokenIcon from '../MarketDetails/TokenIcon';
+import MarketIcon from '../MarketDetails/MarketIcon';
 import PlusIcon from '../../assets/Icons/Plus.png';
 
 interface ChatMessage {
@@ -319,7 +319,7 @@ const GlobalChat: React.FC = () => {
                                                             const displayPart = part.startsWith('$') ? part.toUpperCase() : `$${part.toUpperCase()}`;
                                                             return (
                                                                 <span key={i} className={styles.tickerTag} onClick={() => setMarket(sym)} style={{ cursor: 'pointer' }}>
-                                                                    <TokenIcon symbol={sym} className={styles.tickerIcon} size={14} />
+                                                                    <MarketIcon symbol={sym} className={styles.tickerIcon} size={14} />
                                                                     {displayPart}
                                                                 </span>
                                                             );

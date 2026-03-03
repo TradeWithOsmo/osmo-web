@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './OrderBookPanel.module.css';
 import { useMarketStore } from '../../store/useMarketStore';
 import OrderBook from './OrderBook';
@@ -19,57 +19,85 @@ const getDefaultGrouping = (price?: number): number => {
     return 0.00001;
 };
 
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+
+interface Availability { orderbook: boolean; trades: boolean }
+
 const OrderBookPanel: React.FC<OrderBookPanelProps> = ({ forcedTab }) => {
     const { selectedMarket } = useMarketStore();
     const [internalTab, setInternalTab] = useState<'Order Book' | 'Trades'>('Order Book');
     const [grouping, setGrouping] = useState<number>(() => getDefaultGrouping(selectedMarket?.price));
+    const [avail, setAvail] = useState<Availability>({ orderbook: true, trades: true });
 
     React.useEffect(() => {
-        // Reset grouping on symbol/source switch so precision follows market price scale.
         setGrouping(getDefaultGrouping(selectedMarket?.price));
     }, [selectedMarket?.symbol, selectedMarket?.source, selectedMarket?.price]);
 
+    // Optimistic: assume available immediately, backend confirms (or marks unavailable)
+    useEffect(() => {
+        if (!selectedMarket) return;
+        setAvail({ orderbook: true, trades: true });
+        const exchange = (selectedMarket as any).source || 'hyperliquid';
+        fetch(`${API_URL}/api/tradebook/availability?exchange=${encodeURIComponent(exchange)}`)
+            .then(r => r.json())
+            .then((data: Availability) => {
+                setAvail(data);
+                if (!data.orderbook && data.trades) setInternalTab('Trades');
+                if (data.orderbook && !data.trades) setInternalTab('Order Book');
+            })
+            .catch(() => {}); // keep optimistic on error
+    }, [selectedMarket?.symbol, selectedMarket?.source]);
+
     const activeTab = forcedTab || internalTab;
-    // We let the components decide availability now
-    const isAvailable = true;
+    const showFooter = avail.orderbook || avail.trades;
+
+    const handleOrderBookUnavailable = () =>
+        setAvail(prev => ({ ...prev, orderbook: false }));
+    const handleTradesUnavailable = () =>
+        setAvail(prev => ({ ...prev, trades: false }));
 
     return (
         <div className={styles.container}>
-            {/* Tab Switcher - Only shown on Desktop or if forcedTab not provided */}
+            {/* Tab Switcher */}
             {!forcedTab && (
                 <div className={styles.tabs}>
                     <button
                         className={`${styles.tab} ${activeTab === 'Order Book' ? styles.active : ''}`}
                         onClick={() => setInternalTab('Order Book')}
+                        disabled={!avail.orderbook}
                     >
                         Order Book
                     </button>
                     <button
                         className={`${styles.tab} ${activeTab === 'Trades' ? styles.active : ''}`}
                         onClick={() => setInternalTab('Trades')}
+                        disabled={!avail.trades}
                     >
                         Trades
                     </button>
                 </div>
             )}
 
-            {!isAvailable ? (
-                <div className={styles.notAvailable}>
-                    <div className={styles.notAvailableText}>
-                        Order Book and Trade history are not available for {selectedMarket?.category} assets from {selectedMarket?.source}.
-                    </div>
-                </div>
-            ) : (
-                <div className={styles.mainContentArea}>
-                    {activeTab === 'Order Book' ? (
-                        <OrderBook grouping={grouping} />
-                    ) : (
-                        <RecentTrades grouping={grouping} />
-                    )}
-                </div>
-            )}
+            <div className={styles.mainContentArea}>
+                {activeTab === 'Order Book'
+                    ? avail.orderbook
+                        ? <OrderBook grouping={grouping} onUnavailable={handleOrderBookUnavailable} />
+                        : <div className={styles.notAvailable}>
+                            <div className={styles.notAvailableText}>
+                                Order Book is not available for {selectedMarket?.source}.
+                            </div>
+                          </div>
+                    : avail.trades
+                        ? <RecentTrades grouping={grouping} onUnavailable={handleTradesUnavailable} />
+                        : <div className={styles.notAvailable}>
+                            <div className={styles.notAvailableText}>
+                                Trade history is not available for {selectedMarket?.source}.
+                            </div>
+                          </div>
+                }
+            </div>
 
-            {isAvailable && (
+            {showFooter && (
                 <div className={styles.footer}>
                     <button className={styles.groupBtn} onClick={() => setGrouping(prev => Math.max(0.00001, prev / 10))}>-</button>
                     <button className={styles.groupBtn} onClick={() => setGrouping(prev => Math.min(10, prev * 10))}>+</button>

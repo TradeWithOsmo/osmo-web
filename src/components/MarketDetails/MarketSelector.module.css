@@ -188,7 +188,7 @@
 .filterChip.active {
     color: #FFE1F2;
     border-bottom-color: transparent;
-    background-color: transparent;
+    background-color: #1E0B15;
 }
 
 .newBadge {

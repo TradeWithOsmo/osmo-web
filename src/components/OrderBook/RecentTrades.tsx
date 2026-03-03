@@ -12,21 +12,20 @@ interface TradeRowData {
 
 interface RecentTradesProps {
     grouping?: number;
+    onUnavailable?: () => void;
 }
 
-const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
+const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01, onUnavailable }) => {
     const { selectedMarket } = useMarketStore();
     const [trades, setTrades] = useState<TradeRowData[]>([]);
     const [hasSnapshot, setHasSnapshot] = useState<boolean>(false);
     const [tradeRowCount, setTradeRowCount] = useState<number>(20);
     const tradesContainerRef = useRef<HTMLDivElement>(null);
-    const [isAvailable, setIsAvailable] = useState<boolean>(true);
     const WS_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/,$/, '').replace(/^http/, 'ws');
 
     // Clear stale data when the market changes
     useEffect(() => {
         setTrades([]);
-        setIsAvailable(true);
         setHasSnapshot(false);
     }, [selectedMarket?.symbol, selectedMarket?.source]);
 
@@ -46,19 +45,16 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
             }
         }, 15000);
 
-        let dataReceived = false;
-        const timeout = setTimeout(() => {
-            if (!dataReceived && selectedMarket.source !== 'hyperliquid') {
-                setIsAvailable(false);
-            }
-        }, 5000);
-
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                if (message.type === 'trades' && Array.isArray(message.data)) {
-                    dataReceived = true;
-                    setIsAvailable(true);
+                if (message.type === 'trades') {
+                    // Backend signals trades unavailable for this exchange
+                    if (message.available === false) {
+                        onUnavailable?.();
+                        return;
+                    }
+                    if (!Array.isArray(message.data)) return;
                     setHasSnapshot(true);
                     const formatted: TradeRowData[] = message.data
                         .map((t: any) => {
@@ -95,7 +91,6 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
         return () => {
             clearInterval(heartbeat);
             ws.close();
-            clearTimeout(timeout);
         };
     }, [selectedMarket?.symbol, selectedMarket?.source, WS_ORIGIN]);
 
@@ -123,8 +118,6 @@ const RecentTrades: React.FC<RecentTradesProps> = ({ grouping = 0.01 }) => {
             maximumFractionDigits: decimals
         });
     };
-
-    if (!isAvailable) return null;
 
     const isLoading = !hasSnapshot;
     const isEmpty = hasSnapshot && trades.length === 0;

@@ -8,7 +8,7 @@ import notificationBulletIcon from '../../assets/Icons/Notifikasi/Notifications-
 import tradeIcon from '../../assets/Logos-Market-Autos/Osmo-Market.png'
 import menuIcon from '../../assets/Icons/Menu/Menu.png'
 import closeIcon from '../../assets/Icons/Menu/XSquare.png'
-import TokenIcon from '../MarketDetails/TokenIcon'
+import MarketIcon from '../MarketDetails/MarketIcon'
 
 export interface NavItem {
   label: string
@@ -199,7 +199,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {/* Desktop: Button with icon */}
                       <div className={`${styles.dropdown} ${styles.desktopOnly}`}>
                         <button
-                          className={`${styles.navItem} ${styles.dropdownToggle} ${item.isActive ? styles.active : ''}`}
+                          className={`${styles.navItem} ${styles.dropdownToggle}`}
                           onClick={() => {
                             onNavClick?.('/trade')
                             closeMobileMenu()
@@ -554,7 +554,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <div className={styles.notificationItemHeader}>
                       <div className={styles.notificationTypeWrapper}>
                         {notif.symbol ? (
-                          <TokenIcon symbol={notif.symbol} size={20} className={styles.notificationIcon} />
+                          <MarketIcon symbol={notif.symbol} size={20} className={styles.notificationIcon} />
                         ) : (
                           notif.icon ? <img src={notif.icon} alt="" className={styles.notificationIcon} /> : null
                         )}

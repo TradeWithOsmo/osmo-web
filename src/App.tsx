@@ -10,6 +10,8 @@ import { useWallet } from './hooks/useWallet';
 import { useUIStore } from './store/useUIStore';
 import { onchainService } from './api/onchainService';
 import { useAppDataSync } from './hooks/useAppDataSync';
+import { useMarketStore } from './store/useMarketStore';
+import { useIconStore } from './store/useIconStore';
 
 function App() {
   const [currentRoute, setCurrentRoute] = useState(window.location.pathname === '/' ? '/trade' : window.location.pathname);
@@ -20,6 +22,15 @@ function App() {
   useGlobalMarketStream();
   useSelectedMarketRealtime();
   useAppDataSync();
+
+  // Prefetch all market icons once when markets first load
+  const { markets } = useMarketStore();
+  const iconsPrefetchedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (markets.length === 0 || iconsPrefetchedRef.current) return;
+    iconsPrefetchedRef.current = true;
+    useIconStore.getState().prefetch(markets.map(m => m.symbol));
+  }, [markets.length]);
 
   const { fetchTokenList } = useTokenListStore();
 

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { TradeFlagIcon } from 'global-trade-react-icon';
 import { useIconStore } from '../../store/useIconStore';
+
+const _API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 // Stock Imports (local SVGs — not in global-trade-react-icon)
 import aapl from '../../assets/logonew/stock/aapl.svg';
@@ -54,7 +55,15 @@ const LOCAL_ASSETS: Record<string, string> = {
     'DAXEUR': dax, 'DJIUSD': dji, 'FTSEGBP': ftse, 'HSIHKD': hsi, 'NDXUSD': ndx, 'NIKJPY': nik, 'SPXUSD': spx,
 };
 
-// Forex currency code → ISO 3166-1 alpha-3 country code (used by global-trade-react-icon)
+// ── Forex fiat currencies ─────────────────────────────────────────────────────
+const FIAT_CURRENCIES = new Set([
+    'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'NZD', 'CAD', 'CHF', 'MXN',
+    'SGD', 'HKD', 'NOK', 'SEK', 'DKK', 'TRY', 'ZAR', 'BRL', 'CNY',
+    'INR', 'KRW', 'TWD', 'HUF', 'CZK', 'PLN', 'THB', 'IDR', 'MYR',
+    'PHP', 'RUB', 'UAH', 'COP', 'CLP', 'PEN', 'ARS', 'VND',
+]);
+
+// Forex currency code → ISO 3166-1 alpha-3 country code
 const CURRENCY_TO_ALPHA3: Record<string, string> = {
     USD: 'USA', EUR: 'EUR', GBP: 'GBR', JPY: 'JPN', AUD: 'AUS',
     NZD: 'NZL', CAD: 'CAN', CHF: 'CHE', MXN: 'MEX', SGD: 'SGP',
@@ -65,6 +74,43 @@ const CURRENCY_TO_ALPHA3: Record<string, string> = {
     COP: 'COL', CLP: 'CHL', PEN: 'PER', ARS: 'ARG', VND: 'VNM',
 };
 
+// ISO 3166-1 alpha-3 → alpha-2 for flagcdn.com
+const ALPHA3_TO_ALPHA2: Record<string, string> = {
+    USA: 'us', GBR: 'gb', EUR: 'eu', JPN: 'jp', AUS: 'au', NZL: 'nz',
+    CAN: 'ca', CHE: 'ch', MEX: 'mx', SGP: 'sg', HKG: 'hk', NOR: 'no',
+    SWE: 'se', DNK: 'dk', TUR: 'tr', ZAF: 'za', BRA: 'br', CHN: 'cn',
+    IND: 'in', KOR: 'kr', TWN: 'tw', HUN: 'hu', CZE: 'cz', POL: 'pl',
+    THA: 'th', IDN: 'id', MYS: 'my', PHL: 'ph', RUS: 'ru', UKR: 'ua',
+    COL: 'co', CHL: 'cl', PER: 'pe', ARG: 'ar', VNM: 'vn',
+};
+
+/** Quick local classification — returns render info or null if backend probe needed */
+interface LocalForex { kind: 'forex'; base: string; quote: string }
+interface LocalAsset { kind: 'local'; src: string }
+type LocalResult = LocalForex | LocalAsset | null;
+
+function classifyLocal(symbol: string): LocalResult {
+    const parts = symbol.split('-');
+    const base = parts[0].toUpperCase();
+    const quote = parts[1]?.toUpperCase();
+    const full = symbol.replace('-', '').toUpperCase();
+
+    // Forex: both parts are fiat (e.g. EUR-USD or EURUSD)
+    if (quote && FIAT_CURRENCIES.has(base) && FIAT_CURRENCIES.has(quote)) {
+        return { kind: 'forex', base, quote };
+    }
+    if (!quote && full.length === 6) {
+        const b = full.slice(0, 3), q = full.slice(3);
+        if (FIAT_CURRENCIES.has(b) && FIAT_CURRENCIES.has(q)) return { kind: 'forex', base: b, quote: q };
+    }
+
+    // Local bundled SVG
+    const localSrc = LOCAL_ASSETS[full] ?? LOCAL_ASSETS[base];
+    if (localSrc) return { kind: 'local', src: localSrc };
+
+    return null;
+}
+
 // ── Consistent color per symbol ───────────────────────────────────────────────
 const symbolColor = (sym: string): string => {
     const colors = ['#7B5EA7', '#4A90D9', '#E07B54', '#5CB85C', '#D9534F', '#F0AD4E', '#5BC0DE', '#9B59B6'];
@@ -73,24 +119,28 @@ const symbolColor = (sym: string): string => {
     return colors[Math.abs(hash) % colors.length];
 };
 
-// ── Single currency flag circle using global-trade-react-icon ─────────────────
+// ── Shared circle wrapper ─────────────────────────────────────────────────────
+const iconCircle: React.CSSProperties = {
+    borderRadius: '50%',
+    overflow: 'hidden',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(255,255,255,0.06)',
+};
+
+// ── Single currency flag circle — self-hosted SVG, fallback to flagcdn.com ────
 const CurrencyFlag: React.FC<{ ccy: string; size: number; style?: React.CSSProperties }> = ({ ccy, size, style }) => {
-    const code = CURRENCY_TO_ALPHA3[ccy] ?? ccy;
-    const overflow = Math.round(size * 0.15);
+    const alpha3 = CURRENCY_TO_ALPHA3[ccy] ?? ccy;
+    const alpha2 = ALPHA3_TO_ALPHA2[alpha3] ?? alpha3.slice(0, 2).toLowerCase();
     return (
-        <div style={{
-            width: size, height: size, borderRadius: '50%',
-            overflow: 'hidden', flexShrink: 0, ...style,
-        }}>
-            <TradeFlagIcon
-                icon={code}
-                style={{
-                    width: size + overflow * 2,
-                    height: size + overflow * 2,
-                    marginLeft: -overflow,
-                    marginTop: -overflow,
-                    display: 'block',
-                }}
+        <div style={{ ...iconCircle, width: size, height: size, ...style }}>
+            <img
+                src={`${_API_URL}/icons/country-flags/svg/${alpha2}.svg`}
+                alt={ccy}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                onError={(e) => { (e.target as HTMLImageElement).src = `https://flagcdn.com/w40/${alpha2}.png`; }}
             />
         </div>
     );
@@ -103,33 +153,17 @@ const ForexIcon: React.FC<{ baseCcy: string; quoteCcy: string; size: number; cla
     const flagSize = Math.round(size * 0.68);
     return (
         <div className={className} style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-            {/* Quote currency — behind, top-right */}
             <CurrencyFlag ccy={quoteCcy} size={flagSize} style={{
                 position: 'absolute', top: 0, right: 0,
-                border: '1px solid rgba(255,255,255,0.15)',
-                zIndex: 0,
+                border: '1px solid rgba(255,255,255,0.15)', zIndex: 0,
             }} />
-            {/* Base currency — front, bottom-left */}
             <CurrencyFlag ccy={baseCcy} size={flagSize} style={{
                 position: 'absolute', bottom: 0, left: 0,
-                border: '1.5px solid rgba(20,20,20,0.6)',
-                zIndex: 1,
+                border: '1.5px solid rgba(20,20,20,0.6)', zIndex: 1,
             }} />
         </div>
     );
 };
-
-// ── Package icon (metals / commodities via global-trade-react-icon) ───────────
-const PackageIcon: React.FC<{ code: string; size: number; className?: string }> = ({ code, size, className }) => (
-    <div className={className} style={{
-        width: size, height: size, borderRadius: '50%',
-        overflow: 'hidden', flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        border: '1px solid rgba(255,255,255,0.05)',
-    }}>
-        <TradeFlagIcon icon={code} style={{ width: size, height: size, display: 'block' }} />
-    </div>
-);
 
 // ── Letter fallback ────────────────────────────────────────────────────────────
 const LetterFallback: React.FC<{ sym: string; size: number; className?: string }> = ({ sym, size, className }) => {
@@ -160,51 +194,36 @@ const RWAIcon: React.FC<RWAIconProps> = ({ symbol, size = 24, className }) => {
     const { getIcon, requestIcons } = useIconStore();
     const sym = symbol.toUpperCase();
 
+    // Local fast-path: forex, local SVG — renders instantly, no backend wait
+    const local = classifyLocal(symbol);
+
+    // Request backend for symbols that need probing (metals, crypto, stocks, etc.)
     useEffect(() => {
-        requestIcons([sym]);
+        if (!local) requestIcons([sym]);
     }, [sym]);
 
+    // ── Forex: dual-flag ─────────────────────────────────────────────────────
+    if (local?.kind === 'forex') {
+        return <ForexIcon baseCcy={local.base} quoteCcy={local.quote} size={size} className={className} />;
+    }
+
+    // ── Bundled SVG ──────────────────────────────────────────────────────────
+    if (local?.kind === 'local') {
+        return (
+            <div className={className} style={{ ...iconCircle, width: size, height: size }}>
+                <img src={local.src} alt={symbol} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
+        );
+    }
+
+    // ── CDN-probed: use backend result from iconStore ─────────────────────────
     const icon = getIcon(sym);
 
-    // Not yet resolved — show letter fallback while loading
-    if (!icon) {
-        return <LetterFallback sym={sym} size={size} className={className} />;
-    }
-
-    if (icon.type === 'forex') {
-        return <ForexIcon baseCcy={icon.base!} quoteCcy={icon.quote!} size={size} className={className} />;
-    }
-
-    if (icon.type === 'package') {
-        return <PackageIcon code={icon.code!} size={size} className={className} />;
-    }
-
-    if (icon.type === 'local') {
-        const localSrc = LOCAL_ASSETS[icon.key!.toUpperCase()];
-        if (localSrc) {
-            return (
-                <img
-                    src={localSrc}
-                    alt={symbol}
-                    width={size}
-                    height={size}
-                    className={className}
-                    style={{ borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.05)' }}
-                />
-            );
-        }
-    }
-
-    if (icon.url) {
+    if (icon?.url) {
         return (
-            <img
-                src={icon.url}
-                alt={symbol}
-                width={size}
-                height={size}
-                className={className}
-                style={{ borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.05)' }}
-            />
+            <div className={className} style={{ ...iconCircle, width: size, height: size }}>
+                <img src={icon.url} alt={symbol} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
         );
     }
 
