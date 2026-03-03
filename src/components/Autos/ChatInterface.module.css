@@ -1842,6 +1842,11 @@
     background: rgba(10, 16, 22, 0.55);
 }
 
+.exchangeContextChip {
+    border-color: #2a3d35;
+    background: rgba(10, 20, 16, 0.55);
+}
+
 .timeframeContextChip {
     border-color: #3a2f45;
     background: rgba(18, 10, 22, 0.55);

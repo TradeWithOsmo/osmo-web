@@ -1983,6 +1983,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     selectedMarket?.symbol ||
     ""
   ).replace(/-/g, "/");
+  const activeExchangeLabel = selectedMarket?.source
+    ? selectedMarket.source.charAt(0).toUpperCase() + selectedMarket.source.slice(1)
+    : "";
   const selectedTimeframes = Array.isArray(toolStates.timeframe)
     ? toolStates.timeframe
     : [];
@@ -3436,6 +3439,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             )}
             {!isUsageBlocked &&
               (activeMarketLabel ||
+                activeExchangeLabel ||
                 activeMarketTimeframe ||
                 activeMarketIndicators.length > 0 ||
                 combinedHintValues.length > 0 ||
@@ -3453,6 +3457,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         {activeMarketLabel}
                       </span>
                     </button>
+                  )}
+                  {activeExchangeLabel && (
+                    <div
+                      className={`${styles.contextChip} ${styles.exchangeContextChip}`}
+                    >
+                      <span className={styles.contextChipKey}>Exchange</span>
+                      <span className={styles.contextChipValue}>
+                        {activeExchangeLabel}
+                      </span>
+                    </div>
                   )}
                   {activeMarketTimeframe && (
                     <div
