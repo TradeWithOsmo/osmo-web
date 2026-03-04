@@ -1,0 +1,707 @@
+.panelContainer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /* height controlled by state classes */
+    background-color: #12000A;
+    border-top: 1px solid #3A2530;
+    color: #FFE1F2;
+    font-family: 'Satoshi', sans-serif;
+    transition: height 0.2s ease-in-out;
+    overflow: visible;
+}
+
+/* Base Heights (Desktop) */
+/* Ideally, allow both to fill the container, because Trade.tsx controls the height via inline styles */
+.collapsed {
+    height: 100%;
+    /* Was 50px */
+}
+
+.expanded {
+    height: 100%;
+    /* Fill the container provided by Trade.tsx resizer */
+}
+
+/* Tablet */
+@media (max-width: 1024px) {
+    .collapsed {
+        height: 50px;
+    }
+
+    .expanded {
+        height: 450px;
+    }
+}
+
+/* Phone (Mobile) */
+@media (max-width: 480px) {
+    .collapsed {
+        height: 52px;
+    }
+
+    .expanded {
+        height: 350px;
+    }
+}
+
+/* Tabs */
+.tabsHeader {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #3A2530;
+    background-color: #12000A;
+    height: 40px;
+}
+
+.tab {
+    padding: 0 16px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #A77590;
+    border-right: 1px solid #3A2530;
+    transition: color 0.2s, background-color 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-bottom: none;
+}
+
+.tab:hover {
+    color: #FFE1F2;
+    background-color: #3A2530;
+}
+
+.tab.active {
+    color: #FFE1F2;
+    background-color: #1E0B15;
+}
+
+.countBadge {
+    font-size: 10px;
+    background-color: #3A2530;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #FFE1F2;
+}
+
+.filler {
+    flex: 1;
+}
+
+.arrowToggle {
+    width: 60px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-left: 1px solid #3A2530;
+}
+
+/* Table */
+.tableContainer {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    /* height: 100%; - Removed to allow auto-shrink */
+    /* min-height: 500px; - Removed to allow auto-shrink */
+    background-color: #12000A;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
+    /* Important for flex scrolling */
+}
+
+.tableWrapper {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+    /* Ensure scrollbar works */
+}
+
+/* Custom Scrollbar for the table wrapper */
+.tableWrapper::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.tableWrapper::-webkit-scrollbar-track {
+    background: #11050D;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb {
+    background: #3A2530;
+    border-radius: 3px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+    background: #5D4050;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.th {
+    text-align: left;
+    padding: 12px 20px;
+    font-size: 12px;
+    color: #A77590;
+    font-weight: 400;
+    border-bottom: 1px solid #3A2530;
+    background-color: #12000A;
+    /* Critical for sticky */
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    white-space: nowrap;
+    box-shadow: 0 1px 0 #3A2530;
+    /* Optional: adds a bottom border illusion if normal border moves */
+    min-width: 100px;
+}
+
+.thRight {
+    text-align: right;
+}
+
+.thCenter {
+    text-align: center;
+}
+
+.thLeft {
+    text-align: left;
+}
+
+.thFirst {
+    min-width: 200px;
+}
+
+.closeAllHeaderBtn {
+    background: none;
+    border: 1px solid rgba(255, 69, 96, 0.4);
+    color: #FF4560;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Satoshi', sans-serif;
+    text-transform: uppercase;
+}
+
+.closeAllHeaderBtn:hover {
+    background-color: rgba(255, 69, 96, 0.1);
+    border-color: #FF4560;
+}
+
+.row {
+    border-bottom: 1px solid #3A2530;
+}
+
+.row:hover {
+    background-color: #1A0A13;
+    cursor: pointer;
+}
+
+.td {
+    padding: 16px 20px;
+    font-size: 13px;
+    vertical-align: middle;
+    color: #FFE1F2;
+    white-space: nowrap;
+    min-width: 100px;
+}
+
+.tdRight {
+    text-align: right;
+}
+
+.tdCenter {
+    text-align: center;
+}
+
+.tdLeft {
+    text-align: left;
+}
+
+.tdFirst {
+    min-width: 200px;
+}
+
+/* Specific Cell Styling */
+.cellContent {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.marketCell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.marketIcon {
+    width: 24px;
+    height: 24px;
+    background-color: #2E93fF;
+    /* Placeholder for Chainlink blue */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+}
+
+.marketIcon.btc {
+    background-color: #F7931A;
+}
+
+.subText {
+    font-size: 11px;
+    color: #A77590;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.badge.long {
+    background-color: rgba(0, 227, 150, 0.15);
+    color: #00E396;
+}
+
+.badge.short {
+    background-color: rgba(255, 69, 96, 0.15);
+    color: #FF4560;
+}
+
+.positive {
+    color: #00E396;
+}
+
+.negative {
+    color: #FF4560;
+}
+
+.dots {
+    color: #A77590;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.actionGroup {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.actionButton {
+    background: none;
+    border: none;
+    color: #2E93fF;
+    /* Blue-ish */
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+    font-weight: 500;
+}
+
+.actionButton:hover {
+    text-decoration: underline;
+}
+
+.editButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+}
+
+.editButton:hover {
+    color: #FFE1F2;
+}
+
+.shareIcon {
+    margin-left: 4px;
+    color: #2E93fF;
+    cursor: pointer;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 1024px) {
+    .th {
+        display: none;
+    }
+
+    .row.desktopRow {
+        display: none;
+    }
+
+    .row.mobileRow {
+        display: table-row;
+        border-bottom: 1px solid #3A2530;
+    }
+
+    .row.mobileRow td {
+        display: block;
+        padding: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .mobileCard {
+        width: 100%;
+        background-color: #11050D;
+    }
+
+    .mobileHeader {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .mobileHeaderContent {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding-right: 8px;
+    }
+
+    .mobileDetails {
+        padding: 0 16px 16px 16px;
+        border-top: 1px solid #12000A;
+        background-color: #150810;
+        animation: slideDown 0.2s ease-out;
+    }
+
+    .mobileDetailRow {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #12000A;
+    }
+
+    .mobileDetailRow:last-child {
+        border-bottom: none;
+    }
+
+    .mobileLabel {
+        color: #A77590;
+        font-size: 13px;
+    }
+
+    .mobileValue {
+        color: #FFE1F2;
+        font-size: 13px;
+        text-align: right;
+    }
+}
+
+@media (min-width: 1025px) {
+    .row.mobileRow {
+        display: none;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+/* Controls & Dropdowns */
+.controlsContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.controlsLeft {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.dropdownContainer {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdownButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: transparent;
+    border: none;
+    color: #A77590;
+    font-size: 14px;
+    font-family: 'Satoshi', sans-serif;
+    cursor: pointer;
+    padding: 0;
+}
+
+.dropdownButton:hover,
+.dropdownButton.active {
+    color: #FFE1F2;
+}
+
+.dropdownButton.active svg {
+    transform: rotate(180deg);
+}
+
+.dropdownMenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 4px;
+    min-width: 140px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    animation: slideDown 0.2s ease-out;
+}
+
+.dropdownItem {
+    padding: 8px 12px;
+    color: #A77590;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    text-align: left;
+    background: none;
+    border: none;
+    width: 100%;
+    font-family: 'Satoshi', sans-serif;
+}
+
+.dropdownItem:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+.dropdownItem.selected {
+    color: #FFE1F2;
+    background-color: #3A2530;
+}
+
+.actionButtons {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: #00E396;
+    cursor: pointer;
+}
+
+.actionButtonDanger {
+    color: #FF4560;
+    cursor: pointer;
+}
+
+/* Table Footer Styling */
+.tableFooter {
+    padding: 12px 16px;
+    border-top: 1px solid #3A2530;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #A77590;
+    font-size: 12px;
+    gap: 16px;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    background-color: #12000A;
+    /* Critical for sticky to hide content behind */
+    width: 100%;
+    box-sizing: border-box;
+    /* Ensure padding doesn't affect width */
+    box-shadow: 0 -1px 0 #3A2530;
+    /* Top border illusion */
+}
+
+.footerText {
+    flex: 1;
+    max-width: 70%;
+    line-height: 1.4;
+}
+
+.pagination {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    white-space: nowrap;
+}
+
+/* Responsive Footer */
+@media (max-width: 1024px) {
+    .tableFooter {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .footerText {
+        max-width: 100%;
+        order: 2;
+        /* Put text below pagination if desired, or keep as 1 */
+    }
+
+    .pagination {
+        width: 100%;
+        justify-content: center;
+        order: 1;
+        flex-wrap: wrap;
+    }
+}
+
+/* Pagination specific styles */
+.paginationButton {
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #3A2530;
+    background: transparent;
+    color: #A77590;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    transition: all 0.2s;
+    padding: 0 6px;
+}
+
+.paginationButton:hover {
+    border-color: #FFE1F2;
+    color: #FFE1F2;
+}
+
+.paginationButton.active,
+.paginationButton:global(.active) {
+    /* Ensure compatibility */
+    background-color: #3A2530;
+    color: #FFE1F2;
+    border-color: #3A2530;
+    font-weight: 600;
+}
+
+.paginationButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #3A2530;
+    color: #5D4050;
+}
+
+.footerGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    width: 100%;
+}
+
+.footerMessage {
+    justify-self: start;
+    color: #A77590;
+    font-size: 13px;
+}
+
+.footerControls {
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.footerActions {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #A77590;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .footerGrid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 8px 0;
+    }
+
+    .footerMessage {
+        order: 2;
+        text-align: center;
+        justify-self: center;
+    }
+
+    .footerControls {
+        order: 1;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .footerActions {
+        order: 3;
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+.refreshIcon {
+    cursor: pointer;
+    transition: color 0.2s, transform 0.3s;
+}
+
+.arrowToggle:hover .refreshIcon {
+    color: #FFE1F2;
+    transform: rotate(30deg);
+}
+
+.arrowToggle:active .refreshIcon {
+    transform: rotate(180deg);
+}
