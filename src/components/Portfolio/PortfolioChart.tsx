@@ -1,0 +1,201 @@
+import React, { useEffect, useState } from 'react';
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer
+} from 'recharts';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+
+interface DataPoint {
+    timestamp: string;
+    displayTime: string;
+    value: number;
+}
+
+const PortfolioChart: React.FC = () => {
+    const [chartData, setChartData] = useState<DataPoint[]>([]);
+    const { summary, history, historyTimeframe, setHistoryTimeframe } = usePortfolioStore();
+
+    const activeLabel =
+        historyTimeframe === '1d' ? '1D' :
+            historyTimeframe === '7d' ? '7D' :
+                historyTimeframe === '30d' ? '1M' :
+                    'ALL';
+
+    // Use current account value or default to 0
+    const currentValue = summary?.account_value ?? 0;
+
+    // Generate Chart Data from Store History
+    useEffect(() => {
+        if (history && history.length > 0) {
+            const data: DataPoint[] = history.map(point => {
+                const time = new Date(point.timestamp);
+                return {
+                    timestamp: point.timestamp,
+                    displayTime: historyTimeframe === '1d'
+                        ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : time.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                    value: point.value
+                };
+            });
+
+            // If only one point in history, pad it to make a line starting from 0
+            if (data.length === 1) {
+                const firstPoint = new Date(data[0].timestamp);
+                const pastTime = new Date(firstPoint.getTime() - 24 * 60 * 60 * 1000);
+                data.unshift({
+                    timestamp: pastTime.toISOString(),
+                    displayTime: historyTimeframe === '1d'
+                        ? pastTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : pastTime.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                    value: 0 // New account starts at 0
+                });
+            }
+            setChartData(data);
+        } else if (currentValue > 0) {
+            // Fallback: Show growth from 0 to current value over 24h
+            const now = new Date();
+            const past = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24h ago
+
+            const points: DataPoint[] = [
+                {
+                    timestamp: past.toISOString(),
+                    displayTime: historyTimeframe === '1d'
+                        ? past.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : past.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                    value: 0 // Starting point
+                },
+                {
+                    timestamp: now.toISOString(),
+                    displayTime: historyTimeframe === '1d'
+                        ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : now.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                    value: currentValue
+                }
+            ];
+            setChartData(points);
+        } else {
+            setChartData([]);
+        }
+    }, [history, historyTimeframe, currentValue]);
+
+    return (
+        <div style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '0',
+            boxSizing: 'border-box',
+            position: 'relative'
+        }}>
+            {/* Minimalist Dynamic Timeframe Buttons */}
+            <div style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+            }}>
+                {(() => {
+                    const buttons = [];
+                    const timeSpanMs = history && history.length > 1
+                        ? new Date(history[0].timestamp).getTime() - new Date(history[history.length - 1].timestamp).getTime()
+                        : 0;
+                    const days = Math.abs(timeSpanMs / (1000 * 60 * 60 * 24));
+
+                    // Always show 1D
+                    buttons.push('1D');
+                    // Show 7D if we have at least 2 days of data
+                    if (days >= 2) buttons.push('7D');
+                    // Show 1M if we have at least 8 days of data
+                    if (days >= 8) buttons.push('1M');
+                    // Always show All if more than 1 point
+                    if (history.length > 1) buttons.push('ALL');
+
+                    return buttons.map((tf, idx) => (
+                        <React.Fragment key={tf}>
+                            {idx > 0 && <span style={{ color: '#3A2530', fontSize: '12px' }}>·</span>}
+                            <button
+                                onClick={() => {
+                                    const next =
+                                        tf === '1D' ? '1d' :
+                                            tf === '7D' ? '7d' :
+                                                tf === '1M' ? '30d' :
+                                                    'all';
+                                    setHistoryTimeframe(next);
+                                }}
+                                style={{
+                                    background: 'transparent',
+                                    color: activeLabel === tf ? '#FFE1F2' : '#8B8B9B',
+                                    border: 'none',
+                                    padding: '4px 8px',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    outline: 'none',
+                                    transition: 'all 0.2s',
+                                    fontWeight: activeLabel === tf ? 700 : 400,
+                                    textTransform: tf === 'ALL' ? 'capitalize' : 'uppercase'
+                                }}
+                            >
+                                {tf === 'ALL' ? 'All' : tf}
+                            </button>
+                        </React.Fragment>
+                    ));
+                })()}
+            </div>
+
+            <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 60, right: 4, left: 4, bottom: 5 }}>
+                        <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#660035" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#12000A" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <XAxis
+                            dataKey="displayTime"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#8B8B9B', fontSize: 10 }}
+                            minTickGap={60}
+                            interval="preserveStart"
+                        />
+                        <YAxis hide domain={[0, (max: number) => max * 1.1]} />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: '#1A0010',
+                                border: '1px solid #3A2530',
+                                borderRadius: '8px',
+                                padding: '8px 12px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                                color: '#FFE1F2'
+                            }}
+                            itemStyle={{ color: '#FFE1F2', fontSize: '13px', fontWeight: 600 }}
+                            labelStyle={{ color: '#8B8B9B', fontSize: '11px', marginBottom: '2px' }}
+                            formatter={(value: any) => [`$${Number(value).toLocaleString()}`, 'Value']}
+                            cursor={{ stroke: '#660035', strokeWidth: 1 }}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="value"
+                            stroke="#660035"
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill="url(#colorValue)"
+                            animationDuration={800}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+};
+
+export default PortfolioChart;

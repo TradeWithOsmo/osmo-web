@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*storybook.log
+storybook-static
+
+.env
+secret/
+
+# Local agent/test artifacts
+.agent/
+test-results/
+test-results-run/
+.storybook/
+e2e/
+
+# Charting library artifacts (keep folder structure only)
+public/charting-library.html
+public/charting_library/**
+!public/charting_library/
+!public/charting_library/.gitkeep
+!.env
+!.env.local

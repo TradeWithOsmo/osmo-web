@@ -1,0 +1,64 @@
+@import './variables.css';
+@import './animations.css';
+@import './utilities.css';
+@import './layout.css';
+
+/* Global styles to override TradingView toolbar */
+
+/* Inject styles globally with highest specificity */
+:root {
+    --tv-toolbar-height: 50px;
+}
+
+/* Force toolbar height with maximum specificity */
+html body .tv-header,
+html body .tv-toolbar,
+html body .tv-control-bar,
+html body .tv-embed-widget-header {
+    height: var(--tv-toolbar-height, 50px) !important;
+    min-height: var(--tv-toolbar-height, 50px) !important;
+    max-height: var(--tv-toolbar-height, 50px) !important;
+}
+
+/* Override any inline styles */
+.tv-header[style],
+.tv-toolbar[style] {
+    height: var(--tv-toolbar-height, 50px) !important;
+    min-height: var(--tv-toolbar-height, 50px) !important;
+    max-height: var(--tv-toolbar-height, 50px) !important;
+}
+
+/* Button styling */
+/* Button styling block removed as it caused layout issues */
+
+/* No spacing for dividers */
+html body .tv-header-divider,
+html body .tv-separator,
+html body [class*="separator"],
+html body [class*="divider"] {
+    margin: 0px !important;
+    padding: 0px !important;
+    width: 1px !important;
+}
+
+/* Force container gaps to zero but add padding */
+html body .tv-header-left,
+html body .tv-header-right,
+html body .tv-header-center,
+html body div[class*="header-left"],
+html body div[class*="header-right"],
+html body div[class*="header-center"] {
+    gap: 0px !important;
+    margin: 0px !important;
+    padding: 0px 15px !important;
+    /* 15px left and right padding */
+}
+
+/* Main toolbar container with padding */
+html body .tv-header,
+html body .tv-toolbar,
+html body .tv-control-bar,
+html body .tv-embed-widget-header {
+    padding: 0px 15px !important;
+    /* 15px left and right padding */
+}

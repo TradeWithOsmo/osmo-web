@@ -1,0 +1,247 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #3A2530;
+    background: rgba(18, 0, 10, 0.8);
+}
+
+.title {
+    font-family: 'Satoshi', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #FFE1F2;
+    margin: 0;
+}
+
+.closeButton {
+    background: transparent;
+    border: none;
+    color: #A77590;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.closeButton:hover {
+    color: #FFE1F2;
+}
+
+.content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.description {
+    font-size: 14px;
+    color: rgba(255, 225, 242, 0.72);
+    line-height: 1.5;
+    background: rgba(167, 117, 144, 0.08);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(58, 37, 48, 0.5);
+}
+
+.amountContainer {
+    background-color: #1A050F;
+    border: 1px solid #3A2530;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.amountHeader {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #A77590;
+}
+
+.balanceLabel {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.maxButton {
+    background: transparent;
+    border: none;
+    color: #00E396;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    font-size: 11px;
+}
+
+.inputRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.amountInput {
+    background: transparent;
+    border: none;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: #FFE1F2;
+    width: 100%;
+    outline: none;
+}
+
+.amountInput::placeholder {
+    color: #553344;
+}
+
+/* Remove arrows/spinners from number input */
+.amountInput::-webkit-outer-spin-button,
+.amountInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.amountInput {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.unit {
+    color: #A77590;
+    font-weight: 600;
+    font-size: 16px;
+    padding-left: 8px;
+}
+
+.multipliers {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.infoRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 4px 0;
+    border-top: 1px dashed #3A2530;
+    padding-top: 12px;
+}
+
+.infoLabel {
+    color: #A77590;
+}
+
+.infoValue {
+    color: #F2C94C;
+    font-weight: 600;
+}
+
+.actionButton {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #660035 0%, #800042 100%);
+    border: 1px solid #FF4560;
+    border-radius: 10px;
+    color: #EFFFF8;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(255, 69, 96, 0.2);
+}
+
+.actionButton:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(255, 69, 96, 0.3);
+}
+
+.actionButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #35001C;
+    border-color: #5D4050;
+    box-shadow: none;
+    color: #A77590;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loader {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 225, 242, 0.3);
+    border-top-color: #FFE1F2;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto;
+}
+
+.blurCell {
+    filter: blur(4px);
+    opacity: 0.6;
+}

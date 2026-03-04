@@ -1,0 +1,1002 @@
+.layoutContainer {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    /* Consistent with Portfolio layout */
+    background-color: #12000A;
+    color: #FFE1F2;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Sidebar Styling (Reused from Portfolio) */
+.sidebar {
+    width: 272px;
+    background-color: #12000A;
+    border-right: 1px solid #3A2530;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    position: relative;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+    /* Must be > ChatInterface input (z-index 50) */
+}
+
+.sidebarMinimized {
+    width: 58px;
+}
+
+
+
+.toggleButton {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 18px;
+    height: 18px;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 10;
+    padding: 0;
+}
+
+.toggleIcon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.toggleButton:hover .toggleIcon {
+    opacity: 1;
+}
+
+.toggleButton:hover {
+    background-color: transparent;
+    transform: none;
+}
+
+.sidebarMinimized .toggleButton {
+    right: 20px;
+    left: auto;
+}
+
+.sidebarSectionTitle {
+    font-size: 12px;
+    color: #A77590;
+    padding: 24px 24px 8px 24px;
+    font-weight: 500;
+    background-color: #12000A;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 48px;
+    /* Ensure minimum height */
+    display: flex;
+    align-items: center;
+}
+
+/* Section Header to match Portfolio sidebarSectionTitle */
+.workspaceSection {
+    display: flex;
+    flex-direction: column;
+}
+
+.dropTarget {
+    background-color: rgba(59, 32, 48, 0.2);
+    border: 1px dashed #3B2030;
+    border-radius: 8px;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px 8px 24px;
+    /* Matches sidebarSectionTitle */
+    font-size: 12px;
+    font-weight: 500;
+    color: #A77590;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background-color: #12000A;
+}
+
+.sectionHeader .plusIcon {
+    font-size: 14px;
+    width: 24px;
+    height: 24px;
+    opacity: 0.8;
+    background-color: transparent;
+    border: 1px solid #3A2530;
+    border-radius: 6px;
+    color: #A77590;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.sectionHeader .plusIcon:hover {
+    color: #FFE1F2;
+    border-color: #3B2030;
+    background-color: rgba(59, 32, 48, 0.1);
+}
+
+.sectionHeader:hover .plusIcon {
+    opacity: 1;
+}
+
+/* Menu Item generic style (reused) */
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    border-left: 2px solid transparent;
+    border-bottom: 1px solid #3A2530;
+    cursor: pointer;
+    color: #FFE1F2;
+    font-size: 15px;
+    transition: all 0.2s;
+    text-decoration: none;
+    border-radius: 0;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.menuItem:hover {
+    background-color: #12000A;
+    color: #FFFFFF;
+}
+
+.menuItem.active {
+    background-color: #3A2530;
+    color: #FFFFFF;
+    border-left: none;
+    border-bottom: 1px solid #3A2530;
+}
+
+/* New Chat Button */
+.startConversationBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(100% - 32px);
+    margin: 12px 16px;
+    padding: 10px 16px;
+    background-color: rgba(59, 32, 48, 0.1);
+    border: 1px solid #3A2530;
+    color: #FFE1F2;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 8px;
+    font-family: inherit;
+}
+
+.startConversationBtn:hover {
+    background-color: #3A2530;
+    border-color: #4D2D40;
+    color: #FFFFFF;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.startConversationBtn .icon {
+    margin-right: 8px;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.sidebarMinimized .startConversationBtn {
+    margin: 16px 8px;
+    padding: 0;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 0;
+}
+
+.sidebarMinimized .startConversationBtn span:not(.icon) {
+    display: none;
+}
+
+.sidebarMinimized .startConversationBtn .icon {
+    margin-right: 0;
+}
+
+/* Dropdown Menu Styles */
+.dropdownMenu {
+    position: fixed;
+    /* Changed to fixed to match React portal/overlay behavior usually desired, though inline works if positioned correctly. The TSX uses inline style for top/left but class for style. TSX says style={{ top: menu.y, left: menu.x, position: 'fixed' }} so this class position is overridden, but good to set defaults or fallback. */
+    background: #12000A;
+    /* Darker, consistent with other panels */
+    border: 1px solid #3A2530;
+    border-radius: 0;
+    z-index: 9999;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    min-width: 160px;
+    opacity: 0;
+    animation: fadeIn 0.15s ease forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #FFE1F2;
+    cursor: pointer;
+    border-radius: 0;
+    transition: all 0.2s;
+    background: transparent;
+}
+
+.dropdownItem:hover {
+    background: #3A2530;
+    color: #FFFFFF;
+}
+
+.dropdownItem span:first-child {
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dropdownItem:hover span:first-child {
+    color: #FFE1F2;
+}
+
+.dropdownItem.delete {
+    color: #FF8FA3;
+    margin-top: 4px;
+    border-top: 1px solid #3A2530;
+    /* Darker separator */
+    padding-top: 10px;
+}
+
+.dropdownItem.delete:hover {
+    background: rgba(47, 27, 38, 0.5);
+    /* Subtle red tint or just dark hover */
+    color: #FF6B6B;
+}
+
+/* Workspace Header - Resembles menu item but for group */
+.workspaceHeader {
+    display: flex;
+    align-items: center;
+    padding: 14px 24px;
+    /* Match menuItem */
+    color: #FFE1F2;
+    font-size: 15px;
+    /* Match menuItem */
+    justify-content: space-between;
+    border-bottom: 1px solid #3A2530;
+    /* Match menuItem */
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.workspaceHeader:hover {
+    background-color: #12000A;
+}
+
+.headerTitleGroup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    flex: 1;
+    user-select: none;
+}
+
+.workspaceInput {
+    background-color: transparent;
+    border: 1px solid #3B2030;
+    color: #FFE1F2;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    width: 100%;
+    outline: none;
+    font-family: inherit;
+}
+
+.arrowIcon {
+    font-size: 14px;
+    color: #A77590;
+    transition: transform 0.2s ease;
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+}
+
+.arrowIcon.expanded {
+    transform: rotate(90deg);
+}
+
+.plusIcon {
+    font-size: 16px;
+    color: #A77590;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.plusIcon:hover {
+    color: #FFE1F2;
+    background-color: #3A2530;
+}
+
+/* Workspace List Item (Nested) */
+.workspaceItem {
+    padding: 12px 24px 12px 48px;
+    /* border-left removed to prevent any shift */
+    /* Indented, slightly less tall than header */
+    color: #A77590;
+    /* Muted by default like sub-items */
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.1s ease, color 0.1s ease;
+    border-bottom: 1px solid #1F0A15;
+    /* Darker than sidebar bg for depth */
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.workspaceItem:hover {
+    background-color: rgba(255, 225, 242, 0.03);
+    color: #FFE1F2;
+}
+
+.activeItem {
+    background-color: #2D1B26;
+    /* Slightly softer than #3A2530 for premium feel */
+    color: #FFFFFF;
+}
+
+.activeItem::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #3B2030;
+}
+
+.workspaceItem:active {
+    background-color: #1F0A15;
+    /* Gentle "press" visual without shift */
+}
+
+.sessionTitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    margin-right: 36px;
+}
+
+.positionIcon {
+    font-size: 16px;
+    color: #FFD700;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.optionsBtn {
+    opacity: 0;
+    color: #A77590;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    transition: opacity 0.2s;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0;
+}
+
+.workspaceItem:hover .optionsBtn {
+    opacity: 1;
+}
+
+.optionsBtn:hover {
+    color: #FFE1F2;
+}
+
+.workspaceList {
+    display: flex;
+    flex-direction: column;
+}
+
+.activeDot {
+    width: 6px;
+    height: 6px;
+    background-color: #3B2030;
+    /* Replaced blue dot with new burgundy */
+    border-radius: 50%;
+}
+
+.loadingRing {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #3A2530;
+    border-top: 2px solid #A77590;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.openWorkspaceBtn {
+    margin: 8px 24px;
+    padding: 8px 12px;
+    background-color: transparent;
+    border: none;
+    color: #A77590;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s;
+    font-family: inherit;
+    width: auto;
+}
+
+.openWorkspaceBtn:hover {
+    color: #FFE1F2;
+}
+
+.icon {
+    font-size: 16px;
+    min-width: 16px;
+}
+
+.sidebarFooter {
+    margin-top: auto;
+    border-top: 1px solid #3A2530;
+    display: flex;
+    flex-direction: column;
+}
+
+.creditFooter {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    border-top: 1px solid #2A1721;
+    margin-top: auto;
+}
+
+.creditInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px 14px;
+}
+
+.creditRefillButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border: none;
+    border-left: 1px solid #2A1721;
+    border-radius: 0;
+    background-color: transparent;
+    color: #FFE1F2;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Minimized State Handling */
+.sidebarMinimized {
+    width: 58px !important;
+    border-right: 1px solid #3A2530;
+    /* Keep border visible */
+}
+
+.sidebarScrollable {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    height: 0;
+    /* Crucial for flex scroll */
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 20px;
+    /* Custom Scrollbar for Webkit */
+    scrollbar-width: thin;
+    scrollbar-color: #3A2530 transparent;
+}
+
+.sidebarScrollable::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebarScrollable::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebarScrollable::-webkit-scrollbar-thumb {
+    background-color: #3A2530;
+    border-radius: 4px;
+}
+
+.sidebarMinimized>*:not(.toggleButton) {
+    display: none !important;
+}
+
+/* Main Content Area */
+.contentArea {
+    flex: 1;
+    overflow: hidden;
+    /* Prevent outer scrolling so inner chat can scroll */
+    padding: 32px 48px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.contentCentered {
+    /* When minimized, center the content horizontally */
+    align-items: center;
+}
+
+.contentCentered>* {
+    max-width: 1300px;
+    width: 100%;
+}
+
+/* Split Layout */
+.splitLayout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.chatPanel {
+    flex-grow: 1;
+    /* Allow standard flex behavior, overridden by js logic */
+    /* Width managed by javascript via flex-basis */
+    display: flex;
+    flex-direction: column;
+    min-width: 300px;
+    height: 100%;
+    /* No border right needed, resizer handles visual separation/space */
+}
+
+/* Resizer */
+.resizer {
+    width: 12px;
+    cursor: col-resize;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: transparent;
+    transition: background-color 0.2s;
+    z-index: 10;
+}
+
+.resizer:hover,
+.resizer:active {
+    background-color: rgba(59, 32, 48, 0.1);
+}
+
+.resizerHandle {
+    width: 4px;
+    height: 32px;
+    background-color: #3A2530;
+    border-radius: 2px;
+    transition: background-color 0.2s;
+}
+
+.resizer:hover .resizerHandle {
+    background-color: #3B2030;
+}
+
+.artifactPanel {
+    flex: 1;
+    min-width: 300px;
+    height: 100%;
+    background-color: #12000A;
+    /* Deep dark background */
+    border-left: 1px solid #3A2530;
+    /* The border technically goes on the artifact panel so its distinct from the chat */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.artifactHeader {
+    height: 48px;
+    background-color: #12000A;
+    border-bottom: 1px solid #3A2530;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    color: #FFE1F2;
+    font-size: 14px;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 500;
+}
+
+.tabScrollContainer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 0;
+    flex: 1;
+    margin-right: 8px;
+    mask-image: linear-gradient(to right, black 95%, transparent 100%);
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+    cursor: grab;
+    user-select: none;
+}
+
+.tabScrollContainer::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
+}
+
+.tabScrollContainer:active {
+    cursor: grabbing;
+}
+
+.closeArtifactBtn {
+    background: none;
+    border: none;
+    color: #A77590;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.closeArtifactBtn:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+
+/* Mobile Sidebar Logic */
+@media (max-width: 768px) {
+    .sidebar {
+        position: absolute;
+        /* Overlay content */
+        z-index: 90;
+        height: 100%;
+        max-width: 272px;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5);
+        /* Ensure it doesn't push content */
+        left: 0;
+        top: 0;
+    }
+
+    /* When expanded, it has width. When minimized, it has 0 width */
+
+    .sidebarMinimized {
+        width: 0 !important;
+        border-right: none;
+        overflow: visible;
+        box-shadow: none;
+    }
+
+    .sidebarMinimized .toggleButton {
+        right: -46px;
+        /* Push out further to be safe */
+        top: 12px;
+        background-color: #12000A;
+        border: 1px solid #3A2530;
+        border-radius: 4px;
+        width: 32px;
+        /* Slightly larger touch target */
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Fix icon centering in the larger button */
+    .sidebarMinimized .toggleButton .toggleIcon {
+        width: 18px;
+        height: 18px;
+    }
+
+    .contentArea {
+        padding: 16px;
+        width: 100%;
+        /* Force full width */
+        flex-shrink: 0;
+        /* Don't shrink */
+        padding-left: 16px;
+        /* Keep padding consistent */
+    }
+}
+
+@media (max-width: 1024px) {
+    .splitLayout .chatPanel {
+        display: none !important;
+    }
+
+    .splitLayout .resizer {
+        display: none !important;
+    }
+
+    .splitLayout .artifactPanel {
+        border-left: none;
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100% !important;
+        z-index: 5000;
+    }
+}
+
+/* Forced Mobile Sidebar Mode (for Trade Assist Integration) */
+.sidebarMobile {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    max-width: 272px;
+    border-right: 1px solid #3A2530;
+    flex-shrink: 0;
+}
+
+.sidebarMobile.sidebarMinimized {
+    width: 0 !important;
+    border-right: none;
+    overflow: visible;
+    box-shadow: none;
+}
+
+.sidebarMobile.sidebarMinimized .toggleButton {
+    right: -46px;
+    /* Push out further to be safe */
+    top: 12px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    width: 32px;
+    /* Slightly larger touch target */
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fix icon centering in the larger button */
+/* Compact Mode (for Assist/Embedded usage) */
+.compact .sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    z-index: 100;
+    background-color: #12000A;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.7);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.compact .sidebarMinimized {
+    width: 0 !important;
+    transform: translateX(-100%);
+    box-shadow: none;
+    border-right: none;
+}
+
+/* Ensure content takes full space in compact mode since sidebar is now overlay */
+.compact .contentArea {
+    width: 100%;
+    padding: 24px;
+}
+
+.compact .sidebarMinimized .toggleButton {
+    position: absolute;
+    right: -48px;
+    top: 12px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.compact .sidebarMinimized .toggleButton .toggleIcon {
+    opacity: 0.8;
+}
+
+.compact .sidebarMinimized .toggleButton:hover .toggleIcon {
+    opacity: 1;
+}
+
+.compact .contentCentered {
+    align-items: flex-start;
+}
+
+.compact .sidebarMinimized .toggleButton {
+    right: auto;
+    left: 12px;
+    background-color: #12000A;
+    /* Ensure visibility over chat */
+    border: 1px solid #3A2530;
+}
+
+.compact .contentArea {
+    padding: 16px;
+}
+
+.compact .toggleButton {
+    right: 13px;
+    top: 12px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+}
+
+.compact .toggleButton:hover {
+    background-color: #3A2530;
+}
+
+.compact .toggleButton .toggleIcon {
+    width: 18px;
+    height: 18px;
+}
+
+.compact .sidebarSectionTitle,
+.compact .sectionHeader,
+.compact .menuItem,
+.compact .workspaceHeader,
+.compact .workspaceItem {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.compact .startConversationBtn {
+    margin: 16px;
+    width: calc(100% - 32px);
+}
+
+.floatingHeaderActions {
+    position: absolute;
+    top: 15px;
+    width: 100%;
+    max-width: 1300px;
+    padding: 0 15px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+.rightHeaderActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.headerIconButton {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    pointer-events: auto;
+}
+
+.headerIconButton:hover {
+    background-color: #3A2530;
+    border-color: #3B2030;
+}
+
+.headerIconButton img {
+    width: 18px;
+    height: 18px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.headerIconButton:hover img {
+    opacity: 1;
+}

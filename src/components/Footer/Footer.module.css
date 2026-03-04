@@ -1,0 +1,257 @@
+.footer {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    height: 38px;
+    background-color: #12000A;
+    border-top: 1px solid #3A2530;
+    padding: 0;
+    /* padding removed to allow dividers to touch top/bottom, items handle their own padding */
+    font-size: 12px;
+    color: #A77590;
+    flex-shrink: 0;
+    width: 100%;
+    position: relative;
+}
+
+.leftSection {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+.statusGroup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* space between dot, text, and icon */
+    padding: 0;
+}
+
+.statusButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 15px;
+    height: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+}
+
+.statusDropdown {
+    background-color: #1A0A13;
+    border: 1px solid #3A2530;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    width: 300px;
+    position: fixed;
+    bottom: 38px;
+    left: 0;
+    z-index: 1000;
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    /* Animate only visual properties — not overflow */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(15px);
+    transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                visibility 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+                transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.statusDropdown::-webkit-scrollbar {
+    width: 4px;
+}
+
+.statusDropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.statusDropdown::-webkit-scrollbar-thumb {
+    background: #3A2530;
+    border-radius: 2px;
+}
+
+.statusDropdown::-webkit-scrollbar-thumb:hover {
+    background: #5A3545;
+}
+
+.statusDropdownOpen {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.dropdownTopBar {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid #3A2530;
+    background-color: #1A0A13;
+}
+
+.dropdownRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+}
+
+.dropdownRowLeft {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: 1;
+    min-width: 0;
+}
+
+.dropdownLabel {
+    font-size: 12px;
+    color: #A77590;
+    font-weight: 500;
+    flex: 1;
+}
+
+.dropdownValue {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dropdownDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dropdownDivider {
+    height: 1px;
+    background: #3A2530;
+    margin: 0;
+}
+
+.connectorHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    width: 100%;
+    background: rgba(58, 37, 48, 0.3);
+    border: none;
+    cursor: pointer;
+    color: inherit;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* Base styles for the color classes. 
+   Apply color to text and background-color to dot */
+.textConnected {
+    color: #4CAF50;
+    /* Green */
+    background-color: #4CAF50;
+}
+
+.textConnecting {
+    color: #FFC107;
+    /* Yellow */
+    background-color: #FFC107;
+}
+
+.textDisconnected {
+    color: #F44336;
+    /* Red */
+    background-color: #F44336;
+}
+
+.statusIcon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    display: flex;
+}
+
+.statusText {
+    font-weight: 500;
+    background-color: transparent !important;
+    /* Ensure text doesn't take background */
+}
+
+.divider {
+    width: 1px;
+    min-height: 100%;
+    align-self: stretch;
+    background-color: #3A2530;
+}
+
+.link {
+    display: flex;
+    align-items: center;
+    color: #A77590;
+    text-decoration: none;
+    transition: color 0.2s;
+    padding: 0 15px;
+}
+
+.link:hover {
+    color: #FFE1F2;
+}
+
+.infoText {
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+}
+
+.learnMore {
+    color: #FFE1F2;
+    text-decoration: underline;
+    margin-left: 4px;
+}
+
+.rightSection {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+.socialLink {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+    padding: 0 15px;
+}
+
+.socialLink:hover {
+    opacity: 0.8;
+}
+
+.socialLink img {
+    height: 18px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* Hide on mobile and tablet as requested or just let it stay */
+@media (max-width: 1024px) {
+    .footer {
+        display: none;
+    }
+}

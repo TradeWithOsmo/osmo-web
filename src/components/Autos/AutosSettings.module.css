@@ -1,0 +1,443 @@
+.settingsContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #0A0005;
+    color: #FFE1F2;
+    padding: 0;
+    overflow: hidden;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Tabs Header */
+.tabsHeader {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #2A1A24;
+    border-bottom: 1px solid #2A1A24;
+    padding: 0;
+    height: 48px;
+    background-color: #0A0005;
+}
+
+.tab {
+    padding: 0 16px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #A77590;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    border-left: 1px solid #2A1A24;
+}
+
+.tab:hover {
+    color: #FFE1F2;
+}
+
+.tab:hover {
+    color: #FFE1F2;
+    background-color: rgba(255, 225, 242, 0.05);
+}
+
+.tab.active {
+    color: #FFE1F2;
+    background-color: #1A0D15;
+}
+
+.subTab {
+    padding: 0 16px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    color: #5A4A54;
+    transition: all 0.2s;
+    border-left: 1px solid #1A0D15;
+}
+
+.subTab:hover {
+    color: #A77590;
+    background-color: rgba(255, 225, 242, 0.03);
+}
+
+.subTab.active {
+    color: #E07A5F;
+    background-color: rgba(224, 122, 95, 0.1);
+}
+
+/* Filter Bar */
+.filterBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    gap: 16px;
+}
+
+.filtersLeft {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.filterItem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #A77590;
+    cursor: pointer;
+}
+
+.filterItem span:last-child {
+    color: #FFE1F2;
+}
+
+.searchWrapper {
+    background: #12000A;
+    border: 1px solid #2A1A24;
+    border-radius: 8px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    width: 280px;
+    height: 36px;
+    margin-left: 0;
+}
+
+.searchInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    color: #FFE1F2;
+    font-size: 13px;
+    outline: none;
+}
+
+.searchInput::placeholder {
+    color: #4A3540;
+}
+
+.refreshButton {
+    background: none;
+    border: none;
+    color: #A77590;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    transition: all 0.3s ease;
+}
+
+.refreshButton:hover {
+    color: #FFE1F2;
+}
+
+/* Table */
+.tableWrapper {
+    flex: 1;
+    overflow-y: auto;
+    border-top: 1px solid #2A1A24;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.th {
+    text-align: left;
+    padding: 12px 20px;
+    font-size: 11px;
+    color: #5A4A54;
+    /* Reverted to original color per user request */
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #2A1A24;
+    background-color: transparent;
+    /* Inherit from row */
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.thFirst {
+    min-width: 200px;
+}
+
+.tdFirst {
+    min-width: 200px;
+}
+
+.thRight {
+    text-align: right;
+}
+
+.tdRight {
+    text-align: right;
+}
+
+.tdRightContent {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.row {
+    background-color: #0A0005;
+    border-bottom: 1px solid #2A1A24;
+    transition: background-color 0.2s;
+}
+
+.providerRow {
+    border-bottom: 1px solid #2A1A24;
+    border-top: 1px solid #2A1A24;
+    background-color: #0A0005;
+}
+
+/* Optional: if you want the child rows to be darker/indented distinctively */
+.childRow {
+    border-bottom: 1px solid #2A1A24;
+    background-color: #0A0005;
+}
+
+.row:hover {
+    background-color: rgba(255, 225, 242, 0.02);
+}
+
+.td {
+    padding: 16px 20px;
+    font-size: 13px;
+    vertical-align: middle;
+    color: #FFE1F2;
+}
+
+/* Footer / Pagination */
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-top: 1px solid #2A1A24;
+    background-color: #0A0005;
+    font-size: 12px;
+    color: #5A4A54;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pageButton {
+    min-width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid #1A0D15;
+    background: #0D0008;
+    color: #A77590;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.pageButton:hover {
+    border-color: #2A1A24;
+    color: #FFE1F2;
+}
+
+.pageButton.active {
+    background: #1A0D15;
+    color: #FFE1F2;
+    border-color: #3A2530;
+}
+
+.pageButton:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Switch styling - Premium */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #1A0D15;
+    border: 1px solid #2A1A24;
+    transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 20px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #5A4A54;
+    transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+}
+
+.switch input:checked+.slider {
+    background-color: #3A2530;
+    border-color: #4A3540;
+}
+
+.switch input:checked+.slider:before {
+    transform: translateX(20px);
+    background-color: #FFE1F2;
+    box-shadow: 0 0 8px rgba(255, 225, 242, 0.2);
+}
+
+.loadingContainer {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    color: #A77590;
+    gap: 12px;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(167, 117, 144, 0.1);
+    border-top-color: #FFE1F2;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.backButtonHeader {
+    padding: 8px;
+    cursor: pointer;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.backButtonHeader:hover {
+    background: rgba(255, 225, 242, 0.05);
+    color: #FFE1F2;
+}
+
+.chevron {
+    width: 10px;
+    height: 10px;
+    margin-left: 4px;
+    opacity: 0.5;
+}
+
+.pageSizeSelect {
+    background: #0D0008;
+    border: 1px solid #1A0D15;
+    color: #FFE1F2;
+    font-size: 11px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.pageSizeSelect:hover {
+    border-color: #2A1A24;
+}
+
+.pageSizeSelect option {
+    background: #120008;
+    color: #FFE1F2;
+}
+
+.row.dragOver {
+    background-color: rgba(224, 122, 95, 0.15);
+    border-color: #E07A5F;
+}
+
+.childRow[draggable="true"] {
+    cursor: grab;
+}
+
+.childRow[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.ungroupedRow {
+    background-color: #0D0008 !important;
+    border-bottom: 1px solid #2A1A24 !important;
+}
+
+.ungroupedRow:hover {
+    background-color: #1A0D15 !important;
+}
+
+.sectionHeaderRow {
+    background-color: #0D0008;
+    border-bottom: 1px solid #2A1A24;
+}
+
+.sectionHeaderRow .th {
+    border-bottom: 1px solid #2A1A24;
+    color: #4A3540;
+}
+
+.sectionHeaderTd {
+    padding: 8px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #4A3540;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
