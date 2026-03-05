@@ -1,0 +1,242 @@
+/* Sidebar Styles */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 280px;
+  background: linear-gradient(180deg, #2a1a1a 0%, #1a0f0f 100%);
+  border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar.collapsed {
+  transform: translateX(-100%);
+}
+
+/* Toggle Button */
+.toggleButton {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1001;
+  background: rgba(42, 26, 26, 0.9);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 10px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.toggleButton:hover {
+  background: rgba(66, 42, 42, 0.9);
+  border-color: #666;
+}
+
+.toggleButton.collapsed {
+  left: 20px;
+}
+
+/* Logo Section */
+.logoSection {
+  display: flex;
+  align-items: center;
+  padding: 24px 20px;
+  border-bottom: 1px solid #333;
+  gap: 12px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.logoText {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Navigation */
+.navigation {
+  flex: 1;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  color: #aaa;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+}
+
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  transform: translateX(4px);
+}
+
+.navItem.active {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(238, 90, 36, 0.3);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+
+.label {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bottom Section */
+.bottomSection {
+  padding: 20px;
+  border-top: 1px solid #333;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.userDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.username {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+
+.walletAddress {
+  color: #888;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+}
+
+.profileButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid #444;
+  background: transparent;
+  color: #aaa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profileButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: #666;
+}
+
+/* Mobile Overlay */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    max-width: 320px;
+  }
+  
+  .toggleButton {
+    top: 16px;
+    left: 16px;
+  }
+  
+  .toggleButton.collapsed {
+    left: 16px;
+  }
+}
+
+/* Desktop - Show hover preview when collapsed */
+@media (min-width: 769px) {
+  .sidebar.collapsed {
+    width: 60px;
+  }
+  
+  .sidebar.collapsed .logoText,
+  .sidebar.collapsed .label,
+  .sidebar.collapsed .userInfo {
+    display: none;
+  }
+  
+  .sidebar.collapsed .navItem {
+    justify-content: center;
+    padding: 14px;
+  }
+  
+  .sidebar.collapsed .logoSection {
+    justify-content: center;
+    padding: 24px 18px;
+  }
+  
+  .sidebar.collapsed .bottomSection {
+    padding: 20px 18px;
+  }
+}

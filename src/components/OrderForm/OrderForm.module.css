@@ -1,0 +1,951 @@
+.container {
+    background-color: #12000A;
+    border-left: 1px solid #3A2530;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    color: #FFE1F2;
+    overflow: hidden;
+    /* Prevent body scroll, use scrollContent instead */
+}
+
+/* New Scrollable Area */
+.scrollContent {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 150px;
+    /* Spacer for dropdowns */
+    -ms-overflow-style: none;
+    /* Hide scrollbar for cleaner look */
+    scrollbar-width: none;
+}
+
+.scrollContent::-webkit-scrollbar {
+    display: none;
+}
+
+/* 1. Account Header */
+/* Sticky Container for Header + Stats + Tabs */
+.stickyHeaderContainer {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #12000A;
+}
+
+/* 1. Account Header */
+.header {
+    padding: 10px 13px;
+    border-bottom: 1px solid #3A2530;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* Sticky moved to container */
+}
+
+.headerTitle {
+    font-size: 14px;
+    font-weight: 500;
+    color: #FFE1F2;
+}
+
+.manageFundsBtn {
+    background-color: #3A2530;
+    /* Dark purple/brown bg */
+    border: 1px solid #3A2530;
+    border-radius: 14px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.manageFundsBtn:hover {
+    border-color: #5D5FEF;
+    color: #FFE1F2;
+}
+
+/* 2. Stats Grid */
+.statsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid #3A2530;
+}
+
+.statBox {
+    padding: 12px 16px;
+    border-bottom: 1px solid #3A2530;
+    /* For top row */
+    border-right: 1px solid #3A2530;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.statBox:nth-child(2n) {
+    border-right: none;
+}
+
+.statBox:nth-last-child(-n+2) {
+    border-bottom: none;
+}
+
+.statLabel {
+    font-size: 12px;
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.statValue {
+    font-size: 15px;
+    color: #FFE1F2;
+    font-weight: 500;
+}
+
+.ringGreen {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #00E396;
+}
+
+.bars {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 10px;
+}
+
+.bar {
+    width: 3px;
+    background-color: #3A2530;
+    border-radius: 1px;
+}
+
+.bar.active {
+    background-color: #00E396;
+}
+
+/* 3. Main Tabs (Limit, Market, Stop Limit) */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 145, 194, 0.25);
+    background: linear-gradient(180deg, rgba(18, 4, 13, 0.9) 0%, rgba(11, 2, 8, 0.94) 100%);
+}
+
+.tab {
+    flex: 1;
+    padding: 14px 0;
+    text-align: center;
+    font-size: 14px;
+    color: #B5849E;
+    cursor: pointer;
+    position: relative;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.tab:not(:last-child) {
+    border-right: 1px solid rgba(255, 145, 194, 0.2);
+}
+
+.tab:hover {
+    color: #FFE1F2;
+    background: rgba(255, 142, 198, 0.08);
+}
+
+.tab.active {
+    color: #FFF5FB;
+    background: linear-gradient(180deg, rgba(54, 18, 42, 0.72) 0%, rgba(35, 8, 24, 0.92) 100%);
+    text-shadow: 0 0 10px rgba(255, 207, 233, 0.18);
+    border-bottom-color: #FFB5DF;
+}
+
+/* 4. Buy/Sell Toggle */
+.buySellContainer {
+    padding: 0;
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #3A2530;
+}
+
+.tradeBtn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 0;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    background: transparent;
+    color: #6a6d78;
+    /* Inactive text color, similar to screenshot grey */
+}
+
+.tradeBtn:not(:last-child) {
+    border-right: 1px solid rgba(255, 145, 194, 0.2);
+}
+
+.tradeBtn.buy.active {
+    background-color: rgba(0, 227, 150, 0.15);
+    /* Dark Green Tint */
+    border-bottom-color: #00E396;
+    color: #00E396;
+}
+
+.tradeBtn.sell.active {
+    background-color: rgba(255, 69, 96, 0.15);
+    /* Dark Red Tint */
+    border-bottom-color: #FF4560;
+    color: #FF4560;
+}
+
+.tradeBtn.inactive {
+    background-color: transparent;
+    color: #868993;
+}
+
+.tradeBtn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 5. Inputs Area */
+.formArea {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.inputWrapper {
+    background: linear-gradient(140deg, rgba(28, 8, 20, 0.9) 0%, rgba(14, 2, 10, 0.92) 100%);
+    border: 1px solid rgba(255, 143, 195, 0.24);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.inputWrapper:hover,
+.inputWrapper:focus-within {
+    border-color: rgba(255, 174, 213, 0.48);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(255, 134, 192, 0.15);
+    background: linear-gradient(140deg, rgba(33, 10, 24, 0.94) 0%, rgba(17, 4, 12, 0.96) 100%);
+}
+
+.inputLabelRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #A77590;
+}
+
+.inputRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.inputMain {
+    background: transparent;
+    border: none;
+    color: #FFF2FA;
+    font-size: 16px;
+    outline: none;
+    width: 100%;
+    font-weight: 600;
+}
+
+.inputMain::placeholder {
+    color: #C793AE;
+    opacity: 0.92;
+}
+
+/* Helper Pills (Fill, Mid, etc) */
+.pillsRow {
+    display: flex;
+    gap: 6px;
+    margin-top: -8px;
+    /* Pull closer to input above if needed, or just gap */
+    padding: 0 16px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.12) 0%, rgba(48, 23, 39, 0.45) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.28);
+    color: #F2B7D7;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: none;
+}
+
+.pill:hover {
+    border-color: rgba(255, 174, 213, 0.52);
+    color: #FFE1F2;
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.22) 0%, rgba(63, 28, 50, 0.5) 100%);
+}
+
+.pill:active {
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.22) 0%, rgba(63, 28, 50, 0.5) 100%);
+}
+
+/* Dual Inputs */
+.dualInputRow {
+    display: flex;
+    gap: 12px;
+}
+
+.badges {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 22px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 151, 199, 0.45);
+    background: transparent;
+    color: #FFD9EC;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+    box-shadow: none;
+}
+
+/* Advanced Accordion */
+.advancedToggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #FFE1F2;
+    cursor: pointer;
+    padding: 0 16px;
+    margin-top: 8px;
+}
+
+/* Add Trigger / Clear */
+.triggerRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 16px;
+    margin-top: 24px;
+}
+
+.roundBtn {
+    border: 1px solid #3A2530;
+    background-color: #12000A;
+    color: #FFE1F2;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.clearBtn {
+    border: 1px solid #3A2530;
+    background-color: #12000A;
+    color: #FF4560;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Summary */
+/* Summary & Footer Redesign */
+.summaryContainer {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.summaryControlsRow {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+}
+
+.textBtnRed {
+    background: none;
+    border: 1px solid rgba(255, 69, 96, 0.3);
+    color: #FF4560;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 12px;
+    border-radius: 14px;
+    transition: all 0.2s;
+}
+
+.textBtnRed:hover {
+    background-color: rgba(255, 69, 96, 0.1);
+    border-color: #FF4560;
+}
+
+.vDivider {
+    width: 1px;
+    height: 16px;
+    background-color: #3A2530;
+}
+
+.receiptToggleBtn {
+    background: none;
+    border: 1px solid #3A2530;
+    color: #A77590;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 14px;
+    transition: all 0.2s;
+}
+
+.receiptToggleBtn:hover,
+.receiptToggleBtn.active {
+    border-color: #A77590;
+    color: #FFE1F2;
+    background-color: rgba(58, 37, 48, 0.5);
+}
+
+.receiptDetails {
+    /* No bg, just border for clean look */
+    background-color: transparent;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.summaryRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    /* Aligns items to top if multi-line, but mainly ensures separation */
+    gap: 12px;
+}
+
+.summaryLabelDotted {
+    font-size: 13px;
+    color: #A77590;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.summaryValue {
+    font-size: 13px;
+    color: #FFE1F2;
+    font-weight: 500;
+    text-align: right;
+}
+
+.mainActionBtn {
+    width: 100%;
+    padding: 12px;
+    background-color: #660035;
+    border: 1px solid #36001E;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: capitalize;
+}
+
+.mainActionBtn:hover {
+    background-color: #800042;
+    border-color: #36001E;
+}
+
+/* Leverage Slider Section */
+.leverageContainer {
+    background: linear-gradient(150deg, rgba(24, 7, 18, 0.9) 0%, rgba(11, 2, 8, 0.94) 100%);
+    border: 1px solid rgba(255, 143, 195, 0.24);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.leverageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #A77590;
+}
+
+.leverageValue {
+    color: #FFE1F2;
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.badgeNone {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.12) 0%, rgba(48, 23, 39, 0.45) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.3);
+    color: #F2B7D7;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    transition: all 0.2s ease;
+}
+
+.badgeNone:hover {
+    border-color: rgba(255, 174, 213, 0.55);
+    color: #FFE1F2;
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.22) 0%, rgba(63, 28, 50, 0.5) 100%);
+}
+
+.leverageControls {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    column-gap: 12px;
+    min-width: 0;
+}
+
+.leverageInput {
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.18) 0%, rgba(60, 26, 47, 0.6) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.38);
+    border-radius: 8px;
+    color: #FFF2FA;
+    min-width: 64px;
+    padding: 6px 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+}
+
+.sliderTrack {
+    flex: 1;
+    min-width: 0;
+    height: 8px;
+    background-color: rgba(66, 40, 54, 0.88);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 145, 194, 0.2);
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.sliderFill {
+    position: absolute;
+    height: 100%;
+    background: linear-gradient(90deg, #00E396 0%, #38F4B3 100%);
+    border-radius: 999px;
+    top: 0;
+    left: 0;
+    box-shadow: 0 0 10px rgba(0, 227, 150, 0.45);
+}
+
+.sliderThumb {
+    width: 11px;
+    height: 11px;
+    background-color: #160510;
+    border: 2px solid #50FFC2;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    box-shadow: 0 0 0 3px rgba(0, 227, 150, 0.25);
+}
+
+/* Dots on slider */
+.sliderDots {
+    position: absolute;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+    pointer-events: none;
+}
+
+.dot {
+    width: 2px;
+    height: 2px;
+    background-color: rgba(255, 187, 224, 0.48);
+    border-radius: 50%;
+}
+
+.toggleSwitch {
+    display: flex;
+    align-items: center;
+    background-color: #3A2530;
+    border-radius: 12px;
+    padding: 2px;
+    cursor: pointer;
+    width: 36px;
+    height: 20px;
+    position: relative;
+}
+
+.toggleSwitch.active {
+    background-color: #A77590;
+}
+
+.toggleKnob {
+    width: 16px;
+    height: 16px;
+    background-color: #FFE1F2;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+/* Dropdown Menu */
+.dropdownMenu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: linear-gradient(180deg, rgba(40, 18, 32, 0.96) 0%, rgba(23, 8, 16, 0.98) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.35);
+    border-radius: 10px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    min-width: 100px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(10px);
+}
+
+.dropdownItem {
+    min-height: 34px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #D2A2BC;
+    cursor: pointer;
+    border-radius: 7px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dropdownItem:hover {
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.18) 0%, rgba(65, 30, 52, 0.5) 100%);
+    color: #FFE1F2;
+}
+
+.dropdownItem.active {
+    background: linear-gradient(135deg, rgba(255, 157, 205, 0.22) 0%, rgba(73, 33, 58, 0.56) 100%);
+    border: 1px solid rgba(255, 182, 218, 0.36);
+    color: #FFE1F2;
+}
+
+/* Market Order Input Styles */
+.marketInputContainer {
+    background: linear-gradient(140deg, rgba(26, 8, 19, 0.9) 0%, rgba(13, 2, 9, 0.92) 100%);
+    border: 1px solid rgba(255, 143, 195, 0.24);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.marketInputContainer:hover,
+.marketInputContainer:focus-within {
+    border-color: rgba(255, 174, 213, 0.48);
+    box-shadow: 0 0 0 1px rgba(255, 134, 192, 0.15);
+}
+
+.marketInputColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.swapButton {
+    min-width: 40px;
+    height: 40px;
+    background: radial-gradient(90% 90% at 50% 20%, rgba(255, 144, 198, 0.22) 0%, rgba(43, 18, 34, 0.9) 100%);
+    border: 1px solid rgba(255, 151, 199, 0.4);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #FFDDF0;
+    transition: all 0.2s;
+    margin-left: 12px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.swapButton:hover {
+    border-color: rgba(255, 186, 219, 0.58);
+    transform: translateY(-1px);
+    color: #FFE1F2;
+}
+
+.swapButton:active {
+    transform: translateY(0);
+}
+
+/* Advanced Section Content */
+.advancedContent {
+    background-color: #12000A;
+    /* Or transparent if preferred */
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.advancedGrid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    /* TIF takes slightly more space */
+    gap: 12px;
+}
+
+.advancedInputBox {
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.12) 0%, rgba(48, 23, 39, 0.45) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.34);
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    position: relative;
+    min-height: 52px;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.advancedInputBox:hover {
+    border-color: rgba(255, 174, 213, 0.52);
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.22) 0%, rgba(63, 28, 50, 0.5) 100%);
+}
+
+.advancedInputBox:focus-within {
+    border-color: rgba(255, 196, 224, 0.64);
+    box-shadow: 0 0 0 1px rgba(255, 153, 204, 0.2);
+}
+
+.advancedLabel {
+    font-size: 11px;
+    color: #A77590;
+    margin-bottom: 2px;
+}
+
+.advancedValue {
+    font-size: 14px;
+    color: #FFE1F2;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.daysSelector {
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.18) 0%, rgba(47, 21, 37, 0.58) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.36);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    color: #FFDDF0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.daysSelector:hover {
+    border-color: rgba(255, 174, 213, 0.52);
+    color: #FFE1F2;
+}
+
+.checkboxRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkbox {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #3A2530;
+    border-radius: 4px;
+    background-color: #12000A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.checkbox.checked {
+    background-color: #00E396;
+    border-color: #00E396;
+}
+
+.checkMark {
+    width: 6px;
+    height: 10px;
+    border: solid #12000A;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    margin-bottom: 2px;
+}
+
+.checkboxLabel {
+    font-size: 14px;
+    color: #A77590;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+}
+
+.advancedToggleHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    margin-top: 8px;
+    cursor: pointer;
+    color: #A77590;
+    font-size: 13px;
+    width: 100%;
+}
+
+/* TP/SL Section */
+.tpslContainer {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tpslGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.tpslInput {
+    background: linear-gradient(145deg, rgba(24, 8, 18, 0.94) 0%, rgba(11, 2, 8, 0.96) 100%);
+    border: 1px solid rgba(255, 145, 194, 0.28);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 52px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tpslInput:hover,
+.tpslInput:focus-within {
+    border-color: rgba(255, 174, 213, 0.48);
+    box-shadow: 0 0 0 1px rgba(255, 134, 192, 0.15);
+}
+
+.tpslLabel {
+    font-size: 11px;
+    color: #FFE1F2;
+    margin-bottom: 2px;
+}
+
+.tpslField {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #FFF2FA;
+    /* Placeholder/Value color */
+    font-size: 14px;
+    width: 100%;
+    font-weight: 600;
+}
+
+.tpslField::placeholder {
+    color: #C793AE;
+    /* Muted placeholder */
+}
+
+.percentBadge {
+    background: linear-gradient(135deg, rgba(255, 124, 186, 0.2) 0%, rgba(55, 24, 42, 0.58) 100%);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #FFF2FA;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 145, 194, 0.35);
+}
+
+.percentBadge:hover {
+    border-color: rgba(255, 174, 213, 0.52);
+    background: linear-gradient(135deg, rgba(255, 134, 192, 0.24) 0%, rgba(66, 29, 53, 0.62) 100%);
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+    transform-origin: center;
+}
+

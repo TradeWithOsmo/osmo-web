@@ -1,0 +1,14 @@
+/* Global styles for handling full-screen resizing behavior */
+body.is-resizing {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* 
+ * CRITICAL: When resizing, we must disable pointer-events on iframes.
+ * Otherwise, if the mouse hovers over an iframe (like TradingView),
+ * the mousemove events are intercepted by the iframe and the resize stops/stutters.
+ */
+body.is-resizing iframe {
+    pointer-events: none;
+}

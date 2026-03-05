@@ -1,0 +1,410 @@
+.wrapper {
+    position: relative;
+    width: 100%;
+    z-index: 100;
+    /* Ensure dropdown sits above other content */
+}
+
+.container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background-color: #12000A;
+    padding: 0;
+    height: 48px;
+    color: white;
+    font-family: 'Satoshi', sans-serif;
+    border-bottom: 1px solid #3A2530;
+    gap: 0;
+}
+
+/* Left Section */
+.leftSection {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: max-content;
+    padding: 0 15px;
+    align-self: stretch;
+    border-right: 1px solid #3A2530;
+}
+
+.starButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    font-size: 0;
+}
+
+.starIcon {
+    width: 16px;
+    height: 16px;
+}
+
+.tokenIconPlaceholder {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pairName {
+    font-size: 16px;
+    font-weight: 600;
+    color: #FFE1F2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.marketDropdown {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+    margin-left: 15px;
+    height: 100%;
+}
+
+.marketDropdownText {
+    color: #FFE1F2;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.marketDropdownArrow {
+    width: 7px;
+    height: 6px;
+    opacity: 0.7;
+    filter: sepia(100%) saturate(300%) hue-rotate(280deg) brightness(90%) contrast(90%);
+    transition: transform 0.2s ease;
+}
+
+.rotate {
+    transform: rotate(180deg);
+}
+
+.mobileDropdownArrow {
+    width: 7px;
+    height: 6px;
+    opacity: 0.7;
+    filter: sepia(100%) saturate(300%) hue-rotate(280deg) brightness(90%) contrast(90%);
+    margin-left: 0.5rem;
+    cursor: pointer;
+    display: none;
+    transition: transform 0.2s ease;
+    /* Hidden by default, shown in media query */
+}
+
+/* Mobile Summary (Hidden on Desktop) */
+.mobileSummary {
+    display: none;
+    /* Default hidden */
+    align-items: center;
+    margin-left: auto;
+    /* Push to right */
+    height: 100%;
+    padding-right: 15px;
+    gap: 12px;
+}
+
+.mobilePriceRef {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.expandButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.expandButton img {
+    width: 20px;
+    height: 20px;
+}
+
+/* Stats Section */
+.statsContainer {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    transition: all 0.3s ease;
+}
+
+.statsContainer::-webkit-scrollbar {
+    display: none;
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 0 15px;
+    border-right: 1px solid #3A2530;
+    min-width: max-content;
+    align-self: stretch;
+}
+
+.statItem:last-child {
+    border-right: none;
+}
+
+.statLabel {
+    font-size: 12px;
+    color: #A77590;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.statValue {
+    font-size: 13px;
+    color: #FFE1F2;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.positive {
+    color: #00E396;
+}
+
+.negative {
+    color: #FF4560;
+}
+
+/* Responsive specific styles */
+@media (max-width: 1024px) {
+
+    .wrapper {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .container {
+        flex-shrink: 0;
+    }
+
+    /* Tablet and Mobile */
+    .leftSection {
+        border-right: none;
+        /* Remove divider on mobile as it takes full width */
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .marketDropdown {
+        display: none;
+        /* Hide the "All markets" dropdown text on small screens to save space if needed, or keep it */
+    }
+
+    /* Or keep pair name larger and hide dropdown text */
+    .marketDropdownText {
+        display: none;
+    }
+
+    .marketDropdownArrow {
+        display: none;
+    }
+
+    .mobileDropdownArrow {
+        display: block;
+    }
+
+    .mobileSummary {
+        display: flex;
+    }
+
+    /* Hide desktop stats container on mobile */
+    .statsContainer {
+        display: none !important;
+    }
+
+    /* Hide layout switcher on mobile */
+    .rightSection {
+        display: none;
+    }
+
+    .statItem {
+        border-right: 1px solid #3A2530;
+        border-bottom: 1px solid #3A2530;
+        padding: 12px 15px;
+        align-items: flex-start;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Remove right border for every 2nd item in grid */
+    .statItem:nth-child(even) {
+        border-right: none;
+    }
+
+    /* Remove bottom border for last row */
+    .statItem:nth-last-child(-n+2) {
+        border-bottom: none;
+    }
+}
+
+/* Mobile Stats Container - separate from desktop */
+.mobileStatsContainer {
+    display: none;
+}
+
+@media (max-width: 1024px) {
+    .mobileStatsContainer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        background-color: #12000A;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+    }
+
+    .mobileStatsContainer.expanded {
+        max-height: 300px;
+        border-top: 1px solid #3A2530;
+    }
+}
+
+/* Skeleton Loading */
+.skeleton {
+    background: linear-gradient(90deg, #1A0D15 25%, #2A1D25 50%, #1A0D15 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeletonCircle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.skeletonStar {
+    width: 16px;
+    height: 16px;
+}
+
+.skeletonSymbol {
+    width: 60px;
+    height: 18px;
+}
+
+.skeletonStat {
+    width: 80px;
+    height: 14px;
+    margin-top: 4px;
+}
+
+.skeletonFullWidth {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    gap: 15px;
+}
+
+/* Right Section for Layout Switcher */
+.rightSection {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    /* pushes to far right */
+    padding: 0;
+    gap: 0;
+    height: 100%;
+    border-left: 1px solid #3A2530;
+}
+
+/* Header Cell Style */
+.layoutTabs {
+    display: flex;
+    background-color: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    gap: 0;
+    height: 100%;
+    align-items: center;
+}
+
+.layoutTab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* width: 48px; Removed fixed width */
+    padding: 0 15px;
+    gap: 8px;
+    height: 100%;
+    border: none;
+    border-right: 1px solid #3A2530;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 0;
+    transition: all 0.2s;
+    opacity: 1;
+}
+
+.layoutTabText {
+    font-size: 14px;
+    font-weight: 500;
+    color: #A1657F;
+    transition: color 0.2s;
+}
+
+.activeLayoutTab .layoutTabText {
+    color: #FFE7F8;
+}
+
+.layoutTab:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    opacity: 1;
+}
+
+.activeLayoutTab {
+    background-color: rgba(255, 255, 255, 0.05);
+    /* Gentle highlight or transparent as requested */
+    border: none;
+    /* Reset border */
+    border-right: 1px solid #3A2530;
+    /* Keep the separator */
+    opacity: 1;
+}
+
+.layoutIcon {
+    width: 28px;
+    height: auto;
+    object-fit: contain;
+}

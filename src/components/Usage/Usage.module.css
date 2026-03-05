@@ -1,0 +1,581 @@
+.layoutContainer {
+    display: flex;
+    width: 100%;
+    flex: 1;
+    /* Or calc(100vh - navbarHeight) */
+    background-color: #12000A;
+    /* Main background */
+    color: #FFE1F2;
+    font-family: 'Satoshi', sans-serif;
+    overflow: hidden;
+    height: 100%;
+    /* Fix: Explicit height for flex scrolling */
+}
+
+/* Sidebar */
+.sidebar {
+    width: 272px;
+    background-color: #12000A;
+    /* Darker, like the screenshot */
+    border-right: 1px solid #3A2530;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    /* Remove padding to make items flush */
+    gap: 0;
+    /* No gap between items */
+    position: relative;
+    transition: width 0.3s ease;
+    overflow: hidden;
+    /* Hide overflow on container, manage in content */
+    flex-shrink: 0;
+    /* consistent with Autos */
+}
+
+/* Sidebar Scrollable Content */
+.sidebarContent {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.sidebarMinimized {
+    width: 58px;
+}
+
+.toggleButton {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 18px;
+    height: 18px;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 100;
+    padding: 0;
+}
+
+.toggleIcon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.toggleButton:hover .toggleIcon {
+    opacity: 1;
+}
+
+/* Adjust for minimized state if necessary */
+.sidebarMinimized .toggleButton {
+    right: 20px;
+    /* Center horizontally in 58px width: (58-18)/2 = 20 */
+    left: auto;
+}
+
+.sidebarSectionTitle {
+    font-size: 12px;
+    color: #A77590;
+    padding: 16px 24px 8px 24px;
+    /* Add padding here since sidebar has none */
+    font-weight: 500;
+    background-color: #12000A;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    /* consistent with Autos */
+    overflow: hidden;
+    /* consistent with Autos */
+    text-overflow: ellipsis;
+    /* consistent with Autos */
+}
+
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    /* More vertical padding */
+    border-left: 2px solid transparent;
+    border-bottom: 1px solid #3A2530;
+    /* Separator lines */
+    cursor: pointer;
+    color: #FFE1F2;
+    /* Brighter text by default */
+    font-size: 15px;
+    /* Slightly larger */
+    transition: all 0.2s;
+    text-decoration: none;
+    border-radius: 0;
+    /* Rectangular items */
+    white-space: nowrap;
+    /* consistent with Autos */
+    overflow: hidden;
+    /* consistent with Autos */
+}
+
+.menuItem:hover {
+    background-color: rgba(255, 225, 242, 0.05);
+    /* Fix: Visible hover color */
+    color: #FFFFFF;
+}
+
+.menuItem.active {
+    background-color: #3A2530;
+    color: #FFFFFF;
+    border-left: 2px solid #5D5FEF;
+    /* Changed from #00E396 to main blurple theme color */
+    /* Active indicator */
+    /* Remove full border, keep specific look */
+    border-top: none;
+    border-right: none;
+    border-bottom: 1px solid #3A2530;
+}
+
+.menuIcon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.7;
+}
+
+.menuItem.active .menuIcon {
+    opacity: 1;
+}
+
+/* Sidebar Footer Action Button */
+.sidebarActionButton {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 12px;
+    background-color: #660035;
+    border: 1px solid #36001E;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: capitalize;
+}
+
+.sidebarFooter {
+    padding: 24px;
+    flex-shrink: 0;
+    margin-top: auto;
+    border-top: 1px solid #3A2530;
+}
+
+.sidebarActionButton:hover {
+    background-color: #800042;
+    transform: translateY(-1px);
+}
+
+.sidebarActionButton:active {
+    transform: translateY(0);
+}
+
+/* Main Content Area */
+.contentArea {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 48px;
+    transition: all 0.3s ease;
+    min-height: 0;
+    /* Fix: Allow flex nested scrolling */
+    display: flex;
+    /* from Autos */
+    flex-direction: column;
+    /* from Autos */
+}
+
+.contentCentered {
+    align-items: center;
+    /* from Autos */
+}
+
+.contentCentered>* {
+    max-width: 1300px;
+    width: 100%;
+}
+
+/* Overview Styles */
+.overviewContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    max-width: 1300px;
+}
+
+.sectionTitle {
+    font-size: 18px;
+    font-weight: 500;
+    color: #FFE1F2;
+    margin-bottom: 16px;
+}
+
+.chartPlaceholder {
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #3A2530;
+    /* Only if needed */
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.legendContainer {
+    display: flex;
+    gap: 48px;
+    margin-top: 16px;
+}
+
+.legendItem {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.colorDot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-top: 5px;
+    /* Visual alignment with number */
+}
+
+.legendText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.legendValue {
+    font-size: 16px;
+    color: #FFE1F2;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.legendLabel {
+    font-size: 14px;
+    color: #8B8B9B;
+    /* Grey similar to screenshot */
+}
+
+/* Grid for Account Boxes - Merging to one container look */
+.accountGrid {
+    display: flex;
+    border: 1px solid #3A2530;
+    border-radius: 12px;
+    background-color: #12000A;
+    overflow: hidden;
+    height: 350px;
+    margin-bottom: 24px;
+}
+
+/* Left side: Trading Account */
+.tradingAccountParams {
+    width: 300px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #3A2530;
+}
+
+.tradingAccountTop {
+    padding: 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.tradingAccountBottom {
+    display: flex;
+    height: 80px;
+    border-top: 1px solid #3A2530;
+}
+
+/* Individual Bottom Box */
+.bottomStatBox {
+    flex: 1;
+    padding: 16px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+.bottomStatBox:first-child {
+    border-right: 1px solid #3A2530;
+}
+
+/* Right Side: Graph/Connect */
+.graphSection {
+    padding-top: 23px;
+    flex: 1;
+    position: relative;
+    background-image: linear-gradient(rgba(18, 0, 10, 0.7), rgba(18, 0, 10, 0.7)), url("../../assets/Dots pettern.png");
+    background-size: 80px;
+    background-position: 0 0;
+    /* Default position */
+    background-color: #15050C;
+    background-repeat: repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeframeBtn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: #240114;
+    border: 1px solid #3A2530;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #A77590;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.timeframeBtn:hover {
+    color: #FFE1F2;
+    border-color: #5D5FEF;
+}
+
+.timeframeBtn.active {
+    background: #3A2530;
+    color: #FFE1F2;
+    border-color: #5D5FEF;
+}
+
+/* Reusing existing text styles but ensuring they match */
+.cardTitle {
+    font-size: 14px;
+    color: #A77590;
+    margin-bottom: 24px;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+.bottomStatBox .cardTitle {
+    margin-bottom: 0;
+    font-weight: 500;
+    display: block;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.placeholderDash {
+    width: 24px;
+    height: 1px;
+    background-color: #3A2530;
+    margin: 4px 0;
+}
+
+.connectModal {
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    padding: 24px 32px;
+    border-radius: 12px;
+    color: #FFE1F2;
+    text-align: center;
+    font-size: 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    line-height: 1.5;
+}
+
+/* Empty State */
+.emptyStateContainer {
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 12px;
+    padding: 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: #A77590;
+}
+
+.emptyIcon {
+    width: 48px;
+    height: 48px;
+    opacity: 0.5;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 1024px) {
+    .sidebar {
+        display: none !important;
+        position: absolute;
+        z-index: 1000;
+        height: 100%;
+        width: 100%;
+        max-width: 272px;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebarMinimized {
+        position: relative;
+        width: 0 !important;
+        border-right: none;
+        overflow: visible;
+        /* Allow button to overflow */
+    }
+
+    .sidebarMinimized .toggleButton {
+        right: -36px;
+        /* Position button outside the 0-width sidebar */
+        top: 12px;
+        background-color: #12000A;
+        border: 1px solid #3A2530;
+        border-radius: 4px;
+        width: 28px;
+        height: 28px;
+    }
+
+    .contentArea {
+        padding: 16px 16px 16px 16px;
+    }
+
+    .layoutContainer {
+        position: relative;
+    }
+}
+
+@media (max-width: 1024px) {
+    .accountGrid {
+        flex-direction: column;
+        height: auto;
+        min-height: 600px;
+        overflow: visible;
+    }
+
+    .tradingAccountParams {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #3A2530;
+    }
+
+    .graphSection {
+        width: 100%;
+        min-height: 350px;
+        height: 350px;
+        display: block;
+        flex: none;
+    }
+}
+
+/* Leaderboard Specific Styles */
+.leaderboardControls {
+    display: flex;
+    padding: 16px;
+    border-bottom: 1px solid #3A2530;
+    margin-bottom: 0;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.leaderboardSearch {
+    width: 300px;
+    position: relative;
+}
+
+.leaderboardFilters {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.sortDropdownWrapper {
+    display: none;
+}
+
+@media (max-width: 1024px) {
+    .leaderboardControls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+
+    .leaderboardSearch {
+        width: 100%;
+    }
+
+    .leaderboardFilters {
+        margin-left: 0;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .sortDropdownWrapper {
+        display: block;
+    }
+}
+
+/* Tabs Styled as Navbar */
+.tabsContainer {
+    display: flex;
+    width: 100%;
+    border-bottom: 1px solid #3A2530;
+    background-color: #12000A;
+}
+
+.tabButton {
+    padding: 16px 24px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    /* Keep layout consistent if needed, or remove. Let's keep transparent border to avoid layout shift if we ever add it back, or just remove if strictly "no active". */
+    color: #A77590;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    margin-bottom: -1px;
+    position: relative;
+}
+
+/* Vertical Divider */
+.tabButton:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background-color: #3A2530;
+}
+
+.tabButton:hover {
+    color: #FFE1F2;
+    background-color: rgba(255, 225, 242, 0.05);
+}
+
+.activeTab {
+    color: #FFE1F2;
+    border-bottom-color: transparent;
+    background-color: #1E0B15;
+}

@@ -1,0 +1,79 @@
+import React from 'react';
+import styles from './Portfolio.module.css';
+import sidebarIcon from '../../assets/Icons/Sidebar.png';
+import { useUIStore } from '../../store/useUIStore';
+
+interface SidebarProps {
+    activeTab: string;
+    onTabChange: (tab: string) => void;
+    isMinimized: boolean;
+    onToggleMinimize: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isMinimized, onToggleMinimize }) => {
+    const { openDepositModal } = useUIStore();
+
+    return (
+        <div className={`${styles.sidebar} ${isMinimized ? styles.sidebarMinimized : ''}`}>
+            {/* Toggle Button */}
+            <button
+                className={styles.toggleButton}
+                onClick={onToggleMinimize}
+                aria-label={isMinimized ? "Expand sidebar" : "Minimize sidebar"}
+            >
+                <img src={sidebarIcon} alt="Toggle Sidebar" className={styles.toggleIcon} />
+            </button>
+
+            {!isMinimized && (
+                <>
+                    <div className={styles.sidebarContent}>
+                        {/* Account Section */}
+                        <div>
+                            <div className={styles.sidebarSectionTitle}>Account</div>
+                            <div
+                                className={`${styles.menuItem} ${activeTab === 'Overview' ? styles.active : ''}`}
+                                onClick={() => onTabChange('Overview')}
+                            >
+                                {/* Icon Placeholder */}
+                                <span>Overview</span>
+                            </div>
+                            <div
+                                className={`${styles.menuItem} ${activeTab === 'Positions' ? styles.active : ''}`}
+                                onClick={() => onTabChange('Positions')}
+                            >
+                                <span>Positions</span>
+                            </div>
+
+                            <div
+                                className={`${styles.menuItem} ${activeTab === 'History' ? styles.active : ''}`}
+                                onClick={() => onTabChange('History')}
+                            >
+                                <span>History</span>
+                            </div>
+                        </div>
+
+                        {/* Other Section */}
+                        <div>
+                            <div className={styles.sidebarSectionTitle}>Other</div>
+                            <div
+                                className={`${styles.menuItem} ${activeTab === 'Fees' ? styles.active : ''}`}
+                                onClick={() => onTabChange('Fees')}
+                            >
+                                <span>Fees</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Section */}
+                    <div className={styles.sidebarFooter}>
+                        <button className={styles.sidebarActionButton} onClick={() => openDepositModal('deposit')}>
+                            Deposit
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+export default Sidebar;
