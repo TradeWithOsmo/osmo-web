@@ -1,0 +1,489 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+    height: 100%;
+    background-color: #12000A;
+    border-left: 1px solid #3A2530;
+    overflow: hidden;
+    flex-shrink: 0;
+    font-family: 'Satoshi', sans-serif;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #3A2530;
+}
+
+.tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: #A77590;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-weight: 500;
+    padding: 14px 0;
+    font-family: 'Satoshi', sans-serif;
+    position: relative;
+}
+
+.tab:not(:last-child) {
+    border-right: 1px solid rgba(255, 145, 194, 0.2);
+}
+
+.tab:hover {
+    color: #FFE1F2;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tab.active {
+    color: #FFE1F2;
+    border-bottom: 2px solid #FFE1F2;
+    /* User might prefer a full background or bottom border active state */
+}
+
+/* Header for Columns */
+.columnHeader {
+    display: flex;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #A77590;
+    border-bottom: 1px solid #3A2530;
+    font-family: 'Satoshi', sans-serif;
+}
+
+.col {
+    flex: 1;
+    text-align: right;
+}
+
+.col.left {
+    text-align: left;
+}
+
+.col.center {
+    text-align: center;
+}
+
+.contentContainer {
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+    flex: 1;
+    min-height: 0;
+}
+
+.asksContainer {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.bidsContainer {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Side by Side Layout (Mobile) */
+.sideBySide {
+    flex-direction: row;
+}
+
+.sideBySide .bidsContainer,
+.sideBySide .asksContainer {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.sideBySide .bidsContainer {
+    border-right: 1px solid #3A2530;
+}
+
+/* Side by Side Header */
+.sideBySideHeader {
+    display: flex;
+    flex-direction: row;
+}
+
+.headerSide {
+    flex: 1;
+    display: flex;
+    padding: 8px 12px;
+}
+
+.headerSide:first-child {
+    border-right: 1px solid #3A2530;
+}
+
+
+/* Order Book Rows */
+.row {
+    display: flex;
+    padding: 0 12px;
+    font-size: 13px;
+    height: 21px;
+    cursor: pointer;
+    position: relative;
+    align-items: center;
+    transition: background-color 0.1s;
+}
+
+.row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ANIMATIONS */
+@keyframes flashGreen {
+    0% {
+        background-color: rgba(0, 227, 150, 0.3);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+@keyframes flashRed {
+    0% {
+        background-color: rgba(255, 69, 96, 0.3);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+.flashUp {
+    animation: flashGreen 0.4s ease-out;
+}
+
+.flashDown {
+    animation: flashRed 0.4s ease-out;
+}
+
+.cell {
+    flex: 1;
+    text-align: right;
+    z-index: 2;
+    font-family: 'Roboto Mono', monospace;
+    /* Monospace for numbers */
+}
+
+.cell.left {
+    text-align: left;
+}
+
+.cell.center {
+    text-align: center;
+}
+
+.askText {
+    color: #FF4560;
+}
+
+.bidText {
+    color: #00E396;
+}
+
+.defaultText {
+    color: #FFE1F2;
+}
+
+.bgBar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    z-index: 1;
+    opacity: 0.15;
+    transition: width 0.3s ease-out;
+    /* Smooth width transition */
+}
+
+.bgBar.ask {
+    background-color: #FF4560;
+}
+
+.bgBar.bid {
+    background-color: #00E396;
+}
+
+/* Spread / Last Price */
+.spreadContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-top: 1px solid #3A2530;
+    border-bottom: 1px solid #3A2530;
+    background-color: rgba(255, 255, 255, 0.02);
+    margin: 4px 0;
+}
+
+.lastPrice {
+    font-size: 16px;
+    font-weight: 500;
+    color: #FFE1F2;
+    /* Or Green/Red based on dynamic check */
+}
+
+.spread {
+    font-size: 12px;
+    color: #A77590;
+}
+
+/* Footer Controls - Unified Border Layout */
+.footer {
+    border-top: 1px solid #3A2530;
+    display: flex;
+    align-items: stretch;
+    height: 44px;
+    background-color: #12000A;
+    flex-shrink: 0;
+}
+
+.groupBtn {
+    width: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    border: none;
+    border-right: 1px solid #3A2530;
+    color: #A77590;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.groupBtn:hover {
+    color: #FFE1F2;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.groupBtn:active {
+    background-color: #3A2530;
+}
+
+.groupVal {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #FFE1F2;
+    border-right: 1px solid #3A2530;
+    padding: 0 16px;
+}
+
+/* Currency Dropdown Cell */
+.currencyCell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 90px;
+    padding: 0 16px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.currencyCell:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.currencyText {
+    font-size: 14px;
+    font-weight: 500;
+    color: #FFE1F2;
+    font-family: 'Satoshi', sans-serif;
+}
+
+.currencyIcon {
+    color: #A77590;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.currencyIcon.rotated {
+    transform: rotate(180deg);
+}
+
+.currencyCell:hover .currencyIcon {
+    color: #FFE1F2;
+}
+
+/* Currency Dropdown Menu */
+.currencyDropdown {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 4px;
+    background-color: #12000A;
+    border: 1px solid #3A2530;
+    border-radius: 8px;
+    padding: 4px;
+    min-width: 80px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.15s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.currencyOption {
+    padding: 8px 12px;
+    color: #A77590;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    text-align: left;
+    background: none;
+    border: none;
+    width: 100%;
+    font-family: 'Satoshi', sans-serif;
+}
+
+.currencyOption:hover {
+    background-color: #3A2530;
+    color: #FFE1F2;
+}
+
+.currencyOption.selected {
+    color: #FFE1F2;
+    background-color: #3A2530;
+}
+
+/* Trades Specific */
+.tradeRow {
+    display: flex;
+    padding: 0 12px;
+    font-size: 12px;
+    align-items: center;
+    height: 24px;
+    min-height: 24px;
+}
+
+.tradeRow:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.timeText {
+    color: #A77590;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 900px) {
+    .container {
+        width: 100% !important;
+        border-right: none;
+        border-left: none;
+        height: 100%;
+    }
+
+    .contentContainer {
+        width: 100%;
+        padding: 0;
+    }
+
+    .row {
+        padding: 0 8px;
+    }
+}
+
+.notAvailable {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.mainContentArea {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.orderBookWrapper,
+.tradesWrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+}
+
+.notAvailableText {
+    color: #A77590;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 250px;
+}
+
+/* Skeleton Loading */
+.skeleton {
+    background: linear-gradient(90deg, #1A0A12 25%, #2A1520 50%, #1A0A12 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite linear;
+    border-radius: 4px;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeletonRow {
+    height: 21px;
+    margin: 4px 12px;
+}
+
+.skeletonTradeRow {
+    height: 24px;
+    margin: 4px 12px;
+}
+
+.skeletonSpread {
+    height: 40px;
+    margin: 8px 12px;
+}
+
+.skeletonChart {
+    width: 100%;
+    height: 100%;
+}

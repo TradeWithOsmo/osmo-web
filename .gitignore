@@ -65,3 +65,5 @@ websocket/Resources/
 /agent/logs/
 /agent/Knowledge/
 /agent/Knowledge/ContectCats/
+node_modules
+node_modules

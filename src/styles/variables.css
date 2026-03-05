@@ -1,0 +1,52 @@
+:root {
+    /* Colors - Brand */
+    --color-primary: #FFE1F2;
+    /* Pink/Light */
+    --color-secondary: #C51D24;
+    /* Reddish? Adjusting based on previous context if needed, but #FFE1F2 was prominent */
+    --color-accent: #5D5FEF;
+    /* Blurple */
+
+    /* Colors - Background */
+    --color-bg-base: #12000A;
+    /* Dark main BG */
+    --color-bg-surface: #1E0B14;
+    /* Slightly lighter */
+    --color-bg-overlay: rgba(18, 0, 10, 0.8);
+
+    /* Colors - Text */
+    --color-text-main: #FFFFFF;
+    --color-text-muted: #A77590;
+
+    /* Colors - Status */
+    --color-success: #00D084;
+    --color-error: #FF4757;
+    --color-warning: #FFB302;
+    --color-info: #5D5FEF;
+
+    /* Border */
+    --color-border: #3A2530;
+
+    /* Typography */
+    --font-family-base: 'Satoshi', sans-serif;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+
+    /* Spacing */
+    --spacing-1: 4px;
+    --spacing-2: 8px;
+    --spacing-3: 12px;
+    --spacing-4: 16px;
+    --spacing-6: 24px;
+    --spacing-8: 32px;
+    --spacing-12: 48px;
+
+    /* Layout */
+    --header-height: 48px;
+    --sidebar-width: 280px;
+    --sidebar-collapsed-width: 60px;
+}
