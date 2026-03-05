@@ -1,119 +1,148 @@
-# OSMO Backend
+# OSMO Web Frontend
 
-Backend services for market streaming, API aggregation, portfolio/leaderboard logic, and agent tooling.
+Frontend app for trading, portfolio, symbol selector, orderbook/trades, leaderboard, and charting.
 
-Repository: https://github.com/TradeWithOsmo/osmo-backend
+Repository: https://github.com/TradeWithOsmo/osmo-web
 
-## Services
+## Stack
 
-- `websocket/`: main FastAPI API + WebSocket service
-- `agent/`: AI agent service
-- `connectors/`: exchange connector logic
-- `analysis/`: analytics/support scripts
-
-## Key Features
-
-- Unified markets and symbol normalization pipeline
-- Real-time orderbook/trades websocket endpoints
-- Portfolio + leaderboard + arena endpoints
-- Trading/ledger simulation and API orchestration
-- Optional memory stack (Qdrant/mem0) depending on env/compose profile
+- React 19 + TypeScript
+- Vite
+- Zustand + React Query
+- Privy (embedded wallet)
+- wagmi + viem (on-chain interactions)
+- TradingView integration (`src/charting`)
+- Playwright + Storybook
 
 ## Prerequisites
 
-- Python 3.13+
-- Docker Desktop (recommended)
+- Node.js 20+
+- npm 10+
 
-## Local Run (API only)
-
-From `backend/websocket`:
+## Setup
 
 ```bash
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+npm install
+cp .env.example .env  # or copy from osmo-contracts/.env for contract addresses
 ```
 
-## Local Run (Docker stack)
-
-From `backend` root:
+## Run
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
+npm run dev
 ```
 
-Default local ports:
+Default local URL: `http://localhost:5173`
 
-- API: `8000`
-- Postgres: `5432`
-- Redis: `6379`
-- Uptime Kuma: `3002`
+Note: `localhost` is a secure context — Privy embedded wallet works in dev without HTTPS.
 
-## Useful Endpoints
-
-- `GET /health`
-- `GET /docs`
-- `GET /api/markets`
-- `GET /api/candles/{symbol}`
-- `GET /api/leaderboard/*`
-- `GET /api/portfolio/*`
-- `POST /api/agent/*`
-
-WebSocket examples:
-
-- `/ws/orderbook/{symbol}`
-- `/ws/trades/{symbol}`
-- `/ws/hyperliquid/{symbol}`
-- `/ws/ostium/{symbol}`
-
-## Deployment (VPS)
-
-Two workflows are used:
-
-1. SSH deploy workflow: `.github/workflows/deploy-vps.yml`
-2. Self-hosted runner workflow: `.github/workflows/deploy-vps-runner.yml`
-
-For stable operation:
-
-- configure repo secrets (`VPS_HOST`, `VPS_PORT`, `VPS_USER`, `VPS_SSH_PRIVATE_KEY`, `DEPLOY_REPO_TOKEN`)
-- keep runner online when using self-hosted workflow
-- use `backend/websocket/scripts/deploy_stack.sh` for consistent compose deploy
-
-## Health Checks and Logs
+## Scripts
 
 ```bash
-docker compose ps
-curl -sS http://127.0.0.1:8000/health
-docker compose logs --tail=200 backend
+npm run dev
+npm run start
+npm run build
+npm run preview
+npm run lint
+npm run test:e2e
+npm run storybook
+npm run build-storybook
 ```
 
-Orderbook/trades validation matrix:
+## Environment Variables
 
-```bash
-docker exec osmo-backend python3 /app/check_ob_trades_matrix.py
+Create `.env` in the project root. Full reference:
+
+### API & Auth
+
+```env
+VITE_API_URL=http://76.13.219.146:8000
+VITE_PRIVY_APP_ID=<privy_app_id>
 ```
 
-## Important Env Vars
+### Trading Mode
 
-From `.env` / `websocket/.env` (depends on run mode):
+```env
+# onchain: submits real transactions via OrderRouter (requires session key)
+# simulation: bypasses on-chain, uses backend ledger only
+VITE_TRADING_EXCHANGE=onchain
+```
 
-- `SAVE_TO_DB`
-- `DATABASE_URL`
-- `REDIS_URL`
-- `FORCE_EXECUTION_MODE`
-- `OPENROUTER_API_KEY`
-- `SECONDARY_HISTORY_ENABLED`
-- contract addresses (`TRADING_VAULT_ADDRESS`, `ORDER_ROUTER_ADDRESS`, etc.)
+### Wallet / Network
 
-## Directory Map
+```env
+VITE_WALLET_CONNECT_PROJECT_ID=<wc_project_id>
+VITE_RAINBOWKIT_WALLETCONNECT_PROJECT_ID=<rainbowkit_wc_project_id>
+VITE_BASE_RPC_URL=<base_sepolia_rpc_url>
+VITE_CHAIN_ID=84532
+VITE_NETWORK_NAME=base_sepolia
+VITE_BLOCK_EXPLORER_URL=https://sepolia.basescan.org
+```
 
-- `websocket/main.py`: main entrypoint
-- `websocket/routers/`: API route modules
-- `websocket/services/`: business logic/services
-- `websocket/*/api_client.py`: exchange integration clients
-- `agent/src/`: agent backend
+### AI / Gemini
 
-## Notes
+```env
+VITE_GEMINI_API_KEY=<gemini_api_key>
+VITE_GEMINI_MODEL=gemini-1.5-flash
+```
 
-- Frontend (`v1-web`) should point `VITE_API_URL` to this backend.
-- For production-like deploys, use key-based SSH and avoid password auth.
+### On-Chain Contract Addresses (Base Sepolia)
+
+Source of truth: `osmo-contracts/.env`
+
+```env
+VITE_CONTRACT_TRADING_VAULT=0x7D909A44b5eb12cEf16ce4D824e259bC07E2927D
+VITE_CONTRACT_ORDER_ROUTER=0x411985C7f9C64c66A2C2390AbAC7AD9a718da60e
+VITE_CONTRACT_POSITION_MANAGER=0xBE46bDB894325cf26A50AecFC0CED7a3c58271a0
+VITE_CONTRACT_SESSION_KEY_MANAGER=0xc2853D45DA39B36b31cf12D92b6fe2e643c12DD8
+VITE_CONTRACT_OSTIUM_ADAPTER=0x1994548412e7ad2f131976a88004AeD9D5D555D1
+VITE_CONTRACT_USDC=0x4C1a0b8039eA88Ebf814DF46d4f1f50FFa88A0E8
+VITE_CONTRACT_FAUCET=0xA3B85a44dC1c8d1ea187F46A7eaC8631dD9D452B
+VITE_CONTRACT_AI_VAULT=0x5aBb786D8fa77D8Cc7c689d78E871dbD57039ad4
+VITE_CONTRACT_ARENA_CHOOSE_SIDE=0x65525E80d6B32529bad529bd40b6Ed23F49dBC9b
+VITE_CONTRACT_ARENA_POINTS=0xCdcBaC5D346d987dBb30Ef7E152f91Cadf52e4c6
+VITE_CONTRACT_REFERRAL_REGISTRY=0x02c67133365a81157cF674A7B362c6808A03AB3C
+VITE_CONTRACT_FEE_MANAGER=0x0762211f62F6C1b73dd6f3186bEC4b407D984719
+VITE_CONTRACT_SECURITY_MODULE=0x0F31A6905507161a4c9cDC0FfD47439c0f916523
+```
+
+### Arena
+
+```env
+VITE_ARENA_END_ISO=2026-02-20T00:00:00Z
+```
+
+### Optional TradingView Tuning
+
+```env
+VITE_TV_COMMAND_POLL_MS=
+VITE_TV_INITIAL_SYNC_MS=
+VITE_TV_SET_RESOLUTION_TIMEOUT_MS=
+```
+
+## Project Structure
+
+- `src/pages/`: app pages (Trade, Portfolio, Arena, Leaderboard, Usage, Faucet)
+- `src/components/`: UI modules (order form, selector, chart, orderbook, positions)
+- `src/api/`: API clients (markets, portfolio, leaderboard, agent, onchain)
+- `src/charting/`: TradingView datafeeds/utils/commands
+- `src/contracts/abis/`: ABI files used by frontend
+- `src/store/`: Zustand stores
+- `src/hooks/`: custom hooks (useWallet, useNavigation, etc.)
+
+## On-Chain Order Flow
+
+1. User deposits USDC into TradingVault
+2. User sets up a session key (SessionKeyManager) — allows backend to sign on their behalf
+3. User places order via OrderForm → calls backend `/api/orders/place`
+4. Backend signs + submits tx to OrderRouter using session key
+5. OrderRouter routes to correct adapter (Ostium, Hyperliquid via LZ, etc.)
+6. For Hyperliquid: LZ message sent Base Sepolia → Arb Sepolia receiver
+
+## Runtime Notes
+
+- Frontend expects backend API + websocket running (typically `http://76.13.219.146:8000` for staging).
+- For symbol selector/orderbook consistency, ensure backend websocket connectors are healthy.
+- TradingView assets are expected in:
+  - `public/charting_library/`
+  - `src/charting/charting_library/`
