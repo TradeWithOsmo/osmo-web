@@ -153,7 +153,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
         setSortConfig({ key, direction });
     };
 
-    const filteredMarkets = markets.filter(item => {
+    const filteredMarkets = allMarkets.filter(item => {
         const subTokens = parseSubCategoryTokens(item.subCategory).map(v => v.toLowerCase());
         const matchesSearch =
             item.symbol.toLowerCase().includes(search.toLowerCase()) ||
@@ -370,7 +370,7 @@ const MarketSelector: React.FC<MarketSelectorProps> = ({ isOpen, onClose, onSele
                     onClick={() => setFilter('All')}
                 >
                     All
-                    <span className={styles.countBadge}>{markets.length}</span>
+                    <span className={styles.countBadge}>{allMarkets.length}</span>
                 </button>
 
                 {/* Watchlist — only shown when there are favorites */}
