@@ -17,14 +17,18 @@ export interface SymbolSelectorProps {
   selectedSymbol?: string
   onSymbolChange?: (symbol: string) => void
   theme?: 'light' | 'dark'
+  // ✅ FIX: tambah exchange prop — kalau di-set, tampilkan semua symbol dari exchange itu
+  exchange?: string
 }
 
 export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
   selectedSymbol,
   onSymbolChange,
   theme = 'dark',
+  exchange,
 }) => {
-  const { markets, selectedMarket, setMarket, fetchMarkets } = useMarketStore()
+  // ✅ FIX: ambil allMarkets juga dari store
+  const { markets, allMarkets, selectedMarket, setMarket, fetchMarkets } = useMarketStore()
   const { favorites } = useWatchlistStore()
 
   const [isOpen, setIsOpen] = useState(false)
@@ -32,9 +36,18 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
   const [activeCategory, setActiveCategory] = useState('All')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // ✅ FIX: kalau exchange di-set, pakai allMarkets filtered by source
+  // supaya semua symbol exchange itu muncul (tidak terdeduplikasi oleh exchange lain)
+  const sourceMarkets = useMemo(() => {
+    if (!exchange) return markets
+    return allMarkets.filter(m => 
+      String(m.source || '').toLowerCase() === exchange.toLowerCase()
+    )
+  }, [exchange, markets, allMarkets])
+
   const filterTabs = useMemo(() => {
     const counts = new Map<string, number>();
-    markets.forEach((m) => {
+    sourceMarkets.forEach((m) => {
       parseSubCategoryTokens(m.subCategory).forEach((token) => {
         counts.set(token, (counts.get(token) || 0) + 1);
       });
@@ -44,17 +57,16 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
       .map(([name]) => name)
       .slice(0, 30);
     return ['All', ...(favorites.size > 0 ? ['Watchlist'] : []), ...subCategories];
-  }, [markets, favorites.size]);
+  }, [sourceMarkets, favorites.size]);
 
   useEffect(() => {
     if (markets.length === 0) fetchMarkets()
   }, [markets.length, fetchMarkets])
 
-  const currentMarket = selectedMarket || markets.find(m => m.symbol === selectedSymbol) || markets[0]
+  const currentMarket = selectedMarket || sourceMarkets.find(m => m.symbol === selectedSymbol) || sourceMarkets[0]
 
   const filteredSymbols = useMemo(() => {
-    return markets.filter(market => {
-      // Basic search
+    return sourceMarkets.filter(market => {
       const matchesSearch =
         market.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (market.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,7 +74,6 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
 
       if (!matchesSearch) return false;
 
-      // Category filter
       if (activeCategory === 'All') return true;
 
       if (activeCategory === 'Watchlist') {
@@ -71,14 +82,13 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
       const subTokens = parseSubCategoryTokens(market.subCategory).map(v => v.toUpperCase());
       return subTokens.includes(activeCategory.toUpperCase());
     });
-  }, [markets, searchTerm, activeCategory, favorites]);
+  }, [sourceMarkets, searchTerm, activeCategory, favorites])
 
-  // Prefetch icons when dropdown opens or filtered list changes
   useEffect(() => {
     if (!isOpen || filteredSymbols.length === 0) return;
     useIconStore.getState().prefetch(filteredSymbols.map(m => m.symbol));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, searchTerm, activeCategory, markets.length]);
+  }, [isOpen, searchTerm, activeCategory, sourceMarkets.length]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -86,7 +96,6 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
         setIsOpen(false)
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
@@ -107,7 +116,6 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
 
   return (
     <div className={`${styles.symbolSelector} ${styles[theme]}`} ref={dropdownRef}>
-      {/* Selected Symbol Display */}
       <button
         type="button"
         className={styles.selectedButton}
@@ -135,10 +143,8 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
         />
       </button>
 
-      {/* Dropdown */}
       {isOpen && (
         <div className={styles.dropdown}>
-          {/* Search Input */}
           <div className={styles.searchBox}>
             <Search size={16} className={styles.searchIcon} />
             <input
@@ -151,7 +157,6 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
             />
           </div>
 
-          {/* Categories */}
           <div className={styles.filters}>
             {filterTabs.map(cat => (
               <button
@@ -165,7 +170,6 @@ export const SymbolSelector: React.FC<SymbolSelectorProps> = ({
             ))}
           </div>
 
-          {/* Symbol List */}
           <div className={styles.symbolList}>
             {filteredSymbols.length > 0 ? (
               filteredSymbols.map((market) => (

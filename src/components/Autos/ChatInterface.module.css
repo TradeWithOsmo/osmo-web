@@ -2535,39 +2535,6 @@
     color: #a77590;
 }
 
-.maxThinkingControl {
-    margin-left: 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.maxThinkingStepButton {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    border: 1px solid #5b3750;
-    background: #1a0a12;
-    color: #ffeaf7;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.maxThinkingStepButton:hover {
-    border-color: #a77590;
-    background: #28121d;
-}
-
-.maxThinkingValue {
-    min-width: 34px;
-    text-align: center;
-    color: #f7d9ea;
-    font-weight: 600;
-    font-size: 14px;
-}
-
 /* Custom Toggle Switch for Write */
 .toggleSwitch {
     width: 32px;
