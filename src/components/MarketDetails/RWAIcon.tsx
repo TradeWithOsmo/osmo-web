@@ -40,22 +40,20 @@ import ndx from '../../assets/logonew/index/ndx.svg';
 import nik from '../../assets/logonew/index/nik.svg';
 import spx from '../../assets/logonew/index/spx.svg';
 
-// ── Local asset map (stocks, indices, and commodities not in package) ──────────
+// ── Local asset map ────────────────────────────────────────────────────────────
 const LOCAL_ASSETS: Record<string, string> = {
-    // Commodities not in package
     'CL': cl, 'HG': hg,
-    // Stocks
     'AAPL': aapl, 'AMD': amd, 'AMZN': amzn, 'BMNR': bmnr, 'COST': cost,
     'CRCL': crcl, 'CVX': cvx, 'GLXY': glxy, 'GOOG': goog, 'HOOD': hood,
     'META': meta, 'MSFT': msft, 'MSTR': mstr, 'NFLX': nflx, 'NVDA': nvda,
     'ORCL': orcl, 'PLTR': pltr, 'RIVN': rivn, 'XOM': xom, 'COIN': coin,
     'TSLA': tsla, 'SBET': sbet,
-    // Indices (base and compound forms)
     'DAX': dax, 'DJI': dji, 'FTSE': ftse, 'HSI': hsi, 'NDX': ndx, 'NIK': nik, 'SPX': spx,
-    'DAXEUR': dax, 'DJIUSD': dji, 'FTSEGBP': ftse, 'HSIHKD': hsi, 'NDXUSD': ndx, 'NIKJPY': nik, 'SPXUSD': spx,
+    'DAXEUR': dax, 'DJIUSD': dji, 'FTSEGBP': ftse, 'HSIHKD': hsi,
+    'NDXUSD': ndx, 'NIKJPY': nik, 'SPXUSD': spx,
 };
 
-// ── Forex fiat currencies ─────────────────────────────────────────────────────
+// ── Forex fiat currencies ──────────────────────────────────────────────────────
 const FIAT_CURRENCIES = new Set([
     'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'NZD', 'CAD', 'CHF', 'MXN',
     'SGD', 'HKD', 'NOK', 'SEK', 'DKK', 'TRY', 'ZAR', 'BRL', 'CNY',
@@ -63,7 +61,6 @@ const FIAT_CURRENCIES = new Set([
     'PHP', 'RUB', 'UAH', 'COP', 'CLP', 'PEN', 'ARS', 'VND',
 ]);
 
-// Forex currency code → ISO 3166-1 alpha-3 country code
 const CURRENCY_TO_ALPHA3: Record<string, string> = {
     USD: 'USA', EUR: 'EUR', GBP: 'GBR', JPY: 'JPN', AUD: 'AUS',
     NZD: 'NZL', CAD: 'CAN', CHF: 'CHE', MXN: 'MEX', SGD: 'SGP',
@@ -71,10 +68,9 @@ const CURRENCY_TO_ALPHA3: Record<string, string> = {
     ZAR: 'ZAF', BRL: 'BRA', CNY: 'CHN', INR: 'IND', KRW: 'KOR',
     TWD: 'TWN', HUF: 'HUN', CZK: 'CZE', PLN: 'POL', THB: 'THA',
     IDR: 'IDN', MYR: 'MYS', PHP: 'PHL', RUB: 'RUS', UAH: 'UKR',
-    COP: 'COL', CLP: 'CHL', PEN: 'PER', ARS: 'ARG', VND: 'VNM',
+    COL: 'co', CHL: 'cl', PER: 'pe', ARG: 'ar', VND: 'VNM',
 };
 
-// ISO 3166-1 alpha-3 → alpha-2 for flagcdn.com
 const ALPHA3_TO_ALPHA2: Record<string, string> = {
     USA: 'us', GBR: 'gb', EUR: 'eu', JPN: 'jp', AUS: 'au', NZL: 'nz',
     CAN: 'ca', CHE: 'ch', MEX: 'mx', SGP: 'sg', HKG: 'hk', NOR: 'no',
@@ -84,7 +80,6 @@ const ALPHA3_TO_ALPHA2: Record<string, string> = {
     COL: 'co', CHL: 'cl', PER: 'pe', ARG: 'ar', VNM: 'vn',
 };
 
-/** Quick local classification — returns render info or null if backend probe needed */
 interface LocalForex { kind: 'forex'; base: string; quote: string }
 interface LocalAsset { kind: 'local'; src: string }
 type LocalResult = LocalForex | LocalAsset | null;
@@ -95,7 +90,6 @@ function classifyLocal(symbol: string): LocalResult {
     const quote = parts[1]?.toUpperCase();
     const full = symbol.replace('-', '').toUpperCase();
 
-    // Forex: both parts are fiat (e.g. EUR-USD or EURUSD)
     if (quote && FIAT_CURRENCIES.has(base) && FIAT_CURRENCIES.has(quote)) {
         return { kind: 'forex', base, quote };
     }
@@ -104,14 +98,13 @@ function classifyLocal(symbol: string): LocalResult {
         if (FIAT_CURRENCIES.has(b) && FIAT_CURRENCIES.has(q)) return { kind: 'forex', base: b, quote: q };
     }
 
-    // Local bundled SVG
     const localSrc = LOCAL_ASSETS[full] ?? LOCAL_ASSETS[base];
     if (localSrc) return { kind: 'local', src: localSrc };
 
     return null;
 }
 
-// ── Consistent color per symbol ───────────────────────────────────────────────
+// ── Consistent color per symbol ────────────────────────────────────────────────
 const symbolColor = (sym: string): string => {
     const colors = ['#7B5EA7', '#4A90D9', '#E07B54', '#5CB85C', '#D9534F', '#F0AD4E', '#5BC0DE', '#9B59B6'];
     let hash = 0;
@@ -119,7 +112,7 @@ const symbolColor = (sym: string): string => {
     return colors[Math.abs(hash) % colors.length];
 };
 
-// ── Shared circle wrapper ─────────────────────────────────────────────────────
+// ── Shared circle wrapper ──────────────────────────────────────────────────────
 const iconCircle: React.CSSProperties = {
     borderRadius: '50%',
     overflow: 'hidden',
@@ -130,7 +123,22 @@ const iconCircle: React.CSSProperties = {
     background: 'rgba(255,255,255,0.06)',
 };
 
-// ── Single currency flag circle — self-hosted SVG, fallback to flagcdn.com ────
+// ── Skeleton placeholder (replaces immediate LetterFallback while loading) ─────
+const IconSkeleton: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
+    <div
+        className={className}
+        style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: 'rgba(255,255,255,0.08)',
+            animation: 'rwa-skeleton-pulse 1.4s ease-in-out infinite',
+        }}
+    />
+);
+
+// ── Single currency flag circle ────────────────────────────────────────────────
 const CurrencyFlag: React.FC<{ ccy: string; size: number; style?: React.CSSProperties }> = ({ ccy, size, style }) => {
     const alpha3 = CURRENCY_TO_ALPHA3[ccy] ?? ccy;
     const alpha2 = ALPHA3_TO_ALPHA2[alpha3] ?? alpha3.slice(0, 2).toLowerCase();
@@ -165,7 +173,7 @@ const ForexIcon: React.FC<{ baseCcy: string; quoteCcy: string; size: number; cla
     );
 };
 
-// ── Letter fallback ────────────────────────────────────────────────────────────
+// ── Letter fallback (only shown when icon is confirmed missing) ────────────────
 const LetterFallback: React.FC<{ sym: string; size: number; className?: string }> = ({ sym, size, className }) => {
     const abbr = sym.replace('-', '').slice(0, 3);
     const fontSize = size <= 20 ? size * 0.42 : size * 0.36;
@@ -182,7 +190,7 @@ const LetterFallback: React.FC<{ sym: string; size: number; className?: string }
     );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────────────────────
 
 interface RWAIconProps {
     symbol: string;
@@ -197,17 +205,17 @@ const RWAIcon: React.FC<RWAIconProps> = ({ symbol, size = 24, className }) => {
     // Local fast-path: forex, local SVG — renders instantly, no backend wait
     const local = classifyLocal(symbol);
 
-    // Request backend for symbols that need probing (metals, crypto, stocks, etc.)
+    // Request backend for symbols that need probing
     useEffect(() => {
         if (!local) requestIcons([sym]);
     }, [sym]);
 
-    // ── Forex: dual-flag ─────────────────────────────────────────────────────
+    // ── Forex: dual-flag ───────────────────────────────────────────────────────
     if (local?.kind === 'forex') {
         return <ForexIcon baseCcy={local.base} quoteCcy={local.quote} size={size} className={className} />;
     }
 
-    // ── Bundled SVG ──────────────────────────────────────────────────────────
+    // ── Bundled local SVG ──────────────────────────────────────────────────────
     if (local?.kind === 'local') {
         return (
             <div className={className} style={{ ...iconCircle, width: size, height: size }}>
@@ -216,18 +224,47 @@ const RWAIcon: React.FC<RWAIconProps> = ({ symbol, size = 24, className }) => {
         );
     }
 
-    // ── CDN-probed: use backend result from iconStore ─────────────────────────
+    // ── Backend result ─────────────────────────────────────────────────────────
     const icon = getIcon(sym);
 
+    // undefined = still loading → show skeleton, NOT letter fallback
+    // This is the key fix: previously undefined fell through to LetterFallback
+    if (icon === undefined) {
+        return <IconSkeleton size={size} className={className} />;
+    }
+
+    // { url: "..." } = icon found
     if (icon?.url) {
         return (
             <div className={className} style={{ ...iconCircle, width: size, height: size }}>
-                <img src={icon.url} alt={symbol} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <img
+                    src={icon.url}
+                    alt={symbol}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    onError={(e) => {
+                        // If URL is broken, remove from store so LetterFallback shows
+                        (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                />
             </div>
         );
     }
 
+    // { url: null } = confirmed no icon → show letter fallback
     return <LetterFallback sym={sym} size={size} className={className} />;
 };
 
 export default RWAIcon;
+
+// ── Keyframe for skeleton pulse (inject once) ──────────────────────────────────
+// Add this to your global CSS instead if preferred:
+// @keyframes rwa-skeleton-pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
+if (typeof document !== 'undefined') {
+    const styleId = 'rwa-icon-skeleton-style';
+    if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `@keyframes rwa-skeleton-pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }`;
+        document.head.appendChild(style);
+    }
+}
