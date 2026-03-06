@@ -1,0 +1,125 @@
+services:
+  backend:
+    build: .
+    container_name: osmo-backend
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - .:/app
+      - ../connectors:/app/connectors
+      - ../analysis:/app/analysis
+      - ../agent:/app/agent
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - CONNECTORS_API_URL=http://backend:8000/api/connectors
+      - SAVE_TO_DB=${SAVE_TO_DB:-False}
+      - DATABASE_URL=postgresql://osmo_user:osmo_password@db:5432/osmo_db
+      - REDIS_URL=redis://osmo-redis:6379/0
+      - FORCE_EXECUTION_MODE=${FORCE_EXECUTION_MODE:-auto}
+      - AI_AGENT_API_URL=http://osmo-agent:8000
+      - QDRANT_HOST=osmo-qdrant
+      - QDRANT_PORT=6333
+      - SYMBOL_REGISTRY_PATH=/app/contracts/config/symbol_registry.json
+      - MEM0_API_URL=http://osmo-mem0:8000
+    depends_on:
+      - db
+      - redis
+      - qdrant
+    restart: unless-stopped
+    networks:
+      - osmo-network
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+  redis:
+    image: redis:7-alpine
+    container_name: osmo-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - osmo-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: osmo-db
+    environment:
+      POSTGRES_USER: osmo_user
+      POSTGRES_PASSWORD: osmo_password
+      POSTGRES_DB: osmo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "osmo_db", "-U", "osmo_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - osmo-network
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: osmo-uptime-kuma
+    ports:
+      - "3002:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+    restart: unless-stopped
+    networks:
+      - osmo-network
+
+  uptime-kuma-bootstrap:
+    image: python:3.11-slim
+    container_name: osmo-uptime-kuma-bootstrap
+    working_dir: /bootstrap
+    volumes:
+      - ./uptime:/bootstrap
+    environment:
+      - UPTIME_KUMA_URL=http://uptime-kuma:3001
+      - UPTIME_KUMA_USERNAME=${UPTIME_KUMA_USERNAME:-admin}
+      - UPTIME_KUMA_PASSWORD=${UPTIME_KUMA_PASSWORD:-change-me-now}
+      - UPTIME_STATUS_PAGE_SLUG=${UPTIME_STATUS_PAGE_SLUG:-osmo-status}
+      - UPTIME_STATUS_PAGE_TITLE=${UPTIME_STATUS_PAGE_TITLE:-Osmo Status}
+      - UPTIME_STATUS_PAGE_DESCRIPTION=${UPTIME_STATUS_PAGE_DESCRIPTION:-Real-time status for Osmo backend services}
+      - UPTIME_API_PUBLIC_HEALTH_URL=${UPTIME_API_PUBLIC_HEALTH_URL:-}
+      - UPTIME_FRONTEND_PUBLIC_URL=${UPTIME_FRONTEND_PUBLIC_URL:-}
+      - UPTIME_DISCORD_WEBHOOK_URL=${UPTIME_DISCORD_WEBHOOK_URL:-}
+      - UPTIME_TELEGRAM_BOT_TOKEN=${UPTIME_TELEGRAM_BOT_TOKEN:-}
+      - UPTIME_TELEGRAM_CHAT_ID=${UPTIME_TELEGRAM_CHAT_ID:-}
+      - UPTIME_WEBHOOK_URL=${UPTIME_WEBHOOK_URL:-}
+    command: >
+      sh -c "pip install --no-cache-dir uptime-kuma-api==1.2.1 &&
+      python /bootstrap/bootstrap_kuma.py"
+    depends_on:
+      - uptime-kuma
+      - backend
+    restart: "no"
+    networks:
+      - osmo-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: osmo-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+    networks:
+      - osmo-network
+
+volumes:
+  postgres_data:
+  uptime_kuma_data:
+  qdrant_storage:
+
+networks:
+  osmo-network:
+    name: osmo-network
+    driver: bridge
