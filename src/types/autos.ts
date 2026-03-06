@@ -21,6 +21,7 @@ export interface Message {
     content: string;
     thoughts?: (string | ThoughtStep)[];
     isThinking?: boolean;
+    isError?: boolean;
     modelId?: string;
     artifact?: {
         type: 'chart' | 'other';
