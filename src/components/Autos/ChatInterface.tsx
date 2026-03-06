@@ -206,10 +206,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const timeframes = ["1m", "5m", "15m", "1H", "4H", "1D", "1W"];
-  const MIN_MAX_THINKING = 1;
-  const MAX_MAX_THINKING = 32;
-  const DEFAULT_MAX_THINKING = 11;
-
   const indicatorAliases: Record<string, { label: string; study: string }> = {
     RSI: { label: "RSI", study: "RSI" },
     MACD: { label: "MACD", study: "MACD" },
@@ -642,7 +638,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       | "benjamin_cowen",
     webObservation: false,
     memoryEnabled: false,
-    maxThinking: DEFAULT_MAX_THINKING,
   });
   const [activeToolView, setActiveToolView] = useState<
     "main" | "indicators" | "timeframe" | "more" | "style"
@@ -900,10 +895,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       web_observation_enabled: !!toolStates.webObservation,
       memory_enabled: !!toolStates.memoryEnabled,
       strict_react: true,
-      max_react_iterations: Number(
-        toolStates.maxThinking || DEFAULT_MAX_THINKING,
-      ),
-      max_tool_actions: Number(toolStates.maxThinking || DEFAULT_MAX_THINKING),
       tool_retry_max: 1,
       tool_profile: "compact",
       model_timeout_sec: 90,
@@ -3442,8 +3433,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 activeExchangeLabel ||
                 activeMarketTimeframe ||
                 activeMarketIndicators.length > 0 ||
-                combinedHintValues.length > 0 ||
-                toolStates.maxThinking !== DEFAULT_MAX_THINKING) && (
+                combinedHintValues.length > 0) && (
                 <div className={styles.contextChipsRow}>
                   {activeMarketLabel && (
                     <button
@@ -3513,16 +3503,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       >
                         x
                       </button>
-                    </div>
-                  )}
-                  {toolStates.maxThinking !== DEFAULT_MAX_THINKING && (
-                    <div className={styles.contextChip}>
-                      <span className={styles.contextChipKey}>
-                        Max Thinking
-                      </span>
-                      <span className={styles.contextChipValue}>
-                        {toolStates.maxThinking}
-                      </span>
                     </div>
                   )}
                 </div>
@@ -4126,60 +4106,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           ></div>
                         </div>
 
-                        <div
-                          className={`${styles.toolItem} ${styles.toolItemCompact}`}
-                        >
-                          <div className={styles.toolIconWrapper}>
-                            <img
-                              src={brainIcon}
-                              alt="Max Thinking"
-                              width={18}
-                              height={18}
-                            />
-                          </div>
-                          <span>Max Thinking</span>
-                          <div className={styles.maxThinkingControl}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setToolStates((prev) => ({
-                                  ...prev,
-                                  maxThinking: Math.max(
-                                    MIN_MAX_THINKING,
-                                    Number(
-                                      prev.maxThinking || DEFAULT_MAX_THINKING,
-                                    ) - 1,
-                                  ),
-                                }));
-                              }}
-                              className={styles.maxThinkingStepButton}
-                            >
-                              -
-                            </button>
-                            <span className={styles.maxThinkingValue}>
-                              {toolStates.maxThinking}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setToolStates((prev) => ({
-                                  ...prev,
-                                  maxThinking: Math.min(
-                                    MAX_MAX_THINKING,
-                                    Number(
-                                      prev.maxThinking || DEFAULT_MAX_THINKING,
-                                    ) + 1,
-                                  ),
-                                }));
-                              }}
-                              className={styles.maxThinkingStepButton}
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   )}
