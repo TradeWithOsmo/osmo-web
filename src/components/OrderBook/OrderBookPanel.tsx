@@ -63,15 +63,15 @@ const OrderBookPanel: React.FC<OrderBookPanelProps> = ({ forcedTab }) => {
                 <div className={styles.tabs}>
                     <button
                         className={`${styles.tab} ${activeTab === 'Order Book' ? styles.active : ''}`}
-                        onClick={() => setInternalTab('Order Book')}
-                        disabled={!avail.orderbook}
+                        onClick={() => { setAvail(prev => ({ ...prev, orderbook: true })); setInternalTab('Order Book'); }}
+                        disabled={!avail.orderbook && activeTab !== 'Order Book'}
                     >
                         Order Book
                     </button>
                     <button
                         className={`${styles.tab} ${activeTab === 'Trades' ? styles.active : ''}`}
-                        onClick={() => setInternalTab('Trades')}
-                        disabled={!avail.trades}
+                        onClick={() => { setAvail(prev => ({ ...prev, trades: true })); setInternalTab('Trades'); }}
+                        disabled={!avail.trades && activeTab !== 'Trades'}
                     >
                         Trades
                     </button>
