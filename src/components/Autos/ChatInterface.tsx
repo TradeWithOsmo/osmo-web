@@ -1068,11 +1068,57 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const loadingDots = ".".repeat(loadingDotCount);
 
+  // NOTE: do NOT add trailing dots here — animated {loadingDots} is appended in JSX
   const normalizeLoadingLabel = (raw: string) => {
+    if (!raw) return "";
+    const key = raw.trim().toLowerCase().replace(/[-\s]+/g, "_");
+    // Suppress round-number phases — show generic label
+    if (/^tool_round_\d+$/.test(key)) return "Working";
+    // Suppress generic runtime noise
+    if (["runtime_ready", "plan_ready", "tool_round_complete"].includes(key)) return "";
+    // Known phase → human label (no trailing dots)
+    const phaseLabels: Record<string, string> = {
+      plan_start: "Planning",
+      tool_execution: "Working",
+      tool_followup: "Following up",
+      execution_adapter: "Executing",
+    };
+    if (phaseLabels[key]) return phaseLabels[key];
+    // Looks like a tool name → humanize
+    if (/^[a-z][a-z0-9]*(_[a-z0-9]+)+$/.test(key)) {
+      const toolLabels: Record<string, string> = {
+        get_price: "Fetching price", get_indicators: "Reading indicators",
+        get_technical_analysis: "Running analysis", get_technical_summary: "Summarizing market",
+        get_high_low_levels: "Finding S/R levels", get_candles: "Loading candles",
+        get_funding_rate: "Checking funding rate", get_ticker_stats: "Loading stats",
+        research_market: "Researching market", compare_markets: "Comparing markets",
+        scan_market_overview: "Scanning markets", search_news: "Searching news",
+        search_sentiment: "Analyzing sentiment", search_web: "Browsing web",
+        search_web_hybrid: "Searching web", add_memory: "Saving to memory",
+        search_memory: "Recalling memory", get_recent_history: "Loading history",
+        get_positions: "Loading positions", place_order: "Preparing order",
+        get_active_indicators: "Reading chart", draw: "Drawing on chart",
+        add_indicator: "Adding indicator", remove_indicator: "Removing indicator",
+        set_symbol: "Switching symbol", set_timeframe: "Switching timeframe",
+      };
+      if (toolLabels[key]) return toolLabels[key];
+      // Generic verb pattern
+      const m = key.match(/^(get|search|scan|fetch|add|remove|clear|update|verify|place|draw|close|cancel|adjust|setup)_(.+)$/);
+      if (m) {
+        const verbMap: Record<string, string> = {
+          get: "Getting", search: "Searching", scan: "Scanning", fetch: "Fetching",
+          add: "Adding", remove: "Removing", clear: "Clearing", update: "Updating",
+          verify: "Verifying", place: "Placing", draw: "Drawing", close: "Closing",
+          cancel: "Cancelling", adjust: "Adjusting", setup: "Setting up",
+        };
+        const verb = verbMap[m[1]] || (m[1].charAt(0).toUpperCase() + m[1].slice(1) + "ing");
+        const noun = m[2].replace(/_/g, " ");
+        return `${verb} ${noun}`;
+      }
+    }
+    // Fallback — clean underscores, capitalize, strip trailing punctuation
     const compact = raw.replace(/_/g, " ").replace(/\s+/g, " ").trim();
-    if (!compact) return "";
-    const withCapital = compact.charAt(0).toUpperCase() + compact.slice(1);
-    return /[.!?]$/.test(withCapital) ? withCapital : `${withCapital}.`;
+    return compact.charAt(0).toUpperCase() + compact.slice(1).replace(/[.!?]+$/, "");
   };
 
   const isPhaseActive = (statusRaw: string) => {
@@ -1134,8 +1180,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       );
       if (thoughtLabel) return thoughtLabel;
     }
-    if (isTyping) return "Running tools and composing final answer.";
-    return "Loading.";
+    if (isTyping) return "Working";
+    return "Loading";
   };
 
   const parseLegacyThoughtText = (
@@ -1274,6 +1320,146 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
 
     return { title: title || "Reasoning", content };
+  };
+
+  // ── Tool / phase name humanizer ───────────────────────────────────────────
+  const TOOL_LABEL_MAP: Record<string, string> = {
+    // Market data
+    get_price:               "Fetching Price",
+    get_ticker_stats:        "Loading Market Stats",
+    get_funding_rate:        "Checking Funding Rate",
+    get_candles:             "Loading Candle Data",
+    get_high_low_levels:     "Finding Support & Resistance",
+    get_technical_analysis:  "Running Technical Analysis",
+    get_technical_summary:   "Summarizing Market",
+    get_indicators:          "Reading Indicators",
+    get_active_indicators:   "Reading Chart Indicators",
+    get_patterns:            "Detecting Chart Patterns",
+    get_chainlink_price:     "Fetching Oracle Price",
+    get_box:                 "Reading Chart Box",
+    get_canvas:              "Reading Chart Canvas",
+    get_photo_chart:         "Capturing Chart",
+    // Research
+    research_market:         "Researching Market",
+    compare_markets:         "Comparing Markets",
+    scan_market_overview:    "Scanning Markets",
+    // Web / news / sentiment
+    search_news:             "Searching News",
+    search_sentiment:        "Analyzing Sentiment",
+    search_web:              "Browsing the Web",
+    search_web_hybrid:       "Searching the Web",
+    // Memory
+    add_memory:              "Saving to Memory",
+    add_memory_messages:     "Saving Conversation",
+    search_memory:           "Recalling Memory",
+    get_recent_history:      "Loading History",
+    // Chart – drawing / indicators
+    draw:                    "Drawing on Chart",
+    add_indicator:           "Adding Indicator",
+    remove_indicator:        "Removing Indicator",
+    clear_indicators:        "Clearing Indicators",
+    update_drawing:          "Updating Chart",
+    clear_drawings:          "Clearing Drawings",
+    list_supported_draw_tools:        "Listing Draw Tools",
+    list_supported_indicator_aliases: "Listing Indicators",
+    verify_indicator_present: "Verifying Indicator",
+    // Chart – navigation / interaction
+    set_symbol:              "Switching Symbol",
+    set_timeframe:           "Switching Timeframe",
+    focus_chart:             "Focusing Chart",
+    focus_latest:            "Going to Latest",
+    reset_view:              "Resetting View",
+    zoom:                    "Zooming Chart",
+    pan:                     "Panning Chart",
+    hover_candle:            "Inspecting Candle",
+    move_crosshair:          "Moving Crosshair",
+    set_crosshair:           "Setting Crosshair",
+    inspect_cursor:          "Reading Cursor",
+    mark_trading_session:    "Marking Session",
+    mouse_move:              "Moving Mouse",
+    mouse_press:             "Clicking Chart",
+    press_key:               "Pressing Key",
+    capture_moment:          "Capturing Moment",
+    send_tradingview_command: "Sending Chart Command",
+    verify_tradingview_state: "Verifying Chart State",
+    ensure_mode:             "Ensuring Chart Mode",
+    // Trade / order
+    place_order:             "Preparing Order",
+    setup_trade:             "Setting Up Trade",
+    cancel_order:            "Cancelling Order",
+    close_position:          "Closing Position",
+    close_all_positions:     "Closing All Positions",
+    reverse_position:        "Reversing Position",
+    adjust_position_tpsl:    "Adjusting TP/SL",
+    adjust_all_positions_tpsl: "Adjusting All TP/SL",
+    add_price_alert:         "Setting Price Alert",
+    get_positions:           "Loading Positions",
+    // System / misc
+    verify_session:          "Verifying Session",
+    // Legacy / generic aliases
+    calling_tools:           "Working",
+    calling_tool:            "Working",
+  };
+
+  // Phase labels — only keep meaningful ones, hide round numbers
+  const PHASE_LABEL_MAP: Record<string, string> = {
+    plan_start:           "Planning",
+    plan_ready:           "Ready",
+    tool_execution:       "Working",
+    tool_followup:        "Following Up",
+    tool_round_complete:  "Done",
+    execution_adapter:    "Executing",
+    runtime_ready:        "Ready",
+  };
+
+  const humanizeToolName = (raw: string): string => {
+    if (!raw) return "";
+    const key = raw.trim().toLowerCase().replace(/[-\s]+/g, "_");
+    if (TOOL_LABEL_MAP[key]) return TOOL_LABEL_MAP[key];
+    // Generic pattern fallback: "get_xxx" → "Getting Xxx"
+    const m = key.match(/^(get|search|scan|fetch|load|check|run|add|remove|clear|update|verify|place|draw|close|cancel|adjust|reverse|setup|capture)_(.+)$/);
+    if (m) {
+      const verbMap: Record<string, string> = {
+        get: "Getting", search: "Searching", scan: "Scanning",
+        fetch: "Fetching", load: "Loading", check: "Checking",
+        run: "Running", add: "Adding", remove: "Removing",
+        clear: "Clearing", update: "Updating", verify: "Verifying",
+        place: "Placing", draw: "Drawing", close: "Closing",
+        cancel: "Cancelling", adjust: "Adjusting", reverse: "Reversing",
+        setup: "Setting Up", capture: "Capturing",
+      };
+      const verb = verbMap[m[1]] || (m[1].charAt(0).toUpperCase() + m[1].slice(1) + "ing");
+      const noun = m[2].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      return `${verb} ${noun}`;
+    }
+    return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  const humanizePhase = (raw: string): string => {
+    if (!raw) return "";
+    const key = raw.trim().toLowerCase();
+    // Hide all tool_round_N — not meaningful to user
+    if (/^tool_round_\d+$/.test(key)) return "Working";
+    if (PHASE_LABEL_MAP[key]) return PHASE_LABEL_MAP[key];
+    return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  const humanizeStepTitle = (title: string, toolName?: string): string => {
+    if (!title) return toolName ? humanizeToolName(toolName) : "";
+    // If title IS a raw tool name
+    const asKey = title.trim().toLowerCase().replace(/[-\s]+/g, "_");
+    if (TOOL_LABEL_MAP[asKey]) return TOOL_LABEL_MAP[asKey];
+    // If title starts with "calling tool(s)" prefix
+    const callingMatch = title.match(/^calling\s+tools?\s*[:\-]?\s*/i);
+    if (callingMatch) {
+      const rest = title.slice(callingMatch[0].length).trim();
+      return rest ? humanizeToolName(rest) : "Using Tools";
+    }
+    // If title is raw snake_case that looks like a tool name
+    if (/^[a-z][a-z0-9]*(_[a-z0-9]+)+$/.test(title.trim())) {
+      return humanizeToolName(title.trim());
+    }
+    return title;
   };
 
   const cleanReasoningContent = (raw: string): string => {
@@ -2304,6 +2490,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           </div>
                         )}
                       </div>
+                    ) : msg.isError ? (
+                      <div className={styles.errorBubble}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="8" x2="12" y2="12" />
+                          <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        <span>{msg.content}</span>
+                      </div>
                     ) : (
                       <div
                         className={`${styles.bubble} ${styles.assistantBubble}`}
@@ -2350,7 +2545,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                                     </svg>
                                     <span style={{ color: "#A77590" }}>
-                                      Thinking Process
+                                      Analyzing
                                     </span>
                                   </>
                                 ) : (
@@ -2371,7 +2566,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                       {/* Simple quarter circle or brain metaphor */}
                                     </svg>
                                     <span style={{ color: "#5B354C" }}>
-                                      Thought Process
+                                      How I reasoned
                                     </span>
                                   </>
                                 )}
@@ -2436,9 +2631,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         rawStepContent,
                                       )
                                       : null;
-                                  const stepTitle =
-                                    reasoningPresentation?.title ||
-                                    rawStepTitle;
+                                  const stepTitle = humanizeStepTitle(
+                                    reasoningPresentation?.title || rawStepTitle,
+                                    isObject ? (stepItem as any).toolName : legacyParsed?.toolName,
+                                  );
                                   const stepContent =
                                     reasoningPresentation?.content ||
                                     rawStepContent;
@@ -2679,10 +2875,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         color: "#607D8B",
                                         label: "Process",
                                       };
+                                    if (t.includes("plan") || t.includes("strateg"))
+                                      return { icon: "🗺️", color: "#5C6BC0", label: "Strategy" };
+                                    if (t.includes("summar") || t.includes("conclusion"))
+                                      return { icon: "📝", color: "#26A69A", label: "Summary" };
+                                    if (t.includes("tool") || t.includes("fetch") || t.includes("search"))
+                                      return { icon: "🔧", color: "#78909C", label: "Gathering Data" };
                                     return {
                                       icon: "💭",
                                       color: "#A77590",
-                                      label: title,
+                                      label: "Thinking",
                                     };
                                   };
 
@@ -2833,10 +3035,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             <span
                                               className={`${styles.toolStepPill} ${stepStatus === "error" ? styles.toolStepPillError : styles.toolStepPillOk}`}
                                             >
-                                              {stepToolName ||
-                                                (stepPhase
-                                                  ? stepPhase.replace(/_/g, " ")
-                                                  : "tool")}
+                                              {stepToolName
+                                                ? humanizeToolName(stepToolName)
+                                                : stepPhase
+                                                  ? humanizePhase(stepPhase)
+                                                  : "Tool"}
                                             </span>
                                             {hasDetail && (
                                               <svg
@@ -3009,8 +3212,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             <div
                                               className={styles.toolStepDetail}
                                             >
-                                              {stepContent ||
-                                                "Tool phase completed."}
+                                              {stepContent || ""}
                                             </div>
                                           ) : (
                                             <div

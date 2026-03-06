@@ -410,6 +410,7 @@ const Autos: React.FC<AutosProps> = ({
       content: string,
       thoughts?: any[],
       isThinking: boolean = false,
+      isError: boolean = false,
     ) => {
       flushSync(() => {
         setSessionMessages((prev) => {
@@ -422,6 +423,7 @@ const Autos: React.FC<AutosProps> = ({
                   thoughts:
                     thoughts && thoughts.length > 0 ? thoughts : m.thoughts,
                   isThinking,
+                  isError,
                   modelId,
                 }
               : m,
@@ -930,6 +932,7 @@ const Autos: React.FC<AutosProps> = ({
                 "Maaf, chat gagal. Provider error. Silakan coba lagi.",
                 undefined,
                 false,
+                true,
               );
               return;
             }
@@ -941,6 +944,7 @@ const Autos: React.FC<AutosProps> = ({
               `Maaf, chat gagal. ${message}`,
               undefined,
               false,
+              true,
             );
           },
         },
@@ -963,6 +967,7 @@ const Autos: React.FC<AutosProps> = ({
         `Maaf, chat gagal. ${errorMessage}`,
         undefined,
         false,
+        true,
       );
     } finally {
       if (abortControllerRef.current === controller) {

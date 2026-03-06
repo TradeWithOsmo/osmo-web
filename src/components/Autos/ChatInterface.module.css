@@ -1277,6 +1277,20 @@
     gap: 12px;
 }
 
+.errorBubble {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 80, 80, 0.35);
+    background: rgba(255, 50, 50, 0.08);
+    color: #ff9090;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 90%;
+}
+
 /* Claude-like Styling */
 .thinkingBlock {
     border: 1px solid #3a2530;
