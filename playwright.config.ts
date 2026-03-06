@@ -15,7 +15,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "..\\backend\\.venv\\Scripts\\python.exe -m uvicorn websocket.e2e_main:app --host 127.0.0.1 --port 8000",
+        "..\\backend\\.venv\\Scripts\\python.exe -m uvicorn websocket.tests.e2e_main:app --host 127.0.0.1 --port 8000",
       url: "http://127.0.0.1:8000/healthz",
       reuseExistingServer: true,
       timeout: 180_000,
@@ -28,6 +28,9 @@ export default defineConfig({
       url: "http://127.0.0.1:5173/",
       reuseExistingServer: true,
       timeout: 180_000,
+      // Point the frontend at the local e2e backend (not VPS) when playwright starts it.
+      // If you have `npm run dev` already running, it must also use VITE_API_URL=http://127.0.0.1:8000.
+      env: { VITE_API_URL: "http://127.0.0.1:8000" },
     },
   ],
   projects: [
