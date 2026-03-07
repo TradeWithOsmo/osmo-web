@@ -1222,6 +1222,44 @@ export const useTradingViewConnector = (
                                 await reportCommandResult(cmd.command_id, cmdStatus, cmdResult, cmdError);
                             }
                         }
+
+                        // After indicator mutations (add/remove/clear), push active_indicators
+                        // to Redis immediately and after a delay. createStudy() is async —
+                        // TradingView may take 2-6s before the study appears in getAllStudies(),
+                        // and the next periodic exportData() may block while study values load.
+                        // We use a state-only POST (no command fetch) to avoid creating a
+                        // concurrent command consumer.
+                        const hadIndicatorMutation = commands.some((c: any) =>
+                            ['add_indicator', 'remove_indicator', 'clear_indicators'].includes(c.action)
+                        );
+                        if (hadIndicatorMutation) {
+                            // Helper: POST current active_indicators without consuming commands
+                            const pushActiveState = () => {
+                                try {
+                                    const c = widget.chart();
+                                    if (!c) return;
+                                    const freshActive = collectUiIndicators(c);
+                                    fetch(`${API_URL}/api/connectors/tradingview/indicators`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            symbol: c.symbol(),
+                                            timeframe: c.resolution(),
+                                            indicators, // values from this cycle's exportData()
+                                            active_indicators: freshActive,
+                                            drawing_tags: Array.isArray(window.__tvDrawingTags) ? window.__tvDrawingTags : [],
+                                            trade_setup: (window as any).__tvTradeSetup || {},
+                                            timestamp: Date.now(),
+                                        }),
+                                    }).catch(() => {});
+                                } catch { /* ignore */ }
+                            };
+                            // Immediate push (catches synchronous study registration)
+                            pushActiveState();
+                            // Delayed pushes for async createStudy() completion
+                            setTimeout(pushActiveState, 3000);
+                            setTimeout(pushActiveState, 6000);
+                        }
                     }
                 }
 
