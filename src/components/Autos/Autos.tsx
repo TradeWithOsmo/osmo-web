@@ -418,14 +418,14 @@ const Autos: React.FC<AutosProps> = ({
           const updated = existing.map((m) =>
             m.id === responseId
               ? {
-                  ...m,
-                  content,
-                  thoughts:
-                    thoughts && thoughts.length > 0 ? thoughts : m.thoughts,
-                  isThinking,
-                  isError,
-                  modelId,
-                }
+                ...m,
+                content,
+                thoughts:
+                  thoughts && thoughts.length > 0 ? thoughts : m.thoughts,
+                isThinking,
+                isError,
+                modelId,
+              }
               : m,
           );
           return { ...prev, [currentSessionId]: updated };
@@ -554,34 +554,37 @@ const Autos: React.FC<AutosProps> = ({
         };
       }
 
-      // Detect reasoning/thinking pattern - analysis commentary
-      const lower = text.toLowerCase();
-      if (
-        lower.includes("checking") ||
-        lower.includes("analyzing") ||
-        lower.includes("rsi") ||
-        lower.includes("macd") ||
-        lower.includes("switching") ||
-        lower.includes("let me") ||
-        lower.includes("starting") ||
-        lower.includes("adding") ||
-        lower.includes("great") ||
-        lower.includes("good") ||
-        lower.includes("now") ||
-        lower.includes("first")
-      ) {
-        return {
-          type: "reasoning",
-          title: "Analysis",
-          content: text,
-          status: "running",
-        };
-      }
+      // For all reasoning/thinking text — extract the first sentence as title
+      // so the step label is pure AI text, never a static placeholder.
+      const extractFirstSentence = (t: string): string => {
+        let clean = t
+          .replace(/^<\/?(?:thinking|thought|analysis|scratchpad|internal)[^>]*>/gi, "")
+          .trim();
+        clean = clean.replace(/^[\s*_#>\-]+/, "").trim();
+        if (!clean) return "Thinking";
+        const firstLine = clean.split("\n").map((l) => l.trim()).find((l) => l) || "";
+        let title = firstLine;
+        for (const sep of [". ", "! ", "? ", ": "]) {
+          const idx = title.indexOf(sep);
+          if (idx > 0 && idx < 72) { title = title.slice(0, idx).trim(); break; }
+        }
+        if (title.length > 72) title = title.slice(0, 72).trimEnd() + "\u2026";
+        // Strip markdown formatting from the title
+        title = title
+          .replace(/\*\*(.+?)\*\*/g, "$1")   // **bold**
+          .replace(/\*(.+?)\*/g, "$1")         // *italic*
+          .replace(/__(.+?)__/g, "$1")         // __underline__
+          .replace(/_(.+?)_/g, "$1")           // _italic_
+          .replace(/`(.+?)`/g, "$1")           // `code`
+          .replace(/\[(.+?)\]\(.*?\)/g, "$1") // [link](url)
+          .replace(/#{1,6}\s+/g, "")           // ## heading
+          .trim();
+        return title || "Thinking";
+      };
 
-      // Default: treat as text/reasoning
       return {
         type: "reasoning",
-        title: "Thinking",
+        title: extractFirstSentence(text),
         content: text,
         status: "running",
       };
@@ -717,13 +720,13 @@ const Autos: React.FC<AutosProps> = ({
               (p) =>
                 String(p?.meta?.identity || "") === phaseIdentity ||
                 String(p?.meta?.stable_identity || "") ===
-                  phaseStableIdentity ||
+                phaseStableIdentity ||
                 (p.name === phaseName &&
                   String(p?.meta?.tool || "") === phaseTool &&
                   String(p?.meta?.stage || "").toLowerCase() === phaseStage &&
                   String(p?.meta?.loop ?? "") === String(phaseLoop ?? "") &&
                   String(p?.meta?.attempt ?? "") ===
-                    String(phaseAttempt ?? "") &&
+                  String(phaseAttempt ?? "") &&
                   String(p?.meta?.seq ?? "") === String(phaseSeq ?? "")),
             );
             if (existingIdx >= 0) {
@@ -1296,9 +1299,9 @@ const Autos: React.FC<AutosProps> = ({
         prev.map((ws) =>
           ws.id === sourceId
             ? {
-                ...ws,
-                sessions: ws.sessions.filter((s) => s.id !== sessionId),
-              }
+              ...ws,
+              sessions: ws.sessions.filter((s) => s.id !== sessionId),
+            }
             : ws,
         ),
       );
@@ -1311,10 +1314,10 @@ const Autos: React.FC<AutosProps> = ({
         prev.map((ws) =>
           ws.id === targetWorkspaceId
             ? {
-                ...ws,
-                isExpanded: true,
-                sessions: [sessionToMove!, ...ws.sessions],
-              }
+              ...ws,
+              isExpanded: true,
+              sessions: [sessionToMove!, ...ws.sessions],
+            }
             : ws,
         ),
       );

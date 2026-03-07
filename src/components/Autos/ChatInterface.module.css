@@ -1235,7 +1235,7 @@
     flex-direction: column;
     gap: 8px;
     width: 100%;
-    max-width: 800px;
+    max-width: 1060px;
     margin: 0 auto;
 }
 
@@ -1307,7 +1307,7 @@
     margin-bottom: 0;
     transition: all 0.2s;
     position: relative;
-    /* Ensure overlapping works if needed */
+    max-width: 640px;
     z-index: 1;
 }
 
@@ -1319,7 +1319,6 @@
     border: 1px solid #3a2530;
     border-top: none;
     background-color: transparent;
-    /* Match transparent block or use standard bg */
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
     padding: 0;
@@ -1327,6 +1326,7 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
+    max-width: 640px;
     z-index: 0;
 }
 

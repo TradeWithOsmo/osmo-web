@@ -119,7 +119,7 @@ const buildIndicatorOptions = (
     const canonical = prettifyIndicatorToken(rawCanonical || value);
     const label =
       canonical &&
-      canonical.toLowerCase() !== normalizedValue.toLowerCase()
+        canonical.toLowerCase() !== normalizedValue.toLowerCase()
         ? `${normalizedValue} (${canonical})`
         : normalizedValue;
     const key = normalizedValue.toLowerCase();
@@ -1292,7 +1292,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       .trim();
 
     const isGenericTitle =
-      !title || /^reasoning(?:\s*(?:trace|\d+))?$/i.test(title);
+      !title ||
+      /^(?:reasoning(?:\s*(?:trace|\d+))?|analysis|thinking|intent|strategy)$/i.test(title);
 
     if (!isGenericTitle) {
       return { title, content };
@@ -1325,91 +1326,91 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // ── Tool / phase name humanizer ───────────────────────────────────────────
   const TOOL_LABEL_MAP: Record<string, string> = {
     // Market data
-    get_price:               "Fetching Price",
-    get_ticker_stats:        "Loading Market Stats",
-    get_funding_rate:        "Checking Funding Rate",
-    get_candles:             "Loading Candle Data",
-    get_high_low_levels:     "Finding Support & Resistance",
-    get_technical_analysis:  "Running Technical Analysis",
-    get_technical_summary:   "Summarizing Market",
-    get_indicators:          "Reading Indicators",
-    get_active_indicators:   "Reading Chart Indicators",
-    get_patterns:            "Detecting Chart Patterns",
-    get_chainlink_price:     "Fetching Oracle Price",
-    get_box:                 "Reading Chart Box",
-    get_canvas:              "Reading Chart Canvas",
-    get_photo_chart:         "Capturing Chart",
+    get_price: "Fetching Price",
+    get_ticker_stats: "Loading Market Stats",
+    get_funding_rate: "Checking Funding Rate",
+    get_candles: "Loading Candle Data",
+    get_high_low_levels: "Finding Support & Resistance",
+    get_technical_analysis: "Running Technical Analysis",
+    get_technical_summary: "Summarizing Market",
+    get_indicators: "Reading Indicators",
+    get_active_indicators: "Reading Chart Indicators",
+    get_patterns: "Detecting Chart Patterns",
+    get_chainlink_price: "Fetching Oracle Price",
+    get_box: "Reading Chart Box",
+    get_canvas: "Reading Chart Canvas",
+    get_photo_chart: "Capturing Chart",
     // Research
-    research_market:         "Researching Market",
-    compare_markets:         "Comparing Markets",
-    scan_market_overview:    "Scanning Markets",
+    research_market: "Researching Market",
+    compare_markets: "Comparing Markets",
+    scan_market_overview: "Scanning Markets",
     // Web / news / sentiment
-    search_news:             "Searching News",
-    search_sentiment:        "Analyzing Sentiment",
-    search_web:              "Browsing the Web",
-    search_web_hybrid:       "Searching the Web",
+    search_news: "Searching News",
+    search_sentiment: "Analyzing Sentiment",
+    search_web: "Browsing the Web",
+    search_web_hybrid: "Searching the Web",
     // Memory
-    add_memory:              "Saving to Memory",
-    add_memory_messages:     "Saving Conversation",
-    search_memory:           "Recalling Memory",
-    get_recent_history:      "Loading History",
+    add_memory: "Saving to Memory",
+    add_memory_messages: "Saving Conversation",
+    search_memory: "Recalling Memory",
+    get_recent_history: "Loading History",
     // Chart – drawing / indicators
-    draw:                    "Drawing on Chart",
-    add_indicator:           "Adding Indicator",
-    remove_indicator:        "Removing Indicator",
-    clear_indicators:        "Clearing Indicators",
-    update_drawing:          "Updating Chart",
-    clear_drawings:          "Clearing Drawings",
-    list_supported_draw_tools:        "Listing Draw Tools",
+    draw: "Drawing on Chart",
+    add_indicator: "Adding Indicator",
+    remove_indicator: "Removing Indicator",
+    clear_indicators: "Clearing Indicators",
+    update_drawing: "Updating Chart",
+    clear_drawings: "Clearing Drawings",
+    list_supported_draw_tools: "Listing Draw Tools",
     list_supported_indicator_aliases: "Listing Indicators",
     verify_indicator_present: "Verifying Indicator",
     // Chart – navigation / interaction
-    set_symbol:              "Switching Symbol",
-    set_timeframe:           "Switching Timeframe",
-    focus_chart:             "Focusing Chart",
-    focus_latest:            "Going to Latest",
-    reset_view:              "Resetting View",
-    zoom:                    "Zooming Chart",
-    pan:                     "Panning Chart",
-    hover_candle:            "Inspecting Candle",
-    move_crosshair:          "Moving Crosshair",
-    set_crosshair:           "Setting Crosshair",
-    inspect_cursor:          "Reading Cursor",
-    mark_trading_session:    "Marking Session",
-    mouse_move:              "Moving Mouse",
-    mouse_press:             "Clicking Chart",
-    press_key:               "Pressing Key",
-    capture_moment:          "Capturing Moment",
+    set_symbol: "Switching Symbol",
+    set_timeframe: "Switching Timeframe",
+    focus_chart: "Focusing Chart",
+    focus_latest: "Going to Latest",
+    reset_view: "Resetting View",
+    zoom: "Zooming Chart",
+    pan: "Panning Chart",
+    hover_candle: "Inspecting Candle",
+    move_crosshair: "Moving Crosshair",
+    set_crosshair: "Setting Crosshair",
+    inspect_cursor: "Reading Cursor",
+    mark_trading_session: "Marking Session",
+    mouse_move: "Moving Mouse",
+    mouse_press: "Clicking Chart",
+    press_key: "Pressing Key",
+    capture_moment: "Capturing Moment",
     send_tradingview_command: "Sending Chart Command",
     verify_tradingview_state: "Verifying Chart State",
-    ensure_mode:             "Ensuring Chart Mode",
+    ensure_mode: "Ensuring Chart Mode",
     // Trade / order
-    place_order:             "Preparing Order",
-    setup_trade:             "Setting Up Trade",
-    cancel_order:            "Cancelling Order",
-    close_position:          "Closing Position",
-    close_all_positions:     "Closing All Positions",
-    reverse_position:        "Reversing Position",
-    adjust_position_tpsl:    "Adjusting TP/SL",
+    place_order: "Preparing Order",
+    setup_trade: "Setting Up Trade",
+    cancel_order: "Cancelling Order",
+    close_position: "Closing Position",
+    close_all_positions: "Closing All Positions",
+    reverse_position: "Reversing Position",
+    adjust_position_tpsl: "Adjusting TP/SL",
     adjust_all_positions_tpsl: "Adjusting All TP/SL",
-    add_price_alert:         "Setting Price Alert",
-    get_positions:           "Loading Positions",
+    add_price_alert: "Setting Price Alert",
+    get_positions: "Loading Positions",
     // System / misc
-    verify_session:          "Verifying Session",
+    verify_session: "Verifying Session",
     // Legacy / generic aliases
-    calling_tools:           "Working",
-    calling_tool:            "Working",
+    calling_tools: "Working",
+    calling_tool: "Working",
   };
 
   // Phase labels — only keep meaningful ones, hide round numbers
   const PHASE_LABEL_MAP: Record<string, string> = {
-    plan_start:           "Planning",
-    plan_ready:           "Ready",
-    tool_execution:       "Working",
-    tool_followup:        "Following Up",
-    tool_round_complete:  "Done",
-    execution_adapter:    "Executing",
-    runtime_ready:        "Ready",
+    plan_start: "Planning",
+    plan_ready: "Ready",
+    tool_execution: "Working",
+    tool_followup: "Following Up",
+    tool_round_complete: "Done",
+    execution_adapter: "Executing",
+    runtime_ready: "Ready",
   };
 
   const humanizeToolName = (raw: string): string => {
@@ -2821,71 +2822,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                       !!stepContent.trim() &&
                                       stepContent.trim() !== stepTitle.trim());
 
-                                  // Reasoning type icons and colors
+                                  // Reasoning type icons and colors — unified palette
                                   const getReasoningStyle = (title: string) => {
                                     const t = title.toLowerCase();
-                                    if (t.includes("intent"))
-                                      return {
-                                        icon: "🎯",
-                                        color: "#4CAF50",
-                                        label: "User Intent",
-                                      };
-                                    if (t.includes("context"))
-                                      return {
-                                        icon: "📊",
-                                        color: "#2196F3",
-                                        label: "Context",
-                                      };
-                                    if (t.includes("evidence needed"))
-                                      return {
-                                        icon: "🔍",
-                                        color: "#9C27B0",
-                                        label: "Evidence Needed",
-                                      };
-                                    if (t.includes("evidence gathered"))
-                                      return {
-                                        icon: "✅",
-                                        color: "#00BCD4",
-                                        label: "Evidence Gathered",
-                                      };
-                                    if (t.includes("analysis"))
-                                      return {
-                                        icon: "📈",
-                                        color: "#FF9800",
-                                        label: "Analysis",
-                                      };
-                                    if (t.includes("risk"))
-                                      return {
-                                        icon: "⚠️",
-                                        color: "#F44336",
-                                        label: "Risks",
-                                      };
-                                    if (t.includes("confidence"))
-                                      return {
-                                        icon: "💯",
-                                        color: "#8BC34A",
-                                        label: "Confidence",
-                                      };
-                                    if (
-                                      t.includes("react") ||
-                                      t.includes("strict")
-                                    )
-                                      return {
-                                        icon: "🔄",
-                                        color: "#607D8B",
-                                        label: "Process",
-                                      };
-                                    if (t.includes("plan") || t.includes("strateg"))
-                                      return { icon: "🗺️", color: "#5C6BC0", label: "Strategy" };
-                                    if (t.includes("summar") || t.includes("conclusion"))
-                                      return { icon: "📝", color: "#26A69A", label: "Summary" };
-                                    if (t.includes("tool") || t.includes("fetch") || t.includes("search"))
-                                      return { icon: "🔧", color: "#78909C", label: "Gathering Data" };
-                                    return {
-                                      icon: "💭",
-                                      color: "#A77590",
-                                      label: "Thinking",
-                                    };
+                                    if (t.includes("intent") || t.includes("user intent"))
+                                      return { icon: null, color: "#A77590", label: title };
+                                    if (t.includes("strategy") || t.includes("plan") || t.includes("strateg"))
+                                      return { icon: null, color: "#A77590", label: title };
+                                    if (t.includes("analysis") || t.includes("context") || t.includes("evidence"))
+                                      return { icon: null, color: "#A77590", label: title };
+                                    if (t.includes("risk") || t.includes("warning"))
+                                      return { icon: null, color: "#A77590", label: title };
+                                    // All other types — same muted purple
+                                    return { icon: null, color: "#A77590", label: title || "Thinking" };
                                   };
 
                                   return (
@@ -3933,7 +3882,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           className={styles.backButton}
                           onClick={() => setActiveToolView("main")}
                         >
-                          {"<"}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                         </button>
                         <span>Select Indicators</span>
                       </div>
@@ -3987,7 +3936,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           className={styles.backButton}
                           onClick={() => setActiveToolView("main")}
                         >
-                          {"<"}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                         </button>
                         <span>Select Timeframe</span>
                       </div>
@@ -4241,7 +4190,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           className={styles.backButton}
                           onClick={() => setActiveToolView("main")}
                         >
-                          {"<"}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                         </button>
                         <span>More Settings</span>
                       </div>
@@ -4549,43 +4498,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </div >
       {/* Image Overlay */}
-      {expandedImage && (
-        <div
-          className={styles.imageOverlayBackdrop}
-          onClick={closeExpandedImage}
-        >
+      {
+        expandedImage && (
           <div
-            className={styles.imageOverlayContent}
-            onClick={(e) => e.stopPropagation()}
+            className={styles.imageOverlayBackdrop}
+            onClick={closeExpandedImage}
           >
-            <button
-              className={styles.overlayClose}
-              onClick={closeExpandedImage}
+            <div
+              className={styles.imageOverlayContent}
+              onClick={(e) => e.stopPropagation()}
             >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+              <button
+                className={styles.overlayClose}
+                onClick={closeExpandedImage}
               >
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-            <img
-              src={expandedImage.url}
-              alt="Expanded"
-              className={styles.fullImage}
-            />
-            <div className={styles.overlayInfo}>{expandedImage.name}</div>
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+              <img
+                src={expandedImage.url}
+                alt="Expanded"
+                className={styles.fullImage}
+              />
+              <div className={styles.overlayInfo}>{expandedImage.name}</div>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
