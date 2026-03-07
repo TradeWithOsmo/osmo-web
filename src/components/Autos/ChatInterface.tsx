@@ -3807,7 +3807,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             ? `${toolStates.indicators.length}`
                             : ""}
                         </span>
-                        <span className={styles.toolArrow}>{">"}</span>
+                        <span className={styles.toolArrow}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                        </span>
                       </div>
 
                       {/* 4. Timeframe */}
@@ -3830,7 +3832,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             ? `${toolStates.timeframe.length}`
                             : ""}
                         </span>
-                        <span className={styles.toolArrow}>{">"}</span>
+                        <span className={styles.toolArrow}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                        </span>
                       </div>
 
                       {/* 5. Write Permission */}
@@ -3871,7 +3875,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           />
                         </div>
                         <span>More</span>
-                        <span className={styles.toolArrow}>{">"}</span>
+                        <span className={styles.toolArrow}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                        </span>
                       </div>
                     </div>
                   ) : activeToolView === "indicators" ? (
@@ -4208,7 +4214,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             />
                           </div>
                           <span>Style</span>
-                          <span className={styles.toolArrow}>{">"}</span>
+                          <span className={styles.toolArrow}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                          </span>
                         </div>
 
                         <div
