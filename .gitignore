@@ -37,9 +37,14 @@ test-results-run/
 
 
 # Charting library artifacts (keep folder structure only)
+# TradingView Advanced Charts — proprietary license, do not commit library files
+# Obtain from https://www.tradingview.com/charting-library/ and place in these dirs
 public/charting-library.html
 public/charting_library/**
 !public/charting_library/
 !public/charting_library/.gitkeep
-!.env
-!.env.local
+!public/charting_library/branding_custom.css
+
+src/charting/charting_library/**
+!src/charting/charting_library/
+!src/charting/charting_library/.gitkeep
