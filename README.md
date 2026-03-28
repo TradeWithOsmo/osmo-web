@@ -1,21 +1,12 @@
-<table>
-  <tr>
-    <td width="100">
-      <img src="https://raw.githubusercontent.com/TradeWithOsmo/osmo-web/main/public/Logos/icon.png" width="80" height="80" alt="Osmo" />
-    </td>
-    <td>
-      <h1>Osmo Web</h1>
-      <p>AI-powered perpetual DEX aggregator — trade any perp, on any exchange, from one prompt.</p>
-      <p>
-        <img src="https://img.shields.io/badge/Base-0052FF?style=flat-square&logo=ethereum&logoColor=white" />
-        <img src="https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black" />
-        <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" />
-        <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
-        <img src="https://img.shields.io/badge/TradingView-131722?style=flat-square&logo=tradingview&logoColor=white" />
-      </p>
-    </td>
-  </tr>
-</table>
+# Osmo Web
+
+AI-powered perpetual DEX aggregator — trade any perp, on any exchange, from one prompt.
+
+![Base](https://img.shields.io/badge/Base-0052FF?style=flat-square&logo=ethereum&logoColor=white)
+![React 19](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
+![TradingView](https://img.shields.io/badge/TradingView-131722?style=flat-square&logo=tradingview&logoColor=white)
 
 ---
 
