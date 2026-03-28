@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/TradeWithOsmo/osmo-web/main/public/Logos/icon.png" alt="Osmo" width="64" />
+
 # Osmo Web
 
 AI-powered perpetual DEX aggregator — trade any perp, on any exchange, from one prompt.
