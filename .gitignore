@@ -29,6 +29,12 @@ storybook-static
 .env
 secret/
 
+# Build cache
+.vite/
+
+# Deployment scripts / SSH keys
+.deploy/
+
 # Local agent/test artifacts
 .agent/
 test-results/
