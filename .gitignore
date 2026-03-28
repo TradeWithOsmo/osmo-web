@@ -54,3 +54,7 @@ public/charting_library/**
 src/charting/charting_library/**
 !src/charting/charting_library/
 !src/charting/charting_library/.gitkeep
+
+src/charting/commands/**
+!src/charting/commands/
+!src/charting/commands/.gitkeep
