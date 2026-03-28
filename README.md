@@ -1,8 +1,31 @@
-# Osmo Web
+<p align="center">
+  <img src="https://raw.githubusercontent.com/TradeWithOsmo/osmo-web/main/public/Logos/icon.png" width="80" height="80" alt="Osmo" />
+</p>
 
-Frontend for Osmo — an AI-powered perpetual DEX aggregator on Base.
+<h1 align="center">Osmo Web</h1>
 
-Repository: https://github.com/TradeWithOsmo/osmo-web
+<p align="center">
+  AI-powered perpetual DEX aggregator — trade any perp, on any exchange, from one prompt.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Base-0052FF?style=flat-square&logo=ethereum&logoColor=white" />
+  <img src="https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/TradingView-131722?style=flat-square&logo=tradingview&logoColor=white" />
+</p>
+
+---
+
+## Demo
+
+| Trade Terminal | Trade Agent | Extended Features |
+|:---:|:---:|:---:|
+| [![Trade Terminal](https://img.youtube.com/vi/MDkxFkQ4UQM/mqdefault.jpg)](https://youtu.be/MDkxFkQ4UQM?si=AhA39uW_Z4aDyFEy) | [![Trade Agent](https://img.youtube.com/vi/8OY-eTo8L_s/mqdefault.jpg)](https://youtu.be/8OY-eTo8L_s?si=zXhcHnQjuvOQmW4d) | [![Extended Features](https://img.youtube.com/vi/BrGtN-OK0tQ/mqdefault.jpg)](https://youtu.be/BrGtN-OK0tQ?si=O7F9PadfcP4FHwxC) |
+| [▶ Watch](https://youtu.be/MDkxFkQ4UQM?si=AhA39uW_Z4aDyFEy) | [▶ Watch](https://youtu.be/8OY-eTo8L_s?si=zXhcHnQjuvOQmW4d) | [▶ Watch](https://youtu.be/BrGtN-OK0tQ?si=O7F9PadfcP4FHwxC) |
+
+---
 
 ## Stack
 
