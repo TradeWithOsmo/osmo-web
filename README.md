@@ -1,6 +1,6 @@
-# OSMO Web Frontend
+# Osmo Web
 
-Frontend app for trading, portfolio, symbol selector, orderbook/trades, leaderboard, and charting.
+Frontend for Osmo — an AI-powered perpetual DEX aggregator on Base.
 
 Repository: https://github.com/TradeWithOsmo/osmo-web
 
@@ -11,7 +11,7 @@ Repository: https://github.com/TradeWithOsmo/osmo-web
 - Zustand + React Query
 - Privy (embedded wallet)
 - wagmi + viem (on-chain interactions)
-- TradingView integration (`src/charting`)
+- TradingView Advanced Charts (`src/charting`)
 - Playwright + Storybook
 
 ## Prerequisites
@@ -23,8 +23,17 @@ Repository: https://github.com/TradeWithOsmo/osmo-web
 
 ```bash
 npm install
-cp .env.example .env  # or copy from osmo-contracts/.env for contract addresses
+cp .env.example .env
+cp .env.local.example .env.local  # optional local overrides
 ```
+
+> **TradingView Charting Library** — proprietary license required.
+> Apply at https://www.tradingview.com/charting-library/ and place files in:
+> - `src/charting/charting_library/`
+> - `public/charting_library/`
+> - `src/charting/commands/`
+>
+> These folders are gitignored. Only `.gitkeep` files are committed.
 
 ## Run
 
@@ -34,115 +43,59 @@ npm run dev
 
 Default local URL: `http://localhost:5173`
 
-Note: `localhost` is a secure context — Privy embedded wallet works in dev without HTTPS.
+`localhost` is a secure context — Privy embedded wallet works in dev without HTTPS.
 
 ## Scripts
 
 ```bash
-npm run dev
-npm run start
-npm run build
-npm run preview
-npm run lint
-npm run test:e2e
-npm run storybook
-npm run build-storybook
+npm run dev          # development server
+npm run build        # production build
+npm run preview      # preview production build
+npm run lint         # ESLint
+npm run test:e2e     # Playwright e2e tests
+npm run storybook    # Storybook component explorer
 ```
 
 ## Environment Variables
 
-Create `.env` in the project root. Full reference:
+Copy `.env.example` to `.env`. See `.env.example` for the full reference.
 
-### API & Auth
+Key variables:
 
-```env
-VITE_API_URL=http://76.13.219.146:8000
-VITE_PRIVY_APP_ID=<privy_app_id>
-```
+| Variable | Description |
+|---|---|
+| `VITE_API_URL` | Backend API URL |
+| `VITE_PRIVY_APP_ID` | Privy app ID |
+| `VITE_TRADING_EXCHANGE` | `onchain` or `simulation` |
+| `VITE_CHAIN_ID` | `84532` (Base Sepolia) |
+| `VITE_CONTRACT_*` | Contract addresses — copy from `osmo-contracts/.env` |
 
-### Trading Mode
-
-```env
-# onchain: submits real transactions via OrderRouter (requires session key)
-# simulation: bypasses on-chain, uses backend ledger only
-VITE_TRADING_EXCHANGE=onchain
-```
-
-### Wallet / Network
-
-```env
-VITE_WALLET_CONNECT_PROJECT_ID=<wc_project_id>
-VITE_RAINBOWKIT_WALLETCONNECT_PROJECT_ID=<rainbowkit_wc_project_id>
-VITE_BASE_RPC_URL=<base_sepolia_rpc_url>
-VITE_CHAIN_ID=84532
-VITE_NETWORK_NAME=base_sepolia
-VITE_BLOCK_EXPLORER_URL=https://sepolia.basescan.org
-```
-
-### AI / Gemini
-
-```env
-VITE_GEMINI_API_KEY=<gemini_api_key>
-VITE_GEMINI_MODEL=gemini-1.5-flash
-```
-
-### On-Chain Contract Addresses
-
-Source of truth: `osmo-contracts/.env` (populated after deployment).
-
-```env
-VITE_CONTRACT_TRADING_VAULT=<deployed_address>
-VITE_CONTRACT_ORDER_ROUTER=<deployed_address>
-VITE_CONTRACT_POSITION_MANAGER=<deployed_address>
-VITE_CONTRACT_SESSION_KEY_MANAGER=<deployed_address>
-VITE_CONTRACT_OSTIUM_ADAPTER=<deployed_address>
-VITE_CONTRACT_USDC=<deployed_address>
-VITE_CONTRACT_FAUCET=<deployed_address>
-VITE_CONTRACT_AI_VAULT=<deployed_address>
-VITE_CONTRACT_ARENA_CHOOSE_SIDE=<deployed_address>
-VITE_CONTRACT_ARENA_POINTS=<deployed_address>
-VITE_CONTRACT_REFERRAL_REGISTRY=<deployed_address>
-VITE_CONTRACT_FEE_MANAGER=<deployed_address>
-VITE_CONTRACT_SECURITY_MODULE=<deployed_address>
-```
-
-### Arena
-
-```env
-VITE_ARENA_END_ISO=2026-02-20T00:00:00Z
-```
-
-### Optional TradingView Tuning
-
-```env
-VITE_TV_COMMAND_POLL_MS=
-VITE_TV_INITIAL_SYNC_MS=
-VITE_TV_SET_RESOLUTION_TIMEOUT_MS=
-```
+For local API URL overrides, use `.env.local` (see `.env.local.example`).
 
 ## Project Structure
 
-- `src/pages/`: app pages (Trade, Portfolio, Arena, Leaderboard, Usage, Faucet)
-- `src/components/`: UI modules (order form, selector, chart, orderbook, positions)
-- `src/api/`: API clients (markets, portfolio, leaderboard, agent, onchain)
-- `src/charting/`: TradingView datafeeds/utils/commands
-- `src/contracts/abis/`: ABI files used by frontend
-- `src/store/`: Zustand stores
-- `src/hooks/`: custom hooks (useWallet, useNavigation, etc.)
+```
+src/
+├── pages/          # Trade, Portfolio, Arena, Leaderboard, Usage, Faucet
+├── components/     # UI modules (order form, chart, orderbook, positions)
+├── api/            # API clients (markets, portfolio, agent, onchain)
+├── charting/       # TradingView datafeeds, utils (charting_library + commands gitignored)
+├── contracts/abis/ # ABI files
+├── store/          # Zustand stores
+└── hooks/          # useWallet, useNavigation, etc.
+```
 
 ## On-Chain Order Flow
 
-1. User deposits USDC into TradingVault
-2. User sets up a session key (SessionKeyManager) — allows backend to sign on their behalf
-3. User places order via OrderForm → calls backend `/api/orders/place`
-4. Backend signs + submits tx to OrderRouter using session key
-5. OrderRouter routes to correct adapter (Ostium, Hyperliquid via LZ, etc.)
-6. For Hyperliquid: LZ message sent Base Sepolia → Arb Sepolia receiver
+1. User deposits USDC → `TradingVault`
+2. User creates session key → `SessionKeyManager` (allows backend to sign on their behalf)
+3. User places order → backend `/api/orders/place`
+4. Backend signs + submits tx → `OrderRouter`
+5. `OrderRouter` routes to exchange adapter (Ostium, Hyperliquid via LZ, etc.)
+6. For Hyperliquid: LayerZero message Base Sepolia → Arb Sepolia receiver
 
 ## Runtime Notes
 
-- Frontend expects backend API + websocket running (typically `http://76.13.219.146:8000` for staging).
+- Requires backend API + websocket running. Set `VITE_API_URL` in `.env.local` to point to your backend.
 - For symbol selector/orderbook consistency, ensure backend websocket connectors are healthy.
-- TradingView assets are expected in:
-  - `public/charting_library/`
-  - `src/charting/charting_library/`
+- TradingView assets must be placed manually in the gitignored folders (see Setup above).
